@@ -17,12 +17,19 @@ class LaporanController extends Controller
     {
         $jabatans = Jabatan::with([
             'users' => function ($query) {
-                $query->whereHas('berkasDiTangan', function ($subQuery) {
-                    $subQuery->whereIn('status', ['Diproses', 'Pending']);
-                })
-                ->withCount(['berkasDiTangan' => function ($subQuery) {
-                    $subQuery->whereIn('status', ['Diproses', 'Pending']);
-                }]);
+                // Ambil data user beserta hitungan berkasnya
+                $query->withCount([
+                    // Menghitung jumlah record di tabel riwayat_berkas dimana ke_user_id = user ini
+                    'riwayatDiterima as total_masuk', 
+                    
+                    // Menghitung jumlah record di tabel riwayat_berkas dimana dari_user_id = user ini
+                    'riwayatDikirim as total_keluar',
+
+                    // Hitung sisa berkas yang masih dipegang (status Diproses/Pending)
+                    'berkasDiTangan as sisa_berkas' => function ($q) {
+                        $q->whereIn('status', ['Diproses', 'Pending']);
+                    }
+                ]);
             }
         ])
         ->orderByRaw("CASE WHEN nama_jabatan = 'Kepala Kantor Pertanahan' THEN 0 ELSE 1 END ASC")

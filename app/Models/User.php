@@ -63,4 +63,16 @@ class User extends Authenticatable
     {
         return $this->hasOne(PetugasUkur::class, 'user_id');
     }
+
+    // Relasi untuk menghitung Berkas Masuk (User sebagai Penerima)
+    public function riwayatDiterima()
+    {
+        return $this->hasMany(RiwayatBerkas::class, 'ke_user_id');
+    }
+
+    // Relasi untuk menghitung Berkas Keluar (User sebagai Pengirim)
+    public function riwayatDikirim()
+    {
+        return $this->hasMany(RiwayatBerkas::class, 'dari_user_id');
+    }
 }
