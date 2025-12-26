@@ -85,18 +85,28 @@ class LaporanController extends Controller
         ]);
     }
     
-    public function show($id)
+    public function showBerkasByUser1(User $user)
     {
-        // 1. Ambil data berkas berdasarkan ID
-        // Pastikan pakai 'with' jika di view memanggil relasi (contoh: user, pemohon, dll)
-        $berkas = \App\Models\Berkas::with(['user', 'jenisPermohonan', 'kecamatan', 'desa'])->find($id);
+        $daftarBerkas = $user->berkasDiTangan()->with('jenisPermohonan')->latest()->get();
 
-        // 2. Cek jika berkas tidak ditemukan (biar tidak error blank)
-        if (!$berkas) {
-            return redirect()->back()->with('error', 'Berkas tidak ditemukan.');
+        // Untuk setiap berkas, cari waktu kirim dari loket pembayaran
+        foreach ($daftarBerkas as $berkas) {
+            $riwayatPembayaran = $berkas->riwayat()
+                ->whereHas('dariUser.jabatan', function ($query) {
+                    // Cari riwayat di mana pengirimnya adalah Petugas Loket Pembayaran
+                    $query->where('nama_jabatan', 'Petugas Loket Pembayaran');
+                })
+                ->orderBy('waktu_kirim', 'asc') // Ambil yang paling awal
+                ->first();
+            
+            // Jika ada riwayat dari loket pembayaran, gunakan waktu kirimnya.
+            // Jika tidak, gunakan waktu pembuatan berkas sebagai fallback.
+            $berkas->waktu_mulai_argo = $riwayatPembayaran ? $riwayatPembayaran->waktu_kirim : $berkas->created_at;
         }
 
-        // 3. Kirim variabel '$berkas' ke view
-        return view('laporan.show_berkas_by_user', compact('berkas')); 
+        return view('laporan.show_berkas_by_user', [
+            'petugas' => $user,
+            'daftarBerkas' => $daftarBerkas
+        ]);
     }
 }
