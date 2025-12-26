@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RiwayatBerkas;
 use App\Models\User;
 use App\Models\Jabatan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+
 
 class LaporanController extends Controller
 {
@@ -40,27 +42,39 @@ class LaporanController extends Controller
      */
     public function showBerkasByUser(User $user)
     {
-        $daftarBerkas = $user->berkasDiTangan()->with('jenisPermohonan')->latest()->get();
+        // 1. Berkas MASUK (Dimana user ini adalah PENERIMA / ke_user_id)
+        // Kita load 'dariUser' untuk tahu siapa pengirimnya
+        $berkasMasuk = RiwayatBerkas::with(['berkas.jenisPermohonan', 'dariUser'])
+            ->where('ke_user_id', $user->id)
+            ->latest()
+            ->get();
 
-        // Untuk setiap berkas, cari waktu kirim dari loket pembayaran
-        foreach ($daftarBerkas as $berkas) {
-            $riwayatPembayaran = $berkas->riwayat()
-                ->whereHas('dariUser.jabatan', function ($query) {
-                    // Cari riwayat di mana pengirimnya adalah Petugas Loket Pembayaran
-                    $query->where('nama_jabatan', 'Petugas Loket Pembayaran');
-                })
-                ->orderBy('waktu_kirim', 'asc') // Ambil yang paling awal
-                ->first();
-            
-            // Jika ada riwayat dari loket pembayaran, gunakan waktu kirimnya.
-            // Jika tidak, gunakan waktu pembuatan berkas sebagai fallback.
-            $berkas->waktu_mulai_argo = $riwayatPembayaran ? $riwayatPembayaran->waktu_kirim : $berkas->created_at;
+        // 2. Berkas KELUAR (Dimana user ini adalah PENGIRIM / dari_user_id)
+        // Kita load 'keUser' untuk tahu dikirim ke siapa selanjutnya
+        $berkasKeluar = RiwayatBerkas::with(['berkas.jenisPermohonan', 'keUser'])
+            ->where('dari_user_id', $user->id)
+            ->latest()
+            ->get();
+
+        // 3. Hitung Statistik Performa
+        $totalMasuk = $berkasMasuk->count();
+        $totalKeluar = $berkasKeluar->count();
+        
+        // Hitung persentase produktivitas (Keluar dibagi Masuk)
+        $persentasePenyelesaian = 0;
+        if($totalMasuk > 0){
+             $persentasePenyelesaian = round(($totalKeluar / $totalMasuk) * 100, 1);
         }
 
-        return view('laporan.show_berkas_by_user', [
-            'petugas' => $user,
-            'daftarBerkas' => $daftarBerkas
-        ]);
+        // Return ke view yang sama dengan data yang lebih lengkap
+        return view('laporan.show_berkas_by_user', compact(
+            'user', 
+            'berkasMasuk', 
+            'berkasKeluar', 
+            'totalMasuk', 
+            'totalKeluar',
+            'persentasePenyelesaian'
+        ));
     }
 }
 

@@ -25,4 +25,10 @@ class RiwayatBerkas extends Model
     {
         return $this->belongsTo(User::class, 'ke_user_id');
     }
+
+        // Di app/Models/RiwayatBerkas.php
+    public function targetUser()
+    {
+        return $this->belongsTo(User::class, 'target_user_id');
+    }
 }
