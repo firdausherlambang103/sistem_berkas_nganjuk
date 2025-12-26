@@ -2,18 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\RiwayatBerkas;
 use App\Models\User;
 use App\Models\Jabatan;
+use App\Models\RiwayatBerkas; // Pastikan Model ini di-import
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
 
 class LaporanController extends Controller
 {
     /**
-     * Menampilkan halaman laporan statistik.
-     * Logika telah diubah untuk mengelompokkan user per jabatan.
+     * Menampilkan halaman laporan statistik (Index).
      */
     public function index()
     {
@@ -37,44 +35,43 @@ class LaporanController extends Controller
     }
 
     /**
-     * Menampilkan rincian berkas yang dipegang oleh seorang user.
-     * Fungsi ini sekarang mengambil data waktu mulai "argo" dari riwayat berkas.
+     * Menampilkan rincian berkas (Masuk & Keluar) user beserta performanya.
      */
     public function showBerkasByUser(User $user)
     {
-        // 1. Berkas MASUK (Dimana user ini adalah PENERIMA / ke_user_id)
-        // Kita load 'dariUser' untuk tahu siapa pengirimnya
+        // 1. DATA BERKAS MASUK 
+        // (User ini sebagai penerima/ke_user_id). Kita load 'dariUser' untuk tahu pengirimnya.
         $berkasMasuk = RiwayatBerkas::with(['berkas.jenisPermohonan', 'dariUser'])
             ->where('ke_user_id', $user->id)
             ->latest()
             ->get();
 
-        // 2. Berkas KELUAR (Dimana user ini adalah PENGIRIM / dari_user_id)
-        // Kita load 'keUser' untuk tahu dikirim ke siapa selanjutnya
+        // 2. DATA BERKAS KELUAR 
+        // (User ini sebagai pengirim/dari_user_id). Kita load 'keUser' untuk tahu tujuannya.
         $berkasKeluar = RiwayatBerkas::with(['berkas.jenisPermohonan', 'keUser'])
             ->where('dari_user_id', $user->id)
             ->latest()
             ->get();
 
-        // 3. Hitung Statistik Performa
+        // 3. HITUNG STATISTIK PERFORMA
         $totalMasuk = $berkasMasuk->count();
         $totalKeluar = $berkasKeluar->count();
         
-        // Hitung persentase produktivitas (Keluar dibagi Masuk)
+        // Rasio Produktivitas: (Keluar / Masuk) * 100
         $persentasePenyelesaian = 0;
         if($totalMasuk > 0){
              $persentasePenyelesaian = round(($totalKeluar / $totalMasuk) * 100, 1);
         }
 
-        // Return ke view yang sama dengan data yang lebih lengkap
-        return view('laporan.show_berkas_by_user', compact(
-            'user', 
-            'berkasMasuk', 
-            'berkasKeluar', 
-            'totalMasuk', 
-            'totalKeluar',
-            'persentasePenyelesaian'
-        ));
+        // Return ke View
+        return view('laporan.show_berkas_by_user', [
+            'petugas' => $user, // Tetap gunakan variabel 'petugas' agar kompatibel
+            'user' => $user,    // Tambahkan alias 'user' untuk fleksibilitas
+            'berkasMasuk' => $berkasMasuk,
+            'berkasKeluar' => $berkasKeluar,
+            'totalMasuk' => $totalMasuk,
+            'totalKeluar' => $totalKeluar,
+            'persentasePenyelesaian' => $persentasePenyelesaian
+        ]);
     }
 }
-
