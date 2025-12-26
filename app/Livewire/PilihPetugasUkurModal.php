@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\PetugasUkur;
 use App\Models\Kecamatan;
+use App\Models\User;
 
 class PilihPetugasUkurModal extends Component
 {
@@ -38,16 +39,22 @@ class PilihPetugasUkurModal extends Component
      * Aksi saat seorang petugas dipilih dari daftar.
      * Mengirim event kembali ke JavaScript di halaman.
      */
-    public function pilihPetugas($petugasUkurId)
+    class PilihPetugasUkurModal extends Component
     {
-        $petugas = PetugasUkur::with('user')->find($petugasUkurId);
-        if ($petugas) {
-            $this->dispatch('petugasUkurDipilih', [
-                'id' => $petugas->id,
-                'nama' => $petugas->user->name
-            ]);
+        // Wajib public agar bisa dibaca di view/modal
+        public $petugas; 
+        public $selectedPetugasId;
+        
+        public function mount()
+        {
+            // Isi data awal jika perlu
+            $this->petugas = User::where('jabatan', 'Petugas Ukur')->get();
         }
-        $this->closeModal();
+
+        public function render()
+        {
+            return view('livewire.pilih-petugas-ukur-modal');
+        }
     }
 
     /**

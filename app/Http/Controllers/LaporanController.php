@@ -84,4 +84,19 @@ class LaporanController extends Controller
             'persentasePenyelesaian' => $persentasePenyelesaian
         ]);
     }
+    
+    public function show($id)
+    {
+        // 1. Ambil data berkas berdasarkan ID
+        // Pastikan pakai 'with' jika di view memanggil relasi (contoh: user, pemohon, dll)
+        $berkas = \App\Models\Berkas::with(['user', 'jenisPermohonan', 'kecamatan', 'desa'])->find($id);
+
+        // 2. Cek jika berkas tidak ditemukan (biar tidak error blank)
+        if (!$berkas) {
+            return redirect()->back()->with('error', 'Berkas tidak ditemukan.');
+        }
+
+        // 3. Kirim variabel '$berkas' ke view
+        return view('laporan.show_berkas_by_user', compact('berkas')); 
+    }
 }
