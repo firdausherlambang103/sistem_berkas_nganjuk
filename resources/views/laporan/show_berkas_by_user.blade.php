@@ -5,7 +5,7 @@
                 <i class="fa-solid fa-arrow-left"></i>
             </a>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Rincian Kinerja: <span class="text-indigo-600">{{ $petugas->name }}</span>
+                Detail Kinerja: <span class="text-indigo-600">{{ $user->name }}</span>
             </h2>
         </div>
     </x-slot>
@@ -13,95 +13,104 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border-l-4 border-yellow-400">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
-                            <i class="fas fa-inbox fa-2x"></i>
-                        </div>
+                    <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500 text-sm">Total Berkas Masuk</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ $totalMasuk }}</p>
+                            <p class="text-gray-500 text-sm font-medium">Sedang Diproses (Tanggungan)</p>
+                            <p class="text-3xl font-bold text-gray-800 mt-1">{{ $totalMasuk }}</p>
+                        </div>
+                        <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                            <i class="fas fa-inbox fa-2x"></i>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border-l-4 border-green-400">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
-                            <i class="fas fa-paper-plane fa-2x"></i>
-                        </div>
+                    <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500 text-sm">Total Berkas Keluar</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ $totalKeluar }}</p>
+                            <p class="text-gray-500 text-sm font-medium">Sudah Diselesaikan (Riwayat)</p>
+                            <p class="text-3xl font-bold text-gray-800 mt-1">{{ $totalKeluar }}</p>
+                        </div>
+                        <div class="p-3 rounded-full bg-green-100 text-green-600">
+                            <i class="fas fa-check-circle fa-2x"></i>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 border-l-4 border-blue-400">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm font-medium">Tingkat Penyelesaian</p>
+                            <p class="text-3xl font-bold text-gray-800 mt-1">{{ $persentasePenyelesaian }}%</p>
+                        </div>
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600">
                             <i class="fas fa-chart-line fa-2x"></i>
                         </div>
-                        <div>
-                            <p class="text-gray-500 text-sm">Produktivitas</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ $persentasePenyelesaian }}%</p>
-                        </div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-4">
+                        <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ $persentasePenyelesaian }}%"></div>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg" x-data="{ tab: 'masuk' }">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg" x-data="{ activeTab: 'masuk' }">
                 
                 <div class="border-b border-gray-200">
-                    <nav class="-mb-px flex">
-                        <button @click="tab = 'masuk'" 
-                            :class="{ 'border-indigo-500 text-indigo-600': tab === 'masuk', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': tab !== 'masuk' }"
-                            class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-arrow-down mr-2"></i> Berkas Masuk (Diterima)
-                        </button>
-                        <button @click="tab = 'keluar'" 
-                            :class="{ 'border-indigo-500 text-indigo-600': tab === 'keluar', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': tab !== 'keluar' }"
-                            class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-arrow-up mr-2"></i> Berkas Keluar (Dikirim)
-                        </button>
-                    </nav>
+                    <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" role="tablist">
+                        <li class="mr-2" role="presentation">
+                            <button @click="activeTab = 'masuk'" 
+                                :class="activeTab === 'masuk' ? 'inline-block p-4 text-indigo-600 border-b-2 border-indigo-600 rounded-t-lg active' : 'inline-block p-4 text-gray-500 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300'"
+                                type="button">
+                                <i class="fas fa-briefcase mr-2"></i>Berkas Di Tangan (Masuk)
+                            </button>
+                        </li>
+                        <li class="mr-2" role="presentation">
+                            <button @click="activeTab = 'keluar'" 
+                                :class="activeTab === 'keluar' ? 'inline-block p-4 text-green-600 border-b-2 border-green-600 rounded-t-lg active' : 'inline-block p-4 text-gray-500 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300'"
+                                type="button">
+                                <i class="fas fa-history mr-2"></i>Riwayat Proses (Keluar)
+                            </button>
+                        </li>
+                    </ul>
                 </div>
 
                 <div class="p-6">
-                    <div x-show="tab === 'masuk'" x-transition.opacity>
+                    <div x-show="activeTab === 'masuk'" x-transition>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Daftar Berkas yang Sedang Diproses</h3>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Berkas</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pengirim</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Waktu Terima</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Catatan</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">No Berkas</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Jenis Permohonan</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Pemohon</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status Saat Ini</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @forelse ($berkasMasuk as $bm)
                                         <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">
+                                                <a href="{{ route('berkas.show', $bm->id) }}">{{ $bm->nomor_berkas }}</a>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                {{ $bm->jenisPermohonan->nama_jenis ?? '-' }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                {{ $bm->nama_pemohon }}
+                                            </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <a href="{{ route('berkas.show', $bm->berkas_id) }}" class="text-indigo-600 font-bold hover:underline">
-                                                    {{ $bm->berkas->nomor_berkas ?? '-' }}
-                                                </a>
-                                                <div class="text-xs text-gray-500">{{ $bm->berkas->jenisPermohonan->nama_jenis ?? 'Jenis tidak diketahui' }}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $bm->dariUser->name ?? 'Sistem / Loket' }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $bm->created_at->format('d M Y, H:i') }}
-                                            </td>
-                                            <td class="px-6 py-4 text-sm text-gray-500 italic">
-                                                {{ $bm->catatan_pengiriman ?? '-' }}
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                    {{ $bm->status }}
+                                                </span>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">Belum ada berkas masuk.</td>
+                                            <td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">
+                                                Tidak ada berkas yang sedang dikerjakan.
+                                            </td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -109,39 +118,47 @@
                         </div>
                     </div>
 
-                    <div x-show="tab === 'keluar'" style="display: none;" x-transition.opacity>
+                    <div x-show="activeTab === 'keluar'" style="display: none;" x-transition>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Riwayat Berkas yang Telah Diproses</h3>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Berkas</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Dikirim Ke</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Waktu Kirim</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Catatan</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">No Berkas</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Jenis Permohonan</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status / Aksi</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Keterangan</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Waktu Proses</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @forelse ($berkasKeluar as $bk)
                                         <tr class="hover:bg-gray-50">
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <a href="{{ route('berkas.show', $bk->berkas_id) }}" class="text-indigo-600 font-bold hover:underline">
-                                                    {{ $bk->berkas->nomor_berkas ?? '-' }}
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">
+                                                <a href="{{ route('berkas.show', $bk->berkas_id) }}">
+                                                    {{ $bk->berkas->nomor_berkas ?? 'Berkas Terhapus' }}
                                                 </a>
-                                                <div class="text-xs text-gray-500">{{ $bk->berkas->jenisPermohonan->nama_jenis ?? 'Jenis tidak diketahui' }}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $bk->keUser->name ?? 'Selesai / Arsip' }}
+                                                {{ $bk->berkas->jenisPermohonan->nama_jenis ?? '-' }}
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                    {{ $bk->status }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">
+                                                {{ Str::limit($bk->keterangan, 30) }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {{ $bk->created_at->format('d M Y, H:i') }}
-                                            </td>
-                                            <td class="px-6 py-4 text-sm text-gray-500 italic">
-                                                {{ $bk->catatan_pengiriman ?? '-' }}
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">Belum ada berkas keluar.</td>
+                                            <td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">
+                                                Belum ada riwayat pengerjaan.
+                                            </td>
                                         </tr>
                                     @endforelse
                                 </tbody>

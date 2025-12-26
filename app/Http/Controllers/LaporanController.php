@@ -46,34 +46,37 @@ class LaporanController extends Controller
      */
     public function showBerkasByUser(User $user)
     {
-        // 1. DATA BERKAS MASUK 
-        // (User ini sebagai penerima/ke_user_id). Kita load 'dariUser' untuk tahu pengirimnya.
-        $berkasMasuk = RiwayatBerkas::with(['berkas.jenisPermohonan', 'dariUser'])
-            ->where('ke_user_id', $user->id)
+        // 1. BERKAS MASUK (INBOX)
+        // Definisi: Berkas yang saat ini POSISI-nya ada di user ini (Tanggungan).
+        // Menggunakan relasi 'berkasDiTangan' yang sudah terbukti jalan di halaman Index.
+        $berkasMasuk = $user->berkasDiTangan()
+            ->with(['jenisPermohonan']) // Load data jenis permohonan
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // 2. BERKAS KELUAR (OUTBOX / HISTORY)
+        // Definisi: Riwayat di mana user ini bertindak sebagai pemroses (user_id).
+        $berkasKeluar = RiwayatBerkas::with(['berkas.jenisPermohonan'])
+            ->where('user_id', $user->id) // Where user ini adalah PELAKU
             ->latest()
             ->get();
 
-        // 2. DATA BERKAS KELUAR 
-        // (User ini sebagai pengirim/dari_user_id). Kita load 'keUser' untuk tahu tujuannya.
-        $berkasKeluar = RiwayatBerkas::with(['berkas.jenisPermohonan', 'keUser'])
-            ->where('dari_user_id', $user->id)
-            ->latest()
-            ->get();
-
-        // 3. HITUNG STATISTIK PERFORMA
-        $totalMasuk = $berkasMasuk->count();
-        $totalKeluar = $berkasKeluar->count();
+        // 3. HITUNG STATISTIK
+        $totalMasuk = $berkasMasuk->count(); // Beban kerja saat ini
+        $totalKeluar = $berkasKeluar->count(); // Total yang sudah diselesaikan
         
-        // Rasio Produktivitas: (Keluar / Masuk) * 100
+        // Hitung Performa (Rasio Selesai vs Total Beban)
+        // Rumus: Total Selesai / (Total Selesai + Sedang Dikerjakan)
+        $totalBebanKerja = $totalKeluar + $totalMasuk;
         $persentasePenyelesaian = 0;
-        if($totalMasuk > 0){
-             $persentasePenyelesaian = round(($totalKeluar / $totalMasuk) * 100, 1);
+        
+        if($totalBebanKerja > 0){
+             $persentasePenyelesaian = round(($totalKeluar / $totalBebanKerja) * 100, 1);
         }
 
-        // Return ke View
         return view('laporan.show_berkas_by_user', [
-            'petugas' => $user, // Tetap gunakan variabel 'petugas' agar kompatibel
-            'user' => $user,    // Tambahkan alias 'user' untuk fleksibilitas
+            'petugas' => $user,
+            'user' => $user, // Alias untuk keamanan view
             'berkasMasuk' => $berkasMasuk,
             'berkasKeluar' => $berkasKeluar,
             'totalMasuk' => $totalMasuk,
