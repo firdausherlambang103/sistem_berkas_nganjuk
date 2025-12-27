@@ -32,7 +32,6 @@
 
                             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-md transition-shadow duration-200 border border-gray-100 relative">
                                 <div class="p-6">
-                                    <!-- Badge Harian -->
                                     <div class="absolute top-0 right-0 mt-4 mr-4 bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-green-400">
                                         Hari Ini: {{ $harian }}
                                     </div>
