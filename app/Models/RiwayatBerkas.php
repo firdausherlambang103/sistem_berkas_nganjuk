@@ -9,26 +9,24 @@ class RiwayatBerkas extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'berkas_id', 'dari_user_id', 'ke_user_id',
-        'waktu_kirim', 'catatan_pengiriman'
-    ];
+    protected $table = 'riwayat_berkas';
+    protected $guarded = ['id'];
 
-    // Relasi: Satu Riwayat pasti terkait dengan satu User pengirim
+    // Relasi ke Berkas Utama
+    public function berkas()
+    {
+        return $this->belongsTo(Berkas::class, 'berkas_id');
+    }
+
+    // Relasi ke User Pengirim (Digunakan untuk logika Argo Loket Pembayaran)
     public function dariUser()
     {
         return $this->belongsTo(User::class, 'dari_user_id');
     }
 
-    // Relasi: Satu Riwayat pasti terkait dengan satu User penerima
+    // Relasi ke User Penerima (Digunakan untuk menampilkan kepada siapa berkas dikirim)
     public function keUser()
     {
         return $this->belongsTo(User::class, 'ke_user_id');
-    }
-
-        // Di app/Models/RiwayatBerkas.php
-    public function targetUser()
-    {
-        return $this->belongsTo(User::class, 'target_user_id');
     }
 }
