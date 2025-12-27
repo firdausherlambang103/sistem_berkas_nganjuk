@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+// Import SoftDeletes agar tidak error "Class not found"
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\Jabatan;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -21,8 +22,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'jabatan_id',
         'is_approved',
-        'jabatan_id', // <-- TAMBAHKAN INI
     ];
 
     /**
@@ -43,36 +44,58 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_approved' => 'boolean',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | RELASI (RELATIONSHIPS)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Relasi ke Jabatan
+     */
     public function jabatan()
     {
-        // Pastikan parameter kedua adalah 'jabatan_id'
-        return $this->belongsTo(Jabatan::class, 'jabatan_id');
+        return $this->belongsTo(Jabatan::class);
     }
 
     /**
-     * Relasi untuk mendapatkan berkas yang sedang dipegang user.
+     * Relasi: Berkas yang sedang dipegang user saat ini.
+     * Digunakan di LaporanController untuk menghitung 'sisa_berkas'.
+     * KOREKSI: Kolom foreign key adalah 'posisi_sekarang_user_id', BUKAN 'user_id'.
+     * MODIFIKASI: Filter agar berkas yang 'Ditutup' tidak muncul.
      */
     public function berkasDiTangan()
     {
-        return $this->hasMany(Berkas::class, 'posisi_sekarang_user_id');
+        return $this->hasMany(Berkas::class, 'posisi_sekarang_user_id')
+                    ->where('status', '!=', 'Ditutup');
     }
 
-    public function petugasUkur()
-    {
-        return $this->hasOne(PetugasUkur::class, 'user_id');
-    }
-
-    // Relasi untuk menghitung Berkas Masuk (User sebagai Penerima)
+    /**
+     * Relasi: Riwayat berkas yang pernah DITERIMA user.
+     * Digunakan di LaporanController untuk menghitung 'total_masuk'.
+     */
     public function riwayatDiterima()
     {
         return $this->hasMany(RiwayatBerkas::class, 'ke_user_id');
     }
 
-    // Relasi untuk menghitung Berkas Keluar (User sebagai Pengirim)
+    /**
+     * Relasi: Riwayat berkas yang pernah DIKIRIM user.
+     * Digunakan di LaporanController untuk menghitung 'total_keluar'.
+     */
     public function riwayatDikirim()
     {
         return $this->hasMany(RiwayatBerkas::class, 'dari_user_id');
+    }
+    
+    /**
+     * Relasi: Tim dimana user menjadi anggota.
+     */
+    public function tims()
+    {
+        return $this->belongsToMany(Tim::class, 'tim_user');
     }
 }

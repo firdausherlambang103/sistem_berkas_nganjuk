@@ -8,19 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // PERBAIKAN: Cek dulu apakah tabel 'tims' sudah ada?
-        // Jika BELUM ada (!), baru buat. Jika sudah ada, lewati.
+        // PENGAMAN: Hanya buat tabel 'tims' jika belum ada di database
         if (!Schema::hasTable('tims')) {
             Schema::create('tims', function (Blueprint $table) {
                 $table->id();
                 $table->string('nama_tim')->unique();
-                $table->string('nomor_sk')->nullable();
-                $table->date('tanggal_sk')->nullable();
+                $table->string('nomor_sk')->nullable(); // Kolom ini dibuat disini
+                $table->date('tanggal_sk')->nullable(); // Kolom ini dibuat disini
                 $table->timestamps();
             });
         }
 
-        // PERBAIKAN: Cek dulu apakah tabel pivot 'tim_user' sudah ada?
+        // PENGAMAN: Hanya buat tabel pivot jika belum ada
         if (!Schema::hasTable('tim_user')) {
             Schema::create('tim_user', function (Blueprint $table) {
                 $table->id();

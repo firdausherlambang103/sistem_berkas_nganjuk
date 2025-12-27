@@ -18,17 +18,25 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         @foreach($jabatan->users as $user)
                             @php
-                                // Hitung Performa di View (Presentase)
+                                // Hitung Performa Total (Presentase)
                                 $masuk = $user->total_masuk;
                                 $keluar = $user->total_keluar;
                                 $persen = $masuk > 0 ? round(($keluar / $masuk) * 100) : 0;
                                 
-                                // Tentukan warna performa
+                                // Tentukan warna performa total
                                 $warnaRing = $persen >= 80 ? 'text-green-500' : ($persen >= 50 ? 'text-yellow-500' : 'text-red-500');
+                                
+                                // Ambil Produktivitas Harian (yang sudah dihitung di Controller)
+                                $harian = $user->produktivitas_harian;
                             @endphp
 
-                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-md transition-shadow duration-200 border border-gray-100">
+                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-md transition-shadow duration-200 border border-gray-100 relative">
                                 <div class="p-6">
+                                    <!-- Badge Harian -->
+                                    <div class="absolute top-0 right-0 mt-4 mr-4 bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-green-400">
+                                        Hari Ini: {{ $harian }}
+                                    </div>
+
                                     <div class="flex items-center justify-between mb-4">
                                         <div class="flex items-center">
                                             <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold mr-3">
@@ -39,7 +47,10 @@
                                                 <p class="text-xs text-gray-500">{{ $jabatan->nama_jabatan }}</p>
                                             </div>
                                         </div>
-                                        <a href="{{ route('laporan.berkas_by_user', $user->id) }}" class="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full hover:bg-indigo-100 transition">
+                                    </div>
+                                    
+                                    <div class="flex justify-end mb-2">
+                                         <a href="{{ route('laporan.berkas_by_user', $user->id) }}" class="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full hover:bg-indigo-100 transition">
                                             Detail <i class="fas fa-arrow-right ml-1"></i>
                                         </a>
                                     </div>
@@ -63,7 +74,7 @@
 
                                     <div class="mt-4">
                                         <div class="flex justify-between items-end mb-1">
-                                            <span class="text-xs font-semibold text-gray-600">Produktivitas</span>
+                                            <span class="text-xs font-semibold text-gray-600">Produktivitas Total</span>
                                             <span class="text-xs font-bold {{ $warnaRing }}">{{ $persen }}%</span>
                                         </div>
                                         <div class="w-full bg-gray-200 rounded-full h-2">
