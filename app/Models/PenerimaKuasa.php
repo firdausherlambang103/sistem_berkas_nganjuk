@@ -17,7 +17,6 @@ class PenerimaKuasa extends Model
         'nomer_wa',
     ];
 
-    // Relasi ke Berkas
     public function berkas()
     {
         return $this->hasMany(Berkas::class, 'penerima_kuasa_id');
