@@ -11,6 +11,7 @@ use App\Models\Desa;
 use App\Models\JenisPermohonan;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use App\Models\PenerimaKuasa;
 
 
 class ManajemenController extends Controller
@@ -243,6 +244,52 @@ class ManajemenController extends Controller
         }
 
         return redirect()->back()->with('success', 'Pengaturan area kerja berhasil diperbarui.');
+    }
+
+    // ==========================================
+    // MANAJEMEN PENERIMA KUASA
+    // ==========================================
+
+    public function kuasaIndex()
+    {
+        $kuasas = PenerimaKuasa::orderBy('nama_kuasa', 'asc')->get();
+        return view('admin.manajemen.kuasa', compact('kuasas'));
+    }
+
+    public function kuasaStore(Request $request)
+    {
+        $request->validate([
+            'kode_kuasa' => 'required|string|unique:penerima_kuasas,kode_kuasa|max:50',
+            'nama_kuasa' => 'required|string|max:255',
+            'nomer_wa'   => 'required|string|max:20',
+        ]);
+
+        PenerimaKuasa::create($request->all());
+
+        return redirect()->back()->with('success', 'Penerima Kuasa berhasil ditambahkan.');
+    }
+
+    public function kuasaUpdate(Request $request, PenerimaKuasa $kuasa)
+    {
+        $request->validate([
+            'kode_kuasa' => 'required|string|max:50|unique:penerima_kuasas,kode_kuasa,' . $kuasa->id,
+            'nama_kuasa' => 'required|string|max:255',
+            'nomer_wa'   => 'required|string|max:20',
+        ]);
+
+        $kuasa->update($request->all());
+
+        return redirect()->back()->with('success', 'Data Penerima Kuasa berhasil diperbarui.');
+    }
+
+    public function kuasaDestroy(PenerimaKuasa $kuasa)
+    {
+        try {
+            $kuasa->delete();
+            return redirect()->back()->with('success', 'Penerima Kuasa berhasil dihapus.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menghapus data. Mungkin data sedang digunakan pada berkas.');
+        }
     }
 }
 

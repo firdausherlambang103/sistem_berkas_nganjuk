@@ -106,6 +106,9 @@
                         <x-dropdown-link :href="route('profile.edit')">
                             {{ __('Profile') }}
                         </x-dropdown-link>
+                        <x-dropdown-link :href="route('admin.kuasa.index')">
+                            {{ __('Manajemen Penerima Kuasa') }}
+                        </x-dropdown-link>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <x-dropdown-link :href="route('logout')"
@@ -193,6 +196,7 @@
                             <x-responsive-nav-link :href="route('admin.permohonan.index')">
                                 {{ __('Manajemen Jenis Permohonan') }}
                             </x-responsive-nav-link>
+                            
                         </div>
                     </div>
                 @endif

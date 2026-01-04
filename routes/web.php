@@ -89,6 +89,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
+    //kuasa
+    Route::get('/penerima-kuasa', [ManajemenController::class, 'kuasaIndex'])->name('kuasa.index');
+    Route::post('/penerima-kuasa', [ManajemenController::class, 'kuasaStore'])->name('kuasa.store');
+    Route::patch('/penerima-kuasa/{kuasa}', [ManajemenController::class, 'kuasaUpdate'])->name('kuasa.update');
+    Route::delete('/penerima-kuasa/{kuasa}', [ManajemenController::class, 'kuasaDestroy'])->name('kuasa.destroy');
+
     // Manajemen Jabatan
     Route::get('/jabatan', [ManajemenController::class, 'jabatanIndex'])->name('jabatan.index');
     Route::post('/jabatan', [ManajemenController::class, 'jabatanStore'])->name('jabatan.store');
