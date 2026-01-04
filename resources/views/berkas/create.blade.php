@@ -22,7 +22,7 @@
                                 <x-input-error :messages="$errors->get('nomer_berkas')" class="mt-2" />
                             </div>
                             <div>
-                                <x-input-label for="nama_pemohon" value="Nama Pemohon / Kuasa" />
+                                <x-input-label for="nama_pemohon" value="Nama Pemohon" />
                                 <x-text-input id="nama_pemohon" name="nama_pemohon" type="text" class="mt-1 block w-full" :value="old('nama_pemohon')" required />
                                 <x-input-error :messages="$errors->get('nama_pemohon')" class="mt-2" />
                             </div>
@@ -84,17 +84,40 @@
                                 <x-input-error :messages="$errors->get('desa')" class="mt-2" />
                             </div>
                             <div>
-                                <x-input-label for="nomer_wa" value="Nomer WhatsApp (Opsional)" />
+                                <x-input-label for="nomer_wa" value="Nomer WhatsApp Pemohon (Opsional)" />
                                 <x-text-input id="nomer_wa" name="nomer_wa" type="text" class="mt-1 block w-full" :value="old('nomer_wa')" />
                                 <x-input-error :messages="$errors->get('nomer_wa')" class="mt-2" />
                             </div>
-                        </div>
+
+                            <div class="pt-4 border-t border-gray-200 mt-4">
+                                <div class="flex justify-between items-center mb-1">
+                                    <x-input-label for="penerima_kuasa_id" value="Penerima Kuasa (Opsional)" />
+                                    {{-- Link placeholder untuk menambah kuasa baru (jika ada route create nya) --}}
+                                    <a href="#" class="text-xs text-indigo-600 hover:text-indigo-900 hover:underline">
+                                        + Tambah Baru
+                                    </a>
+                                </div>
+                                <select id="penerima_kuasa_id" name="penerima_kuasa_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">-- Tanpa Kuasa (Pemohon Langsung) --</option>
+                                    @if(isset($penerimaKuasas))
+                                        @foreach ($penerimaKuasas as $kuasa)
+                                            <option value="{{ $kuasa->id }}" {{ old('penerima_kuasa_id') == $kuasa->id ? 'selected' : '' }}>
+                                                {{ $kuasa->nama_kuasa }} - {{ $kuasa->kode_kuasa }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                <x-input-error :messages="$errors->get('penerima_kuasa_id')" class="mt-2" />
+                            </div>
+                            </div>
                     </div>
+                    
                     <div class="mt-6">
                         <x-input-label for="catatan" value="Catatan (Opsional)" />
                         <textarea id="catatan" name="catatan" rows="4" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">{{ old('catatan') }}</textarea>
                         <x-input-error :messages="$errors->get('catatan')" class="mt-2" />
                     </div>
+
                     <div class="flex items-center justify-end mt-8">
                         <a href="{{ route('ruang-kerja') }}" class="text-sm text-gray-600 hover:text-gray-900 mr-4">Batal</a>
                         <x-primary-button><i class="fa-solid fa-floppy-disk mr-2"></i>{{ __('Simpan Berkas') }}</x-primary-button>
@@ -156,4 +179,3 @@
     </script>
     @endpush
 </x-app-layout>
-

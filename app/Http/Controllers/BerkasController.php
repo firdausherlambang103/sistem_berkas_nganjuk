@@ -7,11 +7,13 @@ use App\Models\RiwayatBerkas;
 use App\Models\User;
 use App\Models\Kecamatan;
 use App\Models\JenisPermohonan;
+use App\Models\PenerimaKuasa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+
 
 /**
  * Controller BerkasController
@@ -27,7 +29,8 @@ class BerkasController extends Controller
     {
         $kecamatans = Kecamatan::orderBy('nama_kecamatan')->get();
         $jenisPermohonans = JenisPermohonan::orderBy('nama_permohonan')->get();
-        return view('berkas.create', compact('kecamatans', 'jenisPermohonans'));
+        $penerimaKuasas = PenerimaKuasa::orderBy('nama_kuasa')->get();
+        return view('berkas.create', compact('kecamatans', 'jenisPermohonans', 'penerimaKuasas'));
     }
 
     /**
@@ -44,6 +47,7 @@ class BerkasController extends Controller
             'kecamatan' => 'required|string|max:255',
             'desa' => 'required|string|max:255',
             'nomer_wa' => 'nullable|string|max:20',
+            'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
         ]);
 
@@ -62,6 +66,7 @@ class BerkasController extends Controller
                     'kecamatan' => $validatedData['kecamatan'],
                     'desa' => $validatedData['desa'],
                     'nomer_wa' => $validatedData['nomer_wa'],
+                    'penerima_kuasa_id' => $validatedData['penerima_kuasa_id'] ?? null,
                     'catatan' => $validatedData['catatan'],
                     'posisi_sekarang_user_id' => $currentUser->id,
                     'status' => 'Diproses',
