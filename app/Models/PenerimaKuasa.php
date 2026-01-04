@@ -9,7 +9,6 @@ class PenerimaKuasa extends Model
 {
     use HasFactory;
 
-    // Nama tabel di database (opsional jika sesuai konvensi, tapi baik untuk kejelasan)
     protected $table = 'penerima_kuasas';
 
     protected $fillable = [
@@ -18,9 +17,7 @@ class PenerimaKuasa extends Model
         'nomer_wa',
     ];
 
-    /**
-     * Relasi: Satu Penerima Kuasa bisa mengurus banyak Berkas.
-     */
+    // Relasi ke Berkas
     public function berkas()
     {
         return $this->hasMany(Berkas::class, 'penerima_kuasa_id');
