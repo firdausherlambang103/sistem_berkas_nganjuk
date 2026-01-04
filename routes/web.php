@@ -44,7 +44,7 @@ Route::middleware('auth')->group(function () {
 
     // --- RUANG KERJA ---
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
-
+    Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
     // --- BERKAS (Fungsionalitas Utama) ---
     Route::prefix('berkas')->name('berkas.')->controller(BerkasController::class)->group(function() {
         Route::get('/baru', 'create')->name('create')->middleware('can:create-berkas');

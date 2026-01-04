@@ -323,5 +323,25 @@ class BerkasController extends Controller
         ]);
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah diaktifkan kembali.");
     }
+
+    public function storeKuasaAjax(Request $request)
+    {
+        $request->validate([
+            'kode_kuasa_baru' => 'required|string|unique:penerima_kuasas,kode_kuasa|max:50',
+            'nama_kuasa_baru' => 'required|string|max:255',
+            'nomer_wa_baru'   => 'required|string|max:20',
+        ]);
+
+        $kuasa = PenerimaKuasa::create([
+            'kode_kuasa' => $request->kode_kuasa_baru,
+            'nama_kuasa' => $request->nama_kuasa_baru,
+            'nomer_wa'   => $request->nomer_wa_baru,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $kuasa
+        ]);
+    }
 }
 

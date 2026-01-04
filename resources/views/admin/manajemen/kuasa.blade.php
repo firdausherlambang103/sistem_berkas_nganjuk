@@ -1,121 +1,88 @@
-@extends('layouts.app')
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Manajemen Penerima Kuasa') }}
+        </h2>
+    </x-slot>
 
-@section('content')
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card shadow-sm border-0 rounded-lg">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0"><i class="fas fa-user-tie me-2"></i> Manajemen Penerima Kuasa</h4>
-                </div>
-                <div class="card-body">
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900">
                     
                     {{-- Pesan Sukses/Error --}}
                     @if(session('success'))
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <div class="mb-4 p-4 text-green-700 bg-green-100 rounded-lg">
                             {{ session('success') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
                     @if(session('error'))
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <div class="mb-4 p-4 text-red-700 bg-red-100 rounded-lg">
                             {{ session('error') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
 
-                    {{-- Form Tambah --}}
-                    <div class="card mb-4 bg-light border-0">
-                        <div class="card-body">
-                            <h6 class="fw-bold mb-3">Tambah Penerima Kuasa Baru</h6>
-                            <form action="{{ route('admin.kuasa.store') }}" method="POST" class="row g-3">
-                                @csrf
-                                <div class="col-md-3">
-                                    <input type="text" name="kode_kuasa" class="form-control" placeholder="Kode (Mis: K-001)" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="text" name="nama_kuasa" class="form-control" placeholder="Nama Lengkap" required>
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="text" name="nomer_wa" class="form-control" placeholder="Nomor WA (08xxx)" required>
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="submit" class="btn btn-success w-100"><i class="fas fa-plus"></i> Simpan</button>
-                                </div>
-                            </form>
-                        </div>
+                    {{-- Form Tambah Data --}}
+                    <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Tambah Penerima Kuasa Baru</h3>
+                        <form action="{{ route('admin.kuasa.store') }}" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            @csrf
+                            
+                            <div>
+                                <input type="text" name="kode_kuasa" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Kode (Mis: K-001)" required>
+                            </div>
+
+                            <div>
+                                <input type="text" name="nama_kuasa" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Nama Lengkap" required>
+                            </div>
+
+                            <div>
+                                <input type="text" name="nomer_wa" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Nomor WA (08xxx)" required>
+                            </div>
+
+                            <div>
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+                                    <i class="fa-solid fa-plus mr-2"></i> Simpan
+                                </button>
+                            </div>
+                        </form>
                     </div>
 
                     {{-- Tabel Data --}}
-                    <div class="table-responsive">
-                        <table class="table table-hover table-bordered align-middle">
-                            <thead class="table-light text-center">
+                    <div class="overflow-x-auto border rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
                                 <tr>
-                                    <th width="5%">No</th>
-                                    <th width="15%">Kode</th>
-                                    <th>Nama Kuasa</th>
-                                    <th width="20%">No. WhatsApp</th>
-                                    <th width="15%">Aksi</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kode</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Kuasa</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. WhatsApp</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($kuasas as $index => $kuasa)
                                 <tr>
-                                    <td class="text-center">{{ $index + 1 }}</td>
-                                    <td class="text-center fw-bold">{{ $kuasa->kode_kuasa }}</td>
-                                    <td>{{ $kuasa->nama_kuasa }}</td>
-                                    <td class="text-center">{{ $kuasa->nomer_wa }}</td>
-                                    <td class="text-center">
-                                        {{-- Tombol Edit (Modal Trigger) --}}
-                                        <button class="btn btn-sm btn-warning text-white" data-bs-toggle="modal" data-bs-target="#editModal{{ $kuasa->id }}">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        
-                                        {{-- Form Hapus --}}
-                                        <form action="{{ route('admin.kuasa.destroy', $kuasa->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{{ $kuasa->kode_kuasa }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $kuasa->nama_kuasa }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $kuasa->nomer_wa }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                        {{-- Tombol Hapus --}}
+                                        <form action="{{ route('admin.kuasa.destroy', $kuasa->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?')">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                                            <button type="submit" class="text-red-600 hover:text-red-900 ml-2" title="Hapus">
+                                                <i class="fa-solid fa-trash"></i> Hapus
+                                            </button>
                                         </form>
                                     </td>
                                 </tr>
-
-                                {{-- Modal Edit --}}
-                                <div class="modal fade" id="editModal{{ $kuasa->id }}" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Edit Penerima Kuasa</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <form action="{{ route('admin.kuasa.update', $kuasa->id) }}" method="POST">
-                                                @csrf
-                                                @method('PATCH')
-                                                <div class="modal-body">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Kode Kuasa</label>
-                                                        <input type="text" name="kode_kuasa" class="form-control" value="{{ $kuasa->kode_kuasa }}" required>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Nama Kuasa</label>
-                                                        <input type="text" name="nama_kuasa" class="form-control" value="{{ $kuasa->nama_kuasa }}" required>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Nomor WhatsApp</label>
-                                                        <input type="text" name="nomer_wa" class="form-control" value="{{ $kuasa->nomer_wa }}" required>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
                                 @empty
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">Belum ada data penerima kuasa.</td>
+                                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                                        Belum ada data penerima kuasa.
+                                    </td>
                                 </tr>
                                 @endforelse
                             </tbody>
@@ -126,5 +93,4 @@
             </div>
         </div>
     </div>
-</div>
-@endsection
+</x-app-layout>
