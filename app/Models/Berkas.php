@@ -13,7 +13,7 @@ class Berkas extends Model
     protected $fillable = [
         'nomer_berkas', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
         'kecamatan', 'desa', 'nomer_wa', 'catatan', 'posisi_sekarang_user_id', 'status',
-        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses','penerima_kuasa_id',,
+        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses','penerima_kuasa_id',
     ];
 
     protected $casts = [
@@ -44,7 +44,7 @@ class Berkas extends Model
     {
         return $this->belongsTo(User::class, 'pengirim_id');
     }
-    
+
     public function penerimaKuasa()
     {
         return $this->belongsTo(PenerimaKuasa::class, 'penerima_kuasa_id');
