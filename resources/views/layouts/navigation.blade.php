@@ -85,6 +85,10 @@
                                     <x-dropdown-link :href="route('admin.wa-templates.index')">
                                         {{ __('Template WA') }}
                                     </x-dropdown-link>
+                                    {{-- [BARU] Menu Riwayat WA --}}
+                                    <x-dropdown-link :href="route('admin.wa-logs.index')">
+                                        {{ __('Riwayat WA') }}
+                                    </x-dropdown-link>
                                 </x-slot>
                             </x-dropdown>
                         </div>
@@ -193,6 +197,10 @@
                             {{-- [BARU] Link Template WA Responsive --}}
                             <x-responsive-nav-link :href="route('admin.wa-templates.index')">
                                 {{ __('Template WA') }}
+                            </x-responsive-nav-link>
+                            {{-- [BARU] Menu Riwayat WA Responsive --}}
+                            <x-responsive-nav-link :href="route('admin.wa-logs.index')" :active="request()->routeIs('admin.wa-logs.*')">
+                                {{ __('Riwayat WA') }}
                             </x-responsive-nav-link>
                         </div>
                     </div>

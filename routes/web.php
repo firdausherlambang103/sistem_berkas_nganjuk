@@ -12,6 +12,7 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
 use App\Models\WaTemplate;
+use App\Http\Controllers\Admin\WaLogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -156,6 +157,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // --- MANAJEMEN WA TEMPLATE (BARU) ---
     // Menggunakan Resource Controller agar otomatis membuat route: index, store, update, destroy
     Route::resource('wa-templates', WaTemplateController::class)->except(['create', 'edit', 'show']);
+
+    // [BARU] Route Riwayat WA
+    Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
 });
 
 require __DIR__.'/auth.php';
