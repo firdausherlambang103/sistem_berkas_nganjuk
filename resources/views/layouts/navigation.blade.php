@@ -89,6 +89,9 @@
                                     <x-dropdown-link :href="route('admin.wa-logs.index')">
                                         {{ __('Riwayat WA') }}
                                     </x-dropdown-link>
+                                    <x-dropdown-link :href="route('admin.whatsapp.scan')">
+                                        {{ __('Scan WhatsApp') }}
+                                    </x-dropdown-link>
                                 </x-slot>
                             </x-dropdown>
                         </div>
@@ -202,6 +205,9 @@
                             <x-responsive-nav-link :href="route('admin.wa-logs.index')" :active="request()->routeIs('admin.wa-logs.*')">
                                 {{ __('Riwayat WA') }}
                             </x-responsive-nav-link>
+                            <x-dropdown-link :href="route('admin.whatsapp.scan')">
+                                {{ __('Scan WhatsApp') }}
+                            </x-dropdown-link>
                         </div>
                     </div>
                 @endif
