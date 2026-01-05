@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 
-
 /**
  * Controller BerkasController
  * Mengelola semua logika bisnis yang terkait dengan berkas,
@@ -25,7 +24,7 @@ class BerkasController extends Controller
     /**
      * Menampilkan form untuk membuat berkas baru.
      */
-   public function create(): View
+    public function create(): View
     {
         $kecamatans = Kecamatan::orderBy('nama_kecamatan')->get();
         $jenisPermohonans = JenisPermohonan::orderBy('nama_permohonan')->get();
@@ -57,7 +56,6 @@ class BerkasController extends Controller
             DB::transaction(function () use ($validatedData, &$berkas) {
                 $currentUser = Auth::user();
                 // Simpan instance berkas yang baru dibuat ke variabel $berkas
-                dd($request->all());
                 $berkas = Berkas::create([
                     'nomer_berkas' => $validatedData['nomer_berkas'],
                     'nama_pemohon' => $validatedData['nama_pemohon'],
@@ -87,7 +85,6 @@ class BerkasController extends Controller
             return redirect()->back()->withInput()->with('error', 'Gagal menyimpan berkas. Error: ' . $e->getMessage());
         }
 
-        // --- PERUBAHAN UTAMA DI SINI ---
         // Arahkan ke halaman pilih petugas dengan membawa ID berkas yang baru dibuat.
         return redirect()->route('jadwal-ukur.pilih-petugas', ['berkas' => $berkas->id])
                          ->with('success', 'Berkas baru berhasil dibuat! Silakan pilih petugas ukur.');
@@ -103,21 +100,43 @@ class BerkasController extends Controller
     }
 
     /**
-     * Menampilkan form untuk mengedit berkas (Hanya Admin).
+     * Menampilkan form untuk mengedit berkas.
+     * Hanya bisa diakses oleh Petugas Loket dan Admin.
      */
-    public function edit(Berkas $berkas): View
+    public function edit(Berkas $berkas)
     {
+        // 1. Cek Hak Akses
+        $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
+        $allowed = ['Petugas Loket', 'Petugas Loket Penyerahan', 'Admin'];
+
+        if (!in_array($userJabatan, $allowed)) {
+            return redirect()->route('ruang-kerja')->with('error', 'Anda tidak memiliki akses untuk mengedit berkas.');
+        }
+
+        // 2. Ambil data pendukung untuk dropdown
         $kecamatans = Kecamatan::orderBy('nama_kecamatan')->get();
         $jenisPermohonans = JenisPermohonan::orderBy('nama_permohonan')->get();
-        return view('berkas.edit', compact('berkas', 'kecamatans', 'jenisPermohonans'));
+        $penerimaKuasas = PenerimaKuasa::orderBy('nama_kuasa')->get(); // Tambahkan ini agar dropdown muncul
+
+        return view('berkas.edit', compact('berkas', 'kecamatans', 'jenisPermohonans', 'penerimaKuasas'));
     }
     
     /**
-     * Memperbarui data berkas di database (Hanya Admin).
+     * Memperbarui data berkas di database.
      */
     public function update(Request $request, Berkas $berkas): RedirectResponse
     {
+        // 1. Cek Hak Akses (Double check untuk keamanan backend)
+        $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
+        $allowed = ['Petugas Loket', 'Petugas Loket Penyerahan', 'Admin'];
+
+        if (!in_array($userJabatan, $allowed)) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // 2. Validasi Input
         $validatedData = $request->validate([
+            // Rule unique: table, column, except_id
             'nomer_berkas' => 'required|string|max:255|unique:berkas,nomer_berkas,' . $berkas->id,
             'nama_pemohon' => 'required|string|max:255',
             'jenis_alas_hak' => 'required|string|max:255',
@@ -129,8 +148,16 @@ class BerkasController extends Controller
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
         ]);
-        $berkas->update($validatedData);
-        return redirect()->route('dashboard')->with('success', 'Berkas berhasil diperbarui!');
+
+        try {
+            // 3. Lakukan Update
+            $berkas->update($validatedData);
+            
+            // 4. Redirect kembali ke ruang kerja
+            return redirect()->route('ruang-kerja')->with('success', 'Data berkas berhasil diperbarui!');
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', 'Gagal memperbarui berkas: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -346,4 +373,3 @@ class BerkasController extends Controller
         ]);
     }
 }
-

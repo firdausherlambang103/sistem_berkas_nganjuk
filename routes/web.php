@@ -63,6 +63,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{berkas}', 'destroy')->name('destroy')->middleware('can:manage-berkas');
     });
 
+    // Route khusus untuk Edit dan Update Berkas
+    Route::get('/berkas/{id}/edit', [BerkasController::class, 'edit'])->name('berkas.edit');
+    Route::put('/berkas/{id}', [BerkasController::class, 'update'])->name('berkas.update');
+
     // --- PENJADWALAN UKUR ---
     Route::prefix('penjadwalan-ukur')->name('jadwal-ukur.')->controller(JadwalUkurController::class)->group(function () {
         Route::get('/', 'index')->name('index');

@@ -74,7 +74,7 @@
             {{-- Bagian Berkas di Meja Saya --}}
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
                 <div class="p-6 lg:p-8">
-                     <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                         <h3 class="text-lg font-bold text-gray-800 flex items-center">
                             <i class="fa-solid fa-file-signature text-blue-500 mr-3"></i> Berkas di Meja Saya
                         </h3>
@@ -115,10 +115,36 @@
                                         <td class="px-6 py-4 whitespace-normal"><p class="text-sm font-semibold text-gray-800">{{ optional($berkas->jenisPermohonan)->nama_permohonan ?? 'N/A' }}</p></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div class="flex items-center justify-end space-x-2">
+                                                
+                                                {{-- [BARU] TOMBOL EDIT --}}
+                                                @if(in_array(optional(Auth::user()->jabatan)->nama_jabatan, ['Petugas Loket', 'Petugas Loket Penyerahan', 'Admin'])) 
+                                                    <a href="{{ route('berkas.edit', $berkas->id) }}" class="inline-flex items-center px-3 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700" title="Edit Berkas">
+                                                        <i class="fa-solid fa-pen-to-square"></i>
+                                                    </a>
+                                                @endif
+
+                                                {{-- [BARU] TOMBOL KIRIM WA --}}
+                                                @php
+                                                    $no_wa = $berkas->nomer_wa;
+                                                    // Hapus karakter selain angka
+                                                    $no_wa = preg_replace('/[^0-9]/', '', $no_wa);
+                                                    // Ganti 0 depan dengan 62
+                                                    if(substr($no_wa, 0, 1) == '0'){
+                                                        $no_wa = '62' . substr($no_wa, 1);
+                                                    }
+                                                    $pesanWA = "Halo Bpk/Ibu " . $berkas->nama_pemohon . ", berkas permohonan Anda dengan nomor " . $berkas->nomer_berkas . " saat ini sedang kami proses di Ruang Kerja. Terima kasih.";
+                                                @endphp
+                                                <a href="https://wa.me/{{ $no_wa }}?text={{ urlencode($pesanWA) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-green-500 text-white text-xs font-semibold rounded-md hover:bg-green-600" title="Kirim WhatsApp">
+                                                    <i class="fa-brands fa-whatsapp"></i>
+                                                </a>
+
+                                                {{-- TOMBOL LAMA --}}
                                                 <form action="{{ route('berkas.pending', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'pending');">@csrf<button type="submit" class="inline-flex items-center px-3 py-2 bg-yellow-500 text-white text-xs font-semibold rounded-md hover:bg-yellow-600" title="Tunda Berkas"><i class="fa-solid fa-pause"></i></button></form>
+                                                
                                                 @if(optional(Auth::user()->jabatan)->nama_jabatan === 'Petugas Loket Penyerahan')
                                                     <form action="{{ route('berkas.selesaikan', $berkas) }}" method="POST" class="inline">@csrf<button type="submit" class="inline-flex items-center px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-md hover:bg-green-700" title="Selesaikan Berkas"><i class="fa-solid fa-check-double"></i></button></form>
                                                 @endif
+                                                
                                                 <form action="{{ route('berkas.tutup', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'tutup');">@csrf<button type="submit" class="inline-flex items-center px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-md hover:bg-gray-700" title="Tutup Berkas"><i class="fa-solid fa-archive"></i></button></form>
                                             </div>
                                         </td>
@@ -233,4 +259,3 @@
     </script>
     @endpush
 </x-app-layout>
-

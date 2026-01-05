@@ -11,6 +11,20 @@
     <div class="py-12">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
+                {{-- TAMBAHKAN KODE INI UNTUK MENAMPILKAN PESAN ERROR/SUKSES --}}
+                @if (session('success'))
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative m-6 mb-0" role="alert">
+                        <strong class="font-bold">Berhasil!</strong>
+                        <span class="block sm:inline">{{ session('success') }}</span>
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative m-6 mb-0" role="alert">
+                        <strong class="font-bold">Gagal!</strong>
+                        <span class="block sm:inline">{{ session('error') }}</span>
+                    </div>
+                @endif
                 <form action="{{ route('berkas.store') }}" method="POST" class="p-6 lg:p-8">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
