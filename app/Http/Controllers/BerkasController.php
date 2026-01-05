@@ -57,6 +57,7 @@ class BerkasController extends Controller
             DB::transaction(function () use ($validatedData, &$berkas) {
                 $currentUser = Auth::user();
                 // Simpan instance berkas yang baru dibuat ke variabel $berkas
+                dd($request->all());
                 $berkas = Berkas::create([
                     'nomer_berkas' => $validatedData['nomer_berkas'],
                     'nama_pemohon' => $validatedData['nama_pemohon'],
@@ -125,6 +126,7 @@ class BerkasController extends Controller
             'kecamatan' => 'required|string|max:255',
             'desa' => 'required|string|max:255',
             'nomer_wa' => 'nullable|string|max:20',
+            'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
         ]);
         $berkas->update($validatedData);
