@@ -116,27 +116,20 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div class="flex items-center justify-end space-x-2">
                                                 
-                                                {{-- [BARU] TOMBOL EDIT --}}
-                                                @if(in_array(optional(Auth::user()->jabatan)->nama_jabatan, ['Petugas Loket', 'Petugas Loket Penyerahan', 'Admin'])) 
+                                                {{-- [UPDATE] TOMBOL EDIT (Hanya Role Tertentu) --}}
+                                                @if(in_array(optional(Auth::user()->jabatan)->nama_jabatan, ['Petugas Loket','Petugas Loket Entri', 'Petugas Loket Penyerahan', 'Admin'])) 
                                                     <a href="{{ route('berkas.edit', $berkas->id) }}" class="inline-flex items-center px-3 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700" title="Edit Berkas">
                                                         <i class="fa-solid fa-pen-to-square"></i>
                                                     </a>
                                                 @endif
 
-                                                {{-- [BARU] TOMBOL KIRIM WA --}}
-                                                @php
-                                                    $no_wa = $berkas->nomer_wa;
-                                                    // Hapus karakter selain angka
-                                                    $no_wa = preg_replace('/[^0-9]/', '', $no_wa);
-                                                    // Ganti 0 depan dengan 62
-                                                    if(substr($no_wa, 0, 1) == '0'){
-                                                        $no_wa = '62' . substr($no_wa, 1);
-                                                    }
-                                                    $pesanWA = "Halo Bpk/Ibu " . $berkas->nama_pemohon . ", berkas permohonan Anda dengan nomor " . $berkas->nomer_berkas . " saat ini sedang kami proses di Ruang Kerja. Terima kasih.";
-                                                @endphp
-                                                <a href="https://wa.me/{{ $no_wa }}?text={{ urlencode($pesanWA) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-green-500 text-white text-xs font-semibold rounded-md hover:bg-green-600" title="Kirim WhatsApp">
+                                                {{-- [UPDATE] TOMBOL KIRIM WA DENGAN MODAL --}}
+                                                <button type="button" 
+                                                        onclick="openWaModal('{{ $berkas->nomer_wa }}', '{{ $berkas->nama_pemohon }}', '{{ $berkas->nomer_berkas }}', '{{ $berkas->status }}')"
+                                                        class="inline-flex items-center px-3 py-2 bg-green-500 text-white text-xs font-semibold rounded-md hover:bg-green-600" 
+                                                        title="Kirim WhatsApp">
                                                     <i class="fa-brands fa-whatsapp"></i>
-                                                </a>
+                                                </button>
 
                                                 {{-- TOMBOL LAMA --}}
                                                 <form action="{{ route('berkas.pending', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'pending');">@csrf<button type="submit" class="inline-flex items-center px-3 py-2 bg-yellow-500 text-white text-xs font-semibold rounded-md hover:bg-yellow-600" title="Tunda Berkas"><i class="fa-solid fa-pause"></i></button></form>
@@ -204,10 +197,51 @@
 
         </div>
     </div>
+
+    {{-- MODAL PILIH TEMPLATE WA --}}
+    <div id="waModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            
+            {{-- Background Overlay --}}
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" aria-hidden="true" onclick="closeWaModal()"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            {{-- Modal Content --}}
+            <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="px-4 pt-5 pb-4 bg-white sm:p-6 sm:pb-4">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900" id="modal-title">Kirim WhatsApp</h3>
+                    <div class="mt-2">
+                        <p class="text-sm text-gray-500 mb-4">Pilih template pesan yang akan dikirim:</p>
+                        
+                        {{-- Select Template --}}
+                        <select id="waTemplateSelect" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" onchange="updatePreview()">
+                            <option value="">-- Pilih Template --</option>
+                            {{-- Opsi diisi via JS --}}
+                        </select>
+
+                        {{-- Preview Pesan --}}
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700">Preview Pesan:</label>
+                            <textarea id="waMessagePreview" rows="6" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm bg-gray-50 text-sm" readonly></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-4 py-3 bg-gray-50 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="sendWhatsapp()" class="inline-flex justify-center w-full px-4 py-2 text-base font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">
+                        <i class="fa-brands fa-whatsapp mr-2"></i> Kirim Sekarang
+                    </button>
+                    <button type="button" onclick="closeWaModal()" class="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     
     @push('scripts')
     <script>
-        // Fungsi untuk menangani aksi yang memerlukan catatan
+        // --- LOGIKA FORM AKSI ---
         function handleAksiDenganCatatan(form, aksi) {
             event.preventDefault(); 
             const pesan = aksi === 'pending' ? 'Masukkan alasan menunda berkas:' : 'Masukkan catatan untuk menutup berkas:';
@@ -227,7 +261,7 @@
             form.submit(); 
         }
 
-        // Fungsi untuk menangani bulk action (kirim terpilih)
+        // --- LOGIKA BULK ACTION ---
         document.addEventListener('DOMContentLoaded', function () {
             const selectAllCheckbox = document.getElementById('select-all-checkbox');
             const berkasCheckboxes = document.querySelectorAll('.berkas-checkbox');
@@ -256,6 +290,77 @@
                 });
             }
         });
+
+        // --- LOGIKA WA TEMPLATE (MODAL) ---
+        let currentWaData = { phone: '', nama: '', berkas: '', status: '' };
+        let templatesData = [];
+
+        function openWaModal(phone, nama, berkas, status) {
+            // Bersihkan nomor HP
+            phone = phone.replace(/[^0-9]/g, '');
+            if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+
+            currentWaData = { phone, nama, berkas, status };
+            
+            // Tampilkan Modal
+            document.getElementById('waModal').classList.remove('hidden');
+
+            // Ambil Template via AJAX
+            fetch("{{ route('api.wa-templates') }}")
+                .then(response => response.json())
+                .then(data => {
+                    templatesData = data;
+                    const select = document.getElementById('waTemplateSelect');
+                    select.innerHTML = '<option value="">-- Pilih Template --</option>';
+                    data.forEach((tpl, index) => {
+                        select.innerHTML += `<option value="${index}">${tpl.judul}</option>`;
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching templates:', error);
+                    alert('Gagal mengambil data template.');
+                });
+        }
+
+        function closeWaModal() {
+            document.getElementById('waModal').classList.add('hidden');
+            document.getElementById('waTemplateSelect').value = "";
+            document.getElementById('waMessagePreview').value = "";
+        }
+
+        function updatePreview() {
+            const index = document.getElementById('waTemplateSelect').value;
+            if (index === "") {
+                document.getElementById('waMessagePreview').value = "";
+                return;
+            }
+
+            let pesan = templatesData[index].pesan;
+
+            // Ganti Placeholder dengan Data Asli
+            pesan = pesan.replace(/{nama_pemohon}/g, currentWaData.nama)
+                         .replace(/{nomer_berkas}/g, currentWaData.berkas)
+                         .replace(/{status}/g, currentWaData.status);
+
+            document.getElementById('waMessagePreview').value = pesan;
+        }
+
+        function sendWhatsapp() {
+            const pesan = document.getElementById('waMessagePreview').value;
+            if (!pesan) {
+                alert('Silakan pilih template terlebih dahulu.');
+                return;
+            }
+            
+            if (!currentWaData.phone) {
+                alert('Nomer WhatsApp tidak tersedia untuk pemohon ini.');
+                return;
+            }
+
+            const url = `https://wa.me/${currentWaData.phone}?text=${encodeURIComponent(pesan)}`;
+            window.open(url, '_blank');
+            closeWaModal();
+        }
     </script>
     @endpush
 </x-app-layout>

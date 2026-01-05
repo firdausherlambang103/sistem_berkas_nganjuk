@@ -7,9 +7,11 @@ use App\Http\Controllers\BerkasController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ManajemenController;
+use App\Http\Controllers\Admin\WaTemplateController; // Import Controller WA Baru
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
+use App\Models\WaTemplate;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,12 +47,28 @@ Route::middleware('auth')->group(function () {
     // --- RUANG KERJA ---
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
+
+    // --- API HELPER (Untuk Modal WA) ---
+    Route::get('/api/wa-templates', function () {
+        return response()->json(WaTemplate::where('is_active', true)->get());
+    })->name('api.wa-templates');
+
     // --- BERKAS (Fungsionalitas Utama) ---
+    // Semua URL diawali dengan /berkas dan nama route diawali dengan berkas.
     Route::prefix('berkas')->name('berkas.')->controller(BerkasController::class)->group(function() {
+        // Buat Baru
         Route::get('/baru', 'create')->name('create')->middleware('can:create-berkas');
         Route::post('/', 'store')->name('store')->middleware('can:create-berkas');
-        Route::get('/{berkas}', 'show')->name('show');
+        
+        // Aksi Massal / Spesifik
         Route::post('/kirim', 'kirim')->name('kirim');
+        
+        // Edit & Update (Akses dibatasi di controller, route ini terbuka untuk auth user dulu)
+        Route::get('/{berkas}/edit', 'edit')->name('edit'); 
+        Route::put('/{berkas}', 'update')->name('update'); // Pakai PUT/PATCH untuk update
+        Route::patch('/{berkas}', 'update'); // Fallback jika form pakai PATCH
+        
+        // Aksi Status
         Route::post('/{berkas}/terima', 'terima')->name('terima');
         Route::post('/{berkas}/tolak', 'tolak')->name('tolak');
         Route::post('/{berkas}/selesaikan', 'selesaikan')->name('selesaikan');
@@ -58,14 +76,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/{berkas}/pending', 'pending')->name('pending');
         Route::post('/{berkas}/aktifkan', 'aktifkan')->name('aktifkan');
         
-        Route::get('/{berkas}/edit', 'edit')->name('edit')->middleware('can:manage-berkas');
-        Route::patch('/{berkas}', 'update')->name('update')->middleware('can:manage-berkas');
+        // Hapus & Detail
         Route::delete('/{berkas}', 'destroy')->name('destroy')->middleware('can:manage-berkas');
+        Route::get('/{berkas}', 'show')->name('show');
     });
-
-    // Route khusus untuk Edit dan Update Berkas
-    Route::get('/berkas/{id}/edit', [BerkasController::class, 'edit'])->name('berkas.edit');
-    Route::put('/berkas/{id}', [BerkasController::class, 'update'])->name('berkas.update');
 
     // --- PENJADWALAN UKUR ---
     Route::prefix('penjadwalan-ukur')->name('jadwal-ukur.')->controller(JadwalUkurController::class)->group(function () {
@@ -93,7 +107,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
-    //kuasa
+    // Kuasa
     Route::get('/penerima-kuasa', [ManajemenController::class, 'kuasaIndex'])->name('kuasa.index');
     Route::post('/penerima-kuasa', [ManajemenController::class, 'kuasaStore'])->name('kuasa.store');
     Route::patch('/penerima-kuasa/{kuasa}', [ManajemenController::class, 'kuasaUpdate'])->name('kuasa.update');
@@ -138,6 +152,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Setting Area Kerja
     Route::get('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaIndex'])->name('setting-area-kerja.index');
     Route::post('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaUpdate'])->name('setting-area-kerja.update');
+
+    // --- MANAJEMEN WA TEMPLATE (BARU) ---
+    // Menggunakan Resource Controller agar otomatis membuat route: index, store, update, destroy
+    Route::resource('wa-templates', WaTemplateController::class)->except(['create', 'edit', 'show']);
 });
 
 require __DIR__.'/auth.php';
