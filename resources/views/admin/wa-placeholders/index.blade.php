@@ -1,98 +1,65 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Manajemen Placeholder WA') }}
-        </h2>
-    </x-slot>
+@extends('layouts.app')
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            
-            {{-- ALERT SUKSES --}}
-            @if(session('success'))
-                <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+@section('content')
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Daftar Placeholder WhatsApp</h6>
+            <a href="{{ route('admin.wa-placeholders.create') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> Tambah Placeholder
+            </a>
+        </div>
+        <div class="card-body">
+            @if (session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
                     {{ session('success') }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
             @endif
 
-            {{-- ALERT ERROR (PENTING: INI YANG HILANG SEBELUMNYA) --}}
-            @if ($errors->any())
-                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                    <strong class="font-bold">Gagal menyimpan!</strong>
-                    <ul class="mt-2 list-disc list-inside text-sm">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            {{-- FORM TAMBAH --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                <div class="p-6">
-                    <h3 class="text-lg font-bold mb-4">Tambah Placeholder Baru</h3>
-                    <form action="{{ route('admin.wa-placeholders.store') }}" method="POST" class="flex flex-col md:flex-row gap-4">
-                        @csrf
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700">Kode (Cth: nama)</label>
-                            {{-- value="{{ old('code') }}" menjaga inputan agar tidak hilang saat error --}}
-                            <input type="text" name="code" value="{{ old('code') }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Otomatis jadi {nama}">
-                            <p class="text-xs text-gray-500 mt-1">*Kurung kurawal {} ditambahkan otomatis</p>
-                        </div>
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700">Deskripsi</label>
-                            <input type="text" name="description" value="{{ old('description') }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Penjelasan...">
-                        </div>
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700">Contoh Data</label>
-                            <input type="text" name="example" value="{{ old('example') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Contoh isi...">
-                        </div>
-                        <div class="flex items-end">
-                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Simpan</button>
-                        </div>
-                    </form>
-                </div>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Placeholder (Kode)</th>
+                            <th>Deskripsi</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($placeholders as $ph)
+                        <tr>
+                            <td>{{ $loop->iteration }}</td>
+                            <td><code>{{ $ph->placeholder }}</code></td>
+                            <td>{{ $ph->deskripsi }}</td>
+                            <td>
+                                <a href="{{ route('admin.wa-placeholders.edit', $ph->id) }}" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ route('admin.wa-placeholders.destroy', $ph->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus placeholder ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" class="text-center">Belum ada data placeholder.</td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-
-            {{-- TABEL DATA --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Kode</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Deskripsi</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Contoh</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @forelse ($placeholders as $item)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <code class="bg-gray-100 text-red-500 px-2 py-1 rounded font-bold">{{ $item->code }}</code>
-                                    </td>
-                                    <td class="px-6 py-4">{{ $item->description }}</td>
-                                    <td class="px-6 py-4 text-gray-500 italic">{{ $item->example ?? '-' }}</td>
-                                    <td class="px-6 py-4 text-right">
-                                        {{-- Perbaiki route destroy agar sesuai --}}
-                                        <form action="{{ route('admin.wa-placeholders.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus placeholder ini?');">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i> Hapus</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">
-                                        Belum ada data placeholder. Silakan tambah data baru.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+            <div class="mt-3">
+                {{ $placeholders->links() }}
             </div>
         </div>
     </div>
-</x-app-layout>
+</div>
+@endsection

@@ -6,19 +6,36 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
+        // Nonaktifkan foreign key checks sementara agar bisa drop tabel yang direlasikan
+        Schema::disableForeignKeyConstraints();
+        
+        // Hapus tabel lama jika ada
+        Schema::dropIfExists('wa_templates');
+        
+        // Aktifkan kembali foreign key checks
+        Schema::enableForeignKeyConstraints();
+
         Schema::create('wa_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('judul'); // Contoh: "Berkas Diterima", "Berkas Selesai"
-            $table->text('pesan');   // Isi pesan dengan placeholder seperti {nama_pemohon}
-            $table->boolean('is_active')->default(true);
+            $table->string('nama');
+            $table->text('template');
+            $table->string('status')->default('aktif');
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('wa_templates');
+        Schema::enableForeignKeyConstraints();
     }
 };

@@ -7,16 +7,15 @@ use App\Http\Controllers\BerkasController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ManajemenController;
-use App\Http\Controllers\Admin\WaTemplateController; 
-use App\Http\Controllers\Admin\WaLogController;      
-use App\Http\Controllers\WhatsappWebController;      
+use App\Http\Controllers\Admin\WaTemplateController;
+use App\Http\Controllers\Admin\WaLogController;
+use App\Http\Controllers\WhatsappWebController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
 use App\Models\WaTemplate;
 use App\Models\WaLog;
 use App\Http\Controllers\Admin\WaPlaceholderController;
-
 
 /*
 |--------------------------------------------------------------------------
@@ -28,7 +27,6 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Grup rute yang hanya bisa diakses setelah user login
 Route::middleware('auth')->group(function () {
     
     // --- DASHBOARD ---
@@ -54,11 +52,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
 
     // --- FITUR WHATSAPP (MODAL & SEND) ---
-    
     // [UPDATE] API Template dengan parameter berkas_id untuk menghitung usage count
     Route::get('/api/wa-templates/{berkas_id?}', function ($berkas_id = null) {
-        // Ambil semua template aktif
-        $templates = WaTemplate::where('is_active', true)->get();
+        // Ambil semua template aktif (disesuaikan dengan kolom 'status' di database)
+        $templates = WaTemplate::where('status', 'aktif')->get();
 
         // Jika ada ID berkas, hitung penggunaan per template
         if ($berkas_id) {
@@ -70,13 +67,11 @@ Route::middleware('auth')->group(function () {
                 return $tpl;
             });
         }
-
         return response()->json($templates);
     })->name('api.wa-templates');
 
     // Route untuk mengirim pesan
     Route::post('/whatsapp/send', [WhatsappWebController::class, 'send'])->name('whatsapp.send');
-
 
     // --- BERKAS ---
     Route::prefix('berkas')->name('berkas.')->controller(BerkasController::class)->group(function() {
@@ -165,18 +160,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaUpdate'])->name('setting-area-kerja.update');
 
     // --- MANAJEMEN WHATSAPP (Admin) ---
-    // 1. Template
-    Route::resource('wa-templates', WaTemplateController::class)->except(['create', 'edit', 'show']);
+    // 1. Template (PERBAIKAN: Menghapus except agar fungsi create/edit berjalan)
+    Route::resource('wa-templates', WaTemplateController::class);
+    
     // 2. Log / Riwayat
     Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
 
     // 3. Scan QR (Socket IO)
-    Route::get('/whatsapp/scan', function () {
-        return view('admin.whatsapp.scan');
-    })->name('whatsapp.scan');
+    Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
 
-    // Route Placeholder WA
-    Route::resource('wa-placeholders', WaPlaceholderController::class)->except(['create', 'edit', 'show']);
+    // Route Placeholder WA (PERBAIKAN: Menghapus except)
+    Route::resource('wa-placeholders', WaPlaceholderController::class);
 });
 
 require __DIR__.'/auth.php';

@@ -2,8 +2,9 @@
 
 namespace Database\Seeders;
 
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use App\Models\WaPlaceholder;
 
 class WaPlaceholderSeeder extends Seeder
 {
@@ -12,79 +13,102 @@ class WaPlaceholderSeeder extends Seeder
      */
     public function run(): void
     {
-        // Bersihkan data lama agar tidak duplikat
-        DB::table('wa_placeholders')->truncate();
-
+        // Daftar placeholder berdasarkan kolom di tabel 'berkas' dan relasinya
         $placeholders = [
-            // --- INFO DASAR BERKAS ---
+            // --- DATA UTAMA BERKAS ---
             [
-                'code' => '{nama_pemohon}',
-                'description' => 'Nama lengkap pemohon sesuai berkas',
-                'example' => 'Budi Santoso',
+                'placeholder' => '[NOMOR_BERKAS]',
+                'deskripsi' => 'Nomor urut berkas',
             ],
             [
-                'code' => '{nomer_berkas}',
-                'description' => 'Nomer registrasi berkas',
-                'example' => '123/2023',
+                'placeholder' => '[TAHUN_BERKAS]',
+                'deskripsi' => 'Tahun pendaftaran berkas',
             ],
             [
-                'code' => '{status}',
-                'description' => 'Status proses berkas saat ini',
-                'example' => 'Diproses / Selesai / Ditunda',
+                'placeholder' => '[STATUS_BERKAS]',
+                'deskripsi' => 'Status saat ini (Baru/Proses/Selesai/dll)',
             ],
             [
-                'code' => '{nomer_hak}',
-                'description' => 'Nomer Hak Milik/Guna (jika ada)',
-                'example' => '00123',
+                'placeholder' => '[LUAS_TANAH]',
+                'deskripsi' => 'Luas tanah yang dimohon (m²)',
             ],
             [
-                'code' => '{jenis_alas_hak}',
-                'description' => 'Jenis alas hak (SHM, Letter C, dll)',
-                'example' => 'Sertifikat Hak Milik',
-            ],
-
-            // --- INFO WILAYAH ---
-            [
-                'code' => '{desa}',
-                'description' => 'Nama Desa lokasi tanah',
-                'example' => 'Sukamaju',
+                'placeholder' => '[KETERANGAN]',
+                'deskripsi' => 'Catatan atau keterangan tambahan pada berkas',
             ],
             [
-                'code' => '{kecamatan}',
-                'description' => 'Nama Kecamatan lokasi tanah',
-                'example' => 'Mojoanyar',
+                'placeholder' => '[TANGGAL_DAFTAR]',
+                'deskripsi' => 'Tanggal berkas dibuat/didaftarkan',
+            ],
+            [
+                'placeholder' => '[TANGGAL_UPDATE]',
+                'deskripsi' => 'Tanggal terakhir data berkas diperbarui',
             ],
 
-            // --- INFO PERMOHONAN ---
+            // --- DATA PEMOHON (Relasi ke tabel kliens) ---
             [
-                'code' => '{jenis_permohonan}',
-                'description' => 'Nama jenis layanan permohonan',
-                'example' => 'Pecah Bidang / Balik Nama',
+                'placeholder' => '[NAMA_PEMOHON]',
+                'deskripsi' => 'Nama lengkap pemohon/klien',
             ],
             [
-                'code' => '{tanggal_masuk}',
-                'description' => 'Tanggal berkas didaftarkan (Format: DD-MM-YYYY)',
-                'example' => '06-01-2026',
+                'placeholder' => '[NIK_PEMOHON]',
+                'deskripsi' => 'NIK pemohon',
             ],
             [
-                'code' => '{waktu_masuk}',
-                'description' => 'Jam berkas didaftarkan (Format: HH:MM)',
-                'example' => '09:30',
+                'placeholder' => '[ALAMAT_PEMOHON]',
+                'deskripsi' => 'Alamat lengkap pemohon',
+            ],
+            [
+                'placeholder' => '[NOMOR_HP_PEMOHON]',
+                'deskripsi' => 'Nomor WhatsApp/HP pemohon',
             ],
 
-            // --- INFO TAMBAHAN ---
+            // --- DATA KEGIATAN (Relasi ke tabel jenis_permohonans) ---
             [
-                'code' => '{petugas}',
-                'description' => 'Nama petugas yang memproses/mengirim pesan',
-                'example' => 'Admin Loket 1',
+                'placeholder' => '[JENIS_KEGIATAN]',
+                'deskripsi' => 'Nama jenis permohonan (misal: Konversi, Pemecahan)',
+            ],
+
+            // --- DATA LOKASI (Relasi ke tabel desas & kecamatans) ---
+            [
+                'placeholder' => '[NAMA_DESA]',
+                'deskripsi' => 'Nama Desa letak tanah',
             ],
             [
-                'code' => '{penerima_kuasa}',
-                'description' => 'Nama penerima kuasa (jika dikuasakan)',
-                'example' => 'Notaris X / Bpk. Ahmad',
+                'placeholder' => '[NAMA_KECAMATAN]',
+                'deskripsi' => 'Nama Kecamatan letak tanah',
+            ],
+
+            // --- DATA PENGUKURAN (Relasi ke tabel petugas_ukur) ---
+            [
+                'placeholder' => '[NAMA_PETUGAS_UKUR]',
+                'deskripsi' => 'Nama petugas yang ditunjuk mengukur',
+            ],
+            [
+                'placeholder' => '[JADWAL_UKUR]',
+                'deskripsi' => 'Tanggal dan jam rencana pengukuran',
+            ],
+            [
+                'placeholder' => '[STATUS_UKUR]',
+                'deskripsi' => 'Status proses pengukuran',
+            ],
+
+            // --- DATA KUASA (Relasi ke tabel penerima_kuasas) ---
+            [
+                'placeholder' => '[NAMA_PENERIMA_KUASA]',
+                'deskripsi' => 'Nama penerima kuasa (jika ada)',
+            ],
+            [
+                'placeholder' => '[NOMOR_HP_KUASA]',
+                'deskripsi' => 'Nomor HP penerima kuasa (jika ada)',
             ],
         ];
 
-        DB::table('wa_placeholders')->insert($placeholders);
+        foreach ($placeholders as $data) {
+            WaPlaceholder::updateOrCreate(
+                ['placeholder' => $data['placeholder']], // Kunci pencarian
+                ['deskripsi' => $data['deskripsi']]      // Data yang diupdate
+            );
+        }
     }
 }

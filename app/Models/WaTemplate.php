@@ -9,5 +9,11 @@ class WaTemplate extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['judul', 'pesan', 'is_active'];
+    protected $table = 'wa_templates';
+
+    protected $fillable = [
+        'nama',
+        'template',
+        'status',
+    ];
 }

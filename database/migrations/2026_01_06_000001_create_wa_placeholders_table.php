@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Drop jika sudah ada untuk memastikan struktur bersih
+        Schema::dropIfExists('wa_placeholders');
+
         Schema::create('wa_placeholders', function (Blueprint $table) {
             $table->id();
-            $table->string('code')->unique();      // Kode placeholder, misal: {nama_pemohon}
-            $table->string('description');         // Deskripsi, misal: Nama Lengkap Pemohon
-            $table->string('example')->nullable(); // Contoh data, misal: Budi Santoso
+            $table->string('placeholder')->unique();
+            $table->string('deskripsi')->nullable();
             $table->timestamps();
         });
     }
