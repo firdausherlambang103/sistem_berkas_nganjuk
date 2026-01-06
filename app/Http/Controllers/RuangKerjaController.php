@@ -23,13 +23,14 @@ class RuangKerjaController extends Controller
         $searchDiMeja = $request->input('search_di_meja');
         $searchDitunda = $request->input('search_ditunda');
 
-        // --- Query untuk Berkas Masuk ---
+        // --- 1. Query untuk Berkas Masuk ---
+        // Menampilkan berkas yang dikirim ke user ini tapi belum diterima
         $berkasMenungguQuery = Berkas::where('penerima_id', $currentUserId)
             ->where('status_pengiriman', 'Dikirim')
-            ->with(['pengirim.jabatan', 'jenisPermohonan']);
+            // [UPDATE] Tambahkan 'waLogs' agar bisa dihitung di view
+            ->with(['pengirim.jabatan', 'jenisPermohonan', 'waLogs']);
 
         if ($searchMasuk) {
-            // Memecah input pencarian berdasarkan koma, membersihkan spasi, dan membuang entri kosong
             $searchTerms = array_filter(array_map('trim', explode(',', $searchMasuk)));
             if (!empty($searchTerms)) {
                 $berkasMenungguQuery->where(function ($query) use ($searchTerms) {
@@ -43,11 +44,13 @@ class RuangKerjaController extends Controller
             }
         }
 
-        // --- Query untuk Berkas di Meja Saya ---
+        // --- 2. Query untuk Berkas di Meja Saya ---
+        // Menampilkan berkas yang posisinya ada di user ini (sudah diterima & sedang diproses)
         $berkasDiMejaQuery = Berkas::where('posisi_sekarang_user_id', $currentUserId)
             ->where('status', 'Diproses')
             ->where('status_pengiriman', 'Diterima')
-            ->with('jenisPermohonan');
+            // [UPDATE] Tambahkan 'waLogs' agar badge counter muncul
+            ->with(['jenisPermohonan', 'waLogs']);
 
         if ($searchDiMeja) {
             $searchTerms = array_filter(array_map('trim', explode(',', $searchDiMeja)));
@@ -61,10 +64,11 @@ class RuangKerjaController extends Controller
             }
         }
 
-        // --- Query untuk Berkas yang Ditunda (Pending) ---
+        // --- 3. Query untuk Berkas yang Ditunda (Pending) ---
         $berkasDitundaQuery = Berkas::where('posisi_sekarang_user_id', $currentUserId)
             ->where('status', 'Pending')
-            ->with('jenisPermohonan');
+            // [UPDATE] Tambahkan 'waLogs'
+            ->with(['jenisPermohonan', 'waLogs']);
 
         if ($searchDitunda) {
             $searchTerms = array_filter(array_map('trim', explode(',', $searchDitunda)));
@@ -78,6 +82,7 @@ class RuangKerjaController extends Controller
             }
         }
         
+        // Daftar User untuk opsi pengiriman (Kirim Ke...)
         $daftarUserTujuan = User::where('id', '!=', $currentUserId)->orderBy('name')->get();
 
         return view('ruang-kerja', [
@@ -88,4 +93,3 @@ class RuangKerjaController extends Controller
         ]);
     }
 }
-

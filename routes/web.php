@@ -7,13 +7,17 @@ use App\Http\Controllers\BerkasController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ManajemenController;
-use App\Http\Controllers\Admin\WaTemplateController; // Controller Template
-use App\Http\Controllers\Admin\WaLogController;      // Controller Log (PENTING!)
-use App\Http\Controllers\WhatsappWebController;      // Controller Kirim WA (PENTING!)
+use App\Http\Controllers\Admin\WaTemplateController; 
+use App\Http\Controllers\Admin\WaLogController;      
+use App\Http\Controllers\WhatsappWebController;      
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
 use App\Models\WaTemplate;
+use App\Models\WaLog;
+use App\Http\Controllers\Admin\WaPlaceholderController;
+
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -50,12 +54,27 @@ Route::middleware('auth')->group(function () {
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
 
     // --- FITUR WHATSAPP (MODAL & SEND) ---
-    // API untuk mengambil template di modal
-    Route::get('/api/wa-templates', function () {
-        return response()->json(WaTemplate::where('is_active', true)->get());
+    
+    // [UPDATE] API Template dengan parameter berkas_id untuk menghitung usage count
+    Route::get('/api/wa-templates/{berkas_id?}', function ($berkas_id = null) {
+        // Ambil semua template aktif
+        $templates = WaTemplate::where('is_active', true)->get();
+
+        // Jika ada ID berkas, hitung penggunaan per template
+        if ($berkas_id) {
+            $templates->map(function ($tpl) use ($berkas_id) {
+                $tpl->usage_count = WaLog::where('berkas_id', $berkas_id)
+                                         ->where('template_id', $tpl->id)
+                                         ->where('status', 'Sukses') // Hanya hitung yang sukses
+                                         ->count();
+                return $tpl;
+            });
+        }
+
+        return response()->json($templates);
     })->name('api.wa-templates');
 
-    // Route untuk mengirim pesan (PENTING: Nama Controller harus sesuai file)
+    // Route untuk mengirim pesan
     Route::post('/whatsapp/send', [WhatsappWebController::class, 'send'])->name('whatsapp.send');
 
 
@@ -151,9 +170,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // 2. Log / Riwayat
     Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
 
+    // 3. Scan QR (Socket IO)
     Route::get('/whatsapp/scan', function () {
-    return view('admin.whatsapp.scan');
+        return view('admin.whatsapp.scan');
     })->name('whatsapp.scan');
+
+    // Route Placeholder WA
+    Route::resource('wa-placeholders', WaPlaceholderController::class)->except(['create', 'edit', 'show']);
 });
 
 require __DIR__.'/auth.php';

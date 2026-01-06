@@ -82,6 +82,9 @@
                                         {{ __('Manajemen Jenis Permohonan') }}
                                     </x-dropdown-link>
                                     {{-- [BARU] Link Template WA --}}
+                                    <x-dropdown-link :href="route('admin.wa-placeholders.index')">
+                                        {{ __('Placeholder WA') }}
+                                    </x-dropdown-link>
                                     <x-dropdown-link :href="route('admin.wa-templates.index')">
                                         {{ __('Template WA') }}
                                     </x-dropdown-link>
@@ -198,6 +201,9 @@
                                 {{ __('Manajemen Jenis Permohonan') }}
                             </x-responsive-nav-link>
                             {{-- [BARU] Link Template WA Responsive --}}
+                            <x-responsive-nav-link :href="route('admin.wa-placeholders.index')" :active="request()->routeIs('admin.wa-placeholders.*')">
+                                {{ __('Placeholder WA') }}
+                            </x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('admin.wa-templates.index')">
                                 {{ __('Template WA') }}
                             </x-responsive-nav-link>

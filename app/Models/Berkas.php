@@ -50,6 +50,15 @@ class Berkas extends Model
         return $this->belongsTo(PenerimaKuasa::class, 'penerima_kuasa_id');
     }
 
+    /**
+     * [BARU] Relasi untuk mengambil Log Pengiriman WhatsApp.
+     * Penting untuk menghitung badge jumlah pesan terkirim.
+     */
+    public function waLogs()
+    {
+        return $this->hasMany(WaLog::class, 'berkas_id');
+    }
+
     // ===================================================================
     // ACCESSORS
     // ===================================================================
@@ -70,7 +79,7 @@ class Berkas extends Model
     }
 
     /**
-     * Accessor BARU: Menghitung tanggal jatuh tempo.
+     * Accessor: Menghitung tanggal jatuh tempo.
      * Jatuh tempo dihitung dari 'waktu_mulai_proses' ditambah timeline dari jenis permohonan.
      */
     public function getJatuhTempoAttribute()
@@ -82,7 +91,7 @@ class Berkas extends Model
     }
 
     /**
-     * Accessor BARU: Menghitung sisa waktu sebelum jatuh tempo.
+     * Accessor: Menghitung sisa waktu sebelum jatuh tempo.
      */
     public function getSisaWaktuAttribute(): string
     {

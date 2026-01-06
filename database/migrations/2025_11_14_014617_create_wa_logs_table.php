@@ -10,20 +10,19 @@ return new class extends Migration
     {
         Schema::create('wa_logs', function (Blueprint $table) {
             $table->id();
-            // Relasi ke tabel berkas (agar tahu log ini untuk berkas mana)
             $table->foreignId('berkas_id')->constrained('berkas')->onDelete('cascade');
-            
-            // Relasi ke user (siapa yang mengirim)
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            
+            // [BARU] Tambahkan kolom ini
+            $table->foreignId('template_id')->nullable()->constrained('wa_templates')->onDelete('set null');
             
             $table->string('target_phone');
             $table->text('pesan');
-            $table->string('status')->default('terkirim'); // Contoh: 'sukses', 'gagal'
-            $table->text('keterangan')->nullable(); // Untuk menyimpan pesan error jika gagal
+            $table->string('status')->default('pending');
+            $table->text('keterangan')->nullable();
             $table->timestamps();
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('wa_logs');
