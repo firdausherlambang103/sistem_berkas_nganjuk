@@ -8,30 +8,44 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
-            {{-- Alert Sukses --}}
+            {{-- ALERT SUKSES --}}
             @if(session('success'))
                 <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
                     {{ session('success') }}
                 </div>
             @endif
 
-            {{-- Form Tambah Placeholder --}}
+            {{-- ALERT ERROR (PENTING: INI YANG HILANG SEBELUMNYA) --}}
+            @if ($errors->any())
+                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                    <strong class="font-bold">Gagal menyimpan!</strong>
+                    <ul class="mt-2 list-disc list-inside text-sm">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            {{-- FORM TAMBAH --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
                     <h3 class="text-lg font-bold mb-4">Tambah Placeholder Baru</h3>
                     <form action="{{ route('admin.wa-placeholders.store') }}" method="POST" class="flex flex-col md:flex-row gap-4">
                         @csrf
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700">Kode (Cth: {nama})</label>
-                            <input type="text" name="code" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="{...}">
+                            <label class="block text-sm font-medium text-gray-700">Kode (Cth: nama)</label>
+                            {{-- value="{{ old('code') }}" menjaga inputan agar tidak hilang saat error --}}
+                            <input type="text" name="code" value="{{ old('code') }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Otomatis jadi {nama}">
+                            <p class="text-xs text-gray-500 mt-1">*Kurung kurawal {} ditambahkan otomatis</p>
                         </div>
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-gray-700">Deskripsi</label>
-                            <input type="text" name="description" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Penjelasan...">
+                            <input type="text" name="description" value="{{ old('description') }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Penjelasan...">
                         </div>
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-gray-700">Contoh Data</label>
-                            <input type="text" name="example" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Contoh isi...">
+                            <input type="text" name="example" value="{{ old('example') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Contoh isi...">
                         </div>
                         <div class="flex items-end">
                             <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Simpan</button>
@@ -40,7 +54,7 @@
                 </div>
             </div>
 
-            {{-- Daftar Placeholder --}}
+            {{-- TABEL DATA --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -53,7 +67,7 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach ($placeholders as $item)
+                            @forelse ($placeholders as $item)
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <code class="bg-gray-100 text-red-500 px-2 py-1 rounded font-bold">{{ $item->code }}</code>
@@ -61,13 +75,20 @@
                                     <td class="px-6 py-4">{{ $item->description }}</td>
                                     <td class="px-6 py-4 text-gray-500 italic">{{ $item->example ?? '-' }}</td>
                                     <td class="px-6 py-4 text-right">
+                                        {{-- Perbaiki route destroy agar sesuai --}}
                                         <form action="{{ route('admin.wa-placeholders.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus placeholder ini?');">
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i></button>
+                                            <button type="submit" class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i> Hapus</button>
                                         </form>
                                     </td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">
+                                        Belum ada data placeholder. Silakan tambah data baru.
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>

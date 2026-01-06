@@ -9,5 +9,8 @@ class WaPlaceholder extends Model
 {
     use HasFactory;
 
+    // Tambahkan ini agar tidak salah baca tabel
+    protected $table = 'wa_placeholders';
+
     protected $fillable = ['code', 'description', 'example'];
 }
