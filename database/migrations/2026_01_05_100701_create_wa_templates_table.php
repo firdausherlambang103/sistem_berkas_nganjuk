@@ -11,20 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Nonaktifkan foreign key checks sementara agar bisa drop tabel yang direlasikan
-        Schema::disableForeignKeyConstraints();
-        
-        // Hapus tabel lama jika ada
+        // Hapus tabel jika sudah ada (Force Reset untuk tabel ini)
         Schema::dropIfExists('wa_templates');
-        
-        // Aktifkan kembali foreign key checks
-        Schema::enableForeignKeyConstraints();
 
         Schema::create('wa_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('nama');
-            $table->text('template');
-            $table->string('status')->default('aktif');
+            $table->string('nama');     // Menggunakan 'nama' bukan 'judul'
+            $table->text('template');   // Menggunakan 'template' bukan 'pesan'
+            $table->string('status')->default('aktif'); // Status: aktif/tidak_aktif
             $table->timestamps();
         });
     }
@@ -34,8 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('wa_templates');
-        Schema::enableForeignKeyConstraints();
     }
 };
