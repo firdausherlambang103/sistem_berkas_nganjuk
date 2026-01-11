@@ -31,13 +31,23 @@
                         
                         {{-- ================= KOLOM KIRI (DATA BERKAS) ================= --}}
                         <div class="space-y-6">
-                            {{-- Input Nomer Berkas --}}
-                            <div>
-                                <x-input-label for="nomer_berkas" value="Nomer Berkas" />
-                                <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="mt-1 block w-full" :value="old('nomer_berkas')" required autofocus />
-                                <x-input-error :messages="$errors->get('nomer_berkas')" class="mt-2" />
-                            </div>
+                        {{-- BARIS BARU: TAHUN & NOMER BERKAS --}}
+                            <div class="grid grid-cols-3 gap-4">
+                                {{-- Input Tahun --}}
+                                <div class="col-span-1">
+                                    <x-input-label for="tahun" value="Tahun" />
+                                    <x-text-input id="tahun" name="tahun" type="number" class="mt-1 block w-full" :value="old('tahun', date('Y'))" required />
+                                    <x-input-error :messages="$errors->get('tahun')" class="mt-2" />
+                                </div>
 
+                                {{-- Input Nomer Berkas --}}
+                                <div class="col-span-2">
+                                    <x-input-label for="nomer_berkas" value="Nomer Berkas" />
+                                    <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="mt-1 block w-full" :value="old('nomer_berkas')" required autofocus />
+                                    <x-input-error :messages="$errors->get('nomer_berkas')" class="mt-2" />
+                                </div>
+                            </div>
+                            
                             {{-- Input Nama Pemohon --}}
                             <div>
                                 <x-input-label for="nama_pemohon" value="Nama Pemohon (Sesuai KTP/Alas Hak)" />

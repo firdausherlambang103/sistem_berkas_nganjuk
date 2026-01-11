@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Berkas;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\View\View;
 
@@ -14,106 +15,127 @@ class DashboardController extends Controller
      */
     public function index(Request $request): View
     {
-        // 1. Statistik Kunci
-        $totalBerkas = Berkas::count();
-        $totalDiproses = Berkas::whereIn('status', ['Diproses', 'Pending'])->count();
-        $totalSelesai = Berkas::where('status', 'Selesai')->count();
+        // 1. Ambil Tahun dari Request (Default: Tahun Sekarang)
+        $tahun = $request->input('tahun', date('Y'));
 
-        // Menghitung jumlah berkas yang jatuh tempo
-        $berkasJatuhTempoCount = Berkas::whereIn('status', ['Diproses', 'Pending'])
-            ->with('jenisPermohonan')
-            ->get()
-            ->filter(function ($berkas) {
-                return $berkas->jatuh_tempo && Carbon::now()->greaterThan($berkas->jatuh_tempo);
-            })
+        // 2. Query Dasar (Difilter berdasarkan tahun pembuatan berkas)
+        $baseQuery = Berkas::where('tahun', $tahun);
+
+        // 3. Hitung Statistik
+        $totalBerkas = (clone $baseQuery)->count();
+        $totalDiproses = (clone $baseQuery)->where('status', 'Diproses')->count();
+        $totalSelesai = (clone $baseQuery)->where('status', 'Selesai')->count();
+        $totalDitunda = (clone $baseQuery)->where('status', 'Pending')->count();
+        $totalDitutup = (clone $baseQuery)->where('status', 'Ditutup')->count();
+
+        // 4. Hitung Jatuh Tempo (Lebih efisien via Query daripada Filter Collection)
+        // Logika: Status aktif (Diproses/Pending) DAN (waktu_mulai + durasi < sekarang)
+        $berkasJatuhTempoCount = (clone $baseQuery)
+            ->whereIn('status', ['Diproses', 'Pending'])
+            ->join('jenis_permohonans', 'berkas.jenis_permohonan_id', '=', 'jenis_permohonans.id')
+            ->whereRaw('DATE_ADD(berkas.waktu_mulai_proses, INTERVAL jenis_permohonans.waktu_timeline_hari DAY) < NOW()')
             ->count();
 
-        // 2. Tabel Rincian Berkas
-        $query = Berkas::query()->with(['posisiSekarang.jabatan', 'jenisPermohonan']);
-        $query->whereIn('status', ['Diproses', 'Pending']);
+        // 5. Data Berkas Terbaru untuk Tabel Dashboard
+        $berkasTerbaru = (clone $baseQuery)
+            ->with(['posisiSekarang.jabatan', 'jenisPermohonan'])
+            ->latest('created_at') // Urutkan dari yang paling baru dibuat
+            ->take(5) // Ambil 5 data saja untuk dashboard
+            ->get();
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('nomer_berkas', 'like', "%{$search}%")
-                  ->orWhere('nama_pemohon', 'like', "%{$search}%");
-            });
-        }
-        
-        $query->select('berkas.*')
-            ->join('jenis_permohonans', 'berkas.jenis_permohonan_id', '=', 'jenis_permohonans.id')
-            ->orderByRaw('CASE WHEN DATE_ADD(waktu_mulai_proses, INTERVAL jenis_permohonans.waktu_timeline_hari DAY) < NOW() THEN 0 ELSE 1 END ASC')
-            ->orderBy('berkas.updated_at', 'desc');
-
-        $semuaBerkasAktif = $query->paginate(10);
-
+        // Mengirim semua data ke view
         return view('dashboard', compact(
             'totalBerkas',
             'totalDiproses',
             'totalSelesai',
-            'berkasJatuhTempoCount', // <-- Nama variabel yang benar
-            'semuaBerkasAktif'
+            'totalDitunda',
+            'totalDitutup',
+            'berkasJatuhTempoCount',
+            'berkasTerbaru',
+            'tahun'
         ));
     }
 
-    // ... sisa fungsi lainnya tidak berubah ...
-    
     /**
-     * Menampilkan daftar semua berkas (total).
+     * Menampilkan daftar semua berkas (total) dengan filter tahun.
      */
-    public function showTotal(): View
+    public function showTotal(Request $request): View
     {
-        $semuaBerkas = Berkas::with('posisiSekarang.jabatan')->latest()->paginate(20);
+        $tahun = $request->input('tahun', date('Y'));
+        
+        $semuaBerkas = Berkas::with('posisiSekarang.jabatan')
+                             ->where('tahun', $tahun)
+                             ->latest()
+                             ->paginate(20)
+                             ->withQueryString();
+
         return view('detail-berkas', [
-            'title' => 'Total Berkas',
-            'daftarBerkas' => $semuaBerkas
+            'title' => "Total Berkas (Tahun $tahun)",
+            'daftarBerkas' => $semuaBerkas,
+            'tahun' => $tahun
         ]);
     }
 
     /**
      * Menampilkan daftar berkas yang sedang diproses.
      */
-    public function showDiproses(): View
+    public function showDiproses(Request $request): View
     {
-        $berkasDiproses = Berkas::whereIn('status', ['Diproses', 'Pending'])
+        $tahun = $request->input('tahun', date('Y'));
+
+        $berkasDiproses = Berkas::where('tahun', $tahun)
+                                ->whereIn('status', ['Diproses', 'Pending'])
                                 ->with('posisiSekarang.jabatan')
                                 ->latest('updated_at')
-                                ->paginate(20);
+                                ->paginate(20)
+                                ->withQueryString();
+
         return view('detail-berkas', [
-            'title' => 'Berkas Sedang Diproses',
-            'daftarBerkas' => $berkasDiproses
+            'title' => "Berkas Sedang Diproses (Tahun $tahun)",
+            'daftarBerkas' => $berkasDiproses,
+            'tahun' => $tahun
         ]);
     }
 
     /**
      * Menampilkan daftar berkas yang sudah selesai.
      */
-    public function showSelesai(): View
+    public function showSelesai(Request $request): View
     {
-        $berkasSelesai = Berkas::where('status', 'Selesai')
+        $tahun = $request->input('tahun', date('Y'));
+
+        $berkasSelesai = Berkas::where('tahun', $tahun)
+                               ->where('status', 'Selesai')
                                ->with('posisiSekarang.jabatan')
                                ->latest('waktu_selesai_proses')
-                               ->paginate(20);
+                               ->paginate(20)
+                               ->withQueryString();
+
         return view('detail-berkas', [
-            'title' => 'Berkas Selesai',
-            'daftarBerkas' => $berkasSelesai
+            'title' => "Berkas Selesai (Tahun $tahun)",
+            'daftarBerkas' => $berkasSelesai,
+            'tahun' => $tahun
         ]);
     }
 
     /**
      * Menampilkan daftar berkas yang sudah jatuh tempo.
      */
-    public function showJatuhTempo(): View
+    public function showJatuhTempo(Request $request): View
     {
-        $berkasAktif = Berkas::whereIn('status', ['Diproses', 'Pending'])
-                            ->with('jenisPermohonan', 'posisiSekarang.jabatan')
-                            ->get();
+        $tahun = $request->input('tahun', date('Y'));
 
-        $berkasJatuhTempo = $berkasAktif->filter(function ($berkas) {
-            return $berkas->jatuh_tempo && Carbon::now()->greaterThan($berkas->jatuh_tempo);
-        });
+        // Query khusus untuk mendapatkan data lengkap jatuh tempo
+        $berkasJatuhTempo = Berkas::select('berkas.*')
+            ->where('berkas.tahun', $tahun)
+            ->whereIn('berkas.status', ['Diproses', 'Pending'])
+            ->join('jenis_permohonans', 'berkas.jenis_permohonan_id', '=', 'jenis_permohonans.id')
+            ->whereRaw('DATE_ADD(berkas.waktu_mulai_proses, INTERVAL jenis_permohonans.waktu_timeline_hari DAY) < NOW()')
+            ->with(['jenisPermohonan', 'posisiSekarang.jabatan'])
+            ->orderBy('waktu_mulai_proses', 'asc') // Urutkan dari yang paling lama lewat
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('jatuh-tempo', compact('berkasJatuhTempo'));
+        return view('jatuh-tempo', compact('berkasJatuhTempo', 'tahun'));
     }
 }
-

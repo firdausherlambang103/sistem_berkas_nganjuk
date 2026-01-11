@@ -11,7 +11,7 @@ class Berkas extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nomer_berkas', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
+        'nomer_berkas','tahun', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
         'kecamatan', 'desa', 'nomer_wa', 'catatan', 'posisi_sekarang_user_id', 'status',
         'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses','penerima_kuasa_id','status_buku_tanah',
     ];

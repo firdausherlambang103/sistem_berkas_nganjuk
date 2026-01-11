@@ -30,11 +30,18 @@
                             
                             {{-- KOLOM KIRI --}}
                             <div class="space-y-4">
-                                {{-- Nomer Berkas --}}
-                                <div>
-                                    <x-input-label for="nomer_berkas" :value="__('Nomer Berkas')" />
-                                    <x-text-input id="nomer_berkas" class="block mt-1 w-full" type="text" name="nomer_berkas" :value="old('nomer_berkas', $berkas->nomer_berkas)" required autofocus />
-                                    <x-input-error :messages="$errors->get('nomer_berkas')" class="mt-2" />
+                            {{-- BARIS BARU: TAHUN & NOMER BERKAS --}}
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div class="col-span-1">
+                                        <x-input-label for="tahun" :value="__('Tahun')" />
+                                        <x-text-input id="tahun" class="block mt-1 w-full" type="number" name="tahun" :value="old('tahun', $berkas->tahun)" required />
+                                        <x-input-error :messages="$errors->get('tahun')" class="mt-2" />
+                                    </div>
+                                    <div class="col-span-2">
+                                        <x-input-label for="nomer_berkas" :value="__('Nomer Berkas')" />
+                                        <x-text-input id="nomer_berkas" class="block mt-1 w-full" type="text" name="nomer_berkas" :value="old('nomer_berkas', $berkas->nomer_berkas)" required />
+                                        <x-input-error :messages="$errors->get('nomer_berkas')" class="mt-2" />
+                                    </div>
                                 </div>
 
                                 {{-- Nama Pemohon --}}

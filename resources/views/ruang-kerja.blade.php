@@ -247,7 +247,13 @@
                                         <td class="px-4 py-4 text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 {{-- EDIT --}}
-                                                @if(in_array(optional(Auth::user()->jabatan)->nama_jabatan, ['Petugas Loket','Petugas Loket Entri', 'Petugas Loket Penyerahan', 'Admin'])) 
+                                                @php
+                                                    $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
+                                                    $isAdmin = optional(Auth::user()->jabatan)->is_admin;
+                                                    $allowedEdit = ['Petugas Loket','Petugas Loket Entri', 'Petugas Loket Penyerahan', 'Admin', 'Administrator'];
+                                                @endphp
+
+                                                @if(in_array($userJabatan, $allowedEdit) || $isAdmin) 
                                                     <a href="{{ route('berkas.edit', $berkas->id) }}" class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition" title="Edit">
                                                         <i class="fa-solid fa-pen-to-square"></i>
                                                     </a>

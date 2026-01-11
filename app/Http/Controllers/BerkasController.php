@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\Rule;
 
 /**
  * Controller BerkasController
@@ -33,12 +34,21 @@ class BerkasController extends Controller
     }
 
     /**
-     * Menyimpan berkas baru dan mengarahkan ke alur penjadwalan.
+     * Menyimpan berkas baru dan mengarahkan kembali ke Ruang Kerja.
      */
     public function store(Request $request): RedirectResponse
     {
         $validatedData = $request->validate([
-            'nomer_berkas' => 'required|string|max:255|unique:berkas,nomer_berkas',
+            'tahun' => 'required|digits:4|integer|min:2000|max:'.(date('Y')+1),
+            'nomer_berkas' => [
+                'required',
+                'string',
+                'max:255',
+                // Cek unik kombinasi nomer + tahun
+                Rule::unique('berkas')->where(function ($query) use ($request) {
+                    return $query->where('tahun', $request->tahun);
+                }),
+            ],
             'nama_pemohon' => 'required|string|max:255',
             'jenis_alas_hak' => 'required|string|max:255',
             'nomer_hak' => 'required|string|max:255',
@@ -48,17 +58,16 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
-            // [BARU] Validasi status buku tanah
             'status_buku_tanah' => 'required|in:Ada,Butuh', 
         ]);
 
-        $berkas = null; // Inisialisasi variabel berkas
+        $berkas = null; 
 
         try {
             DB::transaction(function () use ($validatedData, &$berkas) {
                 $currentUser = Auth::user();
-                // Simpan instance berkas yang baru dibuat ke variabel $berkas
                 $berkas = Berkas::create([
+                    'tahun' => $validatedData['tahun'],
                     'nomer_berkas' => $validatedData['nomer_berkas'],
                     'nama_pemohon' => $validatedData['nama_pemohon'],
                     'jenis_alas_hak' => $validatedData['jenis_alas_hak'],
@@ -69,10 +78,7 @@ class BerkasController extends Controller
                     'nomer_wa' => $validatedData['nomer_wa'],
                     'penerima_kuasa_id' => $validatedData['penerima_kuasa_id'] ?? null,
                     'catatan' => $validatedData['catatan'],
-                    
-                    // [BARU] Simpan status buku tanah
                     'status_buku_tanah' => $validatedData['status_buku_tanah'],
-
                     'posisi_sekarang_user_id' => $currentUser->id,
                     'status' => 'Diproses',
                     'status_pengiriman' => 'Diterima',
@@ -91,9 +97,9 @@ class BerkasController extends Controller
             return redirect()->back()->withInput()->with('error', 'Gagal menyimpan berkas. Error: ' . $e->getMessage());
         }
 
-        // Arahkan ke halaman pilih petugas dengan membawa ID berkas yang baru dibuat.
-        return redirect()->route('jadwal-ukur.pilih-petugas', ['berkas' => $berkas->id])
-                         ->with('success', 'Berkas baru berhasil dibuat! Silakan pilih petugas ukur.');
+        // [PERUBAHAN] Redirect ke Ruang Kerja (Bukan ke Pilih Petugas)
+        return redirect()->route('ruang-kerja')
+                         ->with('success', 'Berkas baru berhasil dibuat!');
     }
     
     /**
@@ -107,22 +113,28 @@ class BerkasController extends Controller
 
     /**
      * Menampilkan form untuk mengedit berkas.
-     * Hanya bisa diakses oleh Petugas Loket dan Admin.
      */
     public function edit(Berkas $berkas)
     {
-        // 1. Cek Hak Akses
         $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
-        $allowed = ['Petugas Loket', 'Petugas Loket Penyerahan', 'Admin'];
+        $isAdmin = optional(Auth::user()->jabatan)->is_admin;
 
-        if (!in_array($userJabatan, $allowed)) {
-            return redirect()->route('ruang-kerja')->with('error', 'Anda tidak memiliki akses untuk mengedit berkas.');
+        // Daftar jabatan yang diizinkan edit
+        $allowed = [
+            'Petugas Loket', 
+            'Petugas Loket Entri',
+            'Petugas Loket Penyerahan', 
+            'Admin', 
+            'Administrator'
+        ];
+
+        if (!in_array($userJabatan, $allowed) && !$isAdmin) {
+            return redirect()->route('ruang-kerja')->with('error', 'Anda tidak memiliki akses untuk mengedit berkas ini.');
         }
 
-        // 2. Ambil data pendukung untuk dropdown
         $kecamatans = Kecamatan::orderBy('nama_kecamatan')->get();
         $jenisPermohonans = JenisPermohonan::orderBy('nama_permohonan')->get();
-        $penerimaKuasas = PenerimaKuasa::orderBy('nama_kuasa')->get(); // Tambahkan ini agar dropdown muncul
+        $penerimaKuasas = PenerimaKuasa::orderBy('nama_kuasa')->get();
 
         return view('berkas.edit', compact('berkas', 'kecamatans', 'jenisPermohonans', 'penerimaKuasas'));
     }
@@ -132,18 +144,32 @@ class BerkasController extends Controller
      */
     public function update(Request $request, Berkas $berkas): RedirectResponse
     {
-        // 1. Cek Hak Akses (Double check untuk keamanan backend)
         $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
-        $allowed = ['Petugas Loket', 'Petugas Loket Penyerahan', 'Admin'];
+        $isAdmin = optional(Auth::user()->jabatan)->is_admin;
+        
+        $allowed = [
+            'Petugas Loket', 
+            'Petugas Loket Entri',
+            'Petugas Loket Penyerahan', 
+            'Admin', 
+            'Administrator'
+        ];
 
-        if (!in_array($userJabatan, $allowed)) {
-            abort(403, 'Unauthorized action.');
+        if (!in_array($userJabatan, $allowed) && !$isAdmin) {
+            abort(403, 'Tindakan tidak diizinkan. Hubungi Administrator.');
         }
 
-        // 2. Validasi Input
         $validatedData = $request->validate([
-            // Rule unique: table, column, except_id
-            'nomer_berkas' => 'required|string|max:255|unique:berkas,nomer_berkas,' . $berkas->id,
+            'tahun' => 'required|digits:4|integer',
+            'nomer_berkas' => [
+            'required',
+            'string',
+            'max:255',
+            // Cek unik kecuali ID ini sendiri
+            Rule::unique('berkas')->where(function ($query) use ($request) {
+                return $query->where('tahun', $request->tahun);
+            })->ignore($berkas->id),
+            ],
             'nama_pemohon' => 'required|string|max:255',
             'jenis_alas_hak' => 'required|string|max:255',
             'nomer_hak' => 'required|string|max:255',
@@ -153,24 +179,17 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
-            // [BARU] Validasi status buku tanah saat update
             'status_buku_tanah' => 'required|in:Ada,Butuh',
         ]);
 
         try {
-            // 3. Lakukan Update
             $berkas->update($validatedData);
-            
-            // 4. Redirect kembali ke ruang kerja
             return redirect()->route('ruang-kerja')->with('success', 'Data berkas berhasil diperbarui!');
         } catch (\Exception $e) {
             return back()->withInput()->with('error', 'Gagal memperbarui berkas: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Menghapus berkas dari database (Hanya Admin).
-     */
     public function destroy(Berkas $berkas): RedirectResponse
     {
         try {
@@ -181,9 +200,6 @@ class BerkasController extends Controller
         return redirect()->route('dashboard')->with('success', 'Berkas berhasil dihapus!');
     }
 
-    /**
-     * Memproses pengiriman berkas ke user lain (bisa satu atau banyak).
-     */
     public function kirim(Request $request): RedirectResponse
     {
         $request->validate([
@@ -226,9 +242,6 @@ class BerkasController extends Controller
         return redirect()->route('ruang-kerja')->with('success', 'Berkas yang dipilih berhasil dikirim!');
     }
 
-    /**
-     * Memproses penerimaan berkas.
-     */
     public function terima(Berkas $berkas): RedirectResponse
     {
         if ($berkas->penerima_id !== Auth::id()) {
@@ -242,9 +255,6 @@ class BerkasController extends Controller
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} berhasil diterima.");
     }
     
-    /**
-     * Memproses penolakan berkas dan mengembalikannya ke pengirim.
-     */
     public function tolak(Berkas $berkas): RedirectResponse
     {
         if ($berkas->penerima_id !== Auth::id()) {
@@ -269,9 +279,6 @@ class BerkasController extends Controller
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah ditolak dan dikembalikan.");
     }
 
-    /**
-     * Menyelesaikan proses berkas.
-     */
     public function selesaikan(Berkas $berkas)
     {
         $user = Auth::user();
@@ -294,9 +301,6 @@ class BerkasController extends Controller
         return redirect()->route('ruang-kerja')->with('success', 'Berkas berhasil diselesaikan!');
     }
 
-    /**
-     * Mengubah status berkas menjadi Ditutup. Memerlukan 'catatan_aksi'.
-     */
     public function tutup(Request $request, Berkas $berkas): RedirectResponse
     {
         $request->validate(['catatan_aksi' => 'required|string|max:255']);
@@ -316,9 +320,6 @@ class BerkasController extends Controller
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah ditutup.");
     }
 
-    /**
-     * Mengubah status berkas menjadi Ditunda (Pending). Memerlukan 'catatan_aksi'.
-     */
     public function pending(Request $request, Berkas $berkas): RedirectResponse
     {
         $request->validate(['catatan_aksi' => 'required|string|max:255']);
@@ -338,9 +339,6 @@ class BerkasController extends Controller
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah ditunda.");
     }
     
-    /**
-     * Mengaktifkan kembali berkas dari status 'Pending'.
-     */
     public function aktifkan(Berkas $berkas): RedirectResponse
     {
         if ($berkas->posisi_sekarang_user_id !== Auth::id()) {
