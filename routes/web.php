@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
 
     // 3. Route Resource (Index, Create, Store, Edit, Update, Destroy)
     Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
+    Route::post('/peminjaman-bt/proses/{berkasId}', [PeminjamanBukuTanahController::class, 'prosesOtomatis'])->name('peminjaman-bt.proses-otomatis');
     
     // --- FITUR WHATSAPP (MODAL & SEND) ---
     // [UPDATE] API Template dengan parameter berkas_id untuk menghitung usage count
