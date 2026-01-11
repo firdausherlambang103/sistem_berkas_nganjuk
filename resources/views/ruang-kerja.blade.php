@@ -126,6 +126,9 @@
                                     <th class="px-4 py-3 text-left w-10"><input type="checkbox" id="select-all-checkbox" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Info Berkas</th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pemohon</th>
+                                    {{-- [MODIFIKASI] Header Tambahan --}}
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Alas Hak & No</th>
+                                    
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status WA</th>
                                     <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
                                 </tr>
@@ -148,6 +151,14 @@
                                                 {{ Str::limit($berkas->desa, 15) }}, {{ Str::limit($berkas->kecamatan, 15) }}
                                             </div>
                                         </td>
+                                        {{-- [MODIFIKASI] Data Tambahan --}}
+                                        <td class="px-4 py-4">
+                                            <div class="text-sm font-medium text-gray-900">{{ $berkas->jenis_alas_hak }}</div>
+                                            <div class="text-xs text-gray-500 font-mono bg-gray-100 inline-block px-1 rounded mt-1">
+                                                {{ $berkas->nomer_hak }}
+                                            </div>
+                                        </td>
+
                                         <td class="px-4 py-4 text-center">
                                             {{-- BUTTON WA DENGAN BADGE --}}
                                             <div class="relative inline-block group">
@@ -192,16 +203,19 @@
                                                 @endif
 
                                                 {{-- TUTUP --}}
-                                                <form action="{{ route('berkas.tutup', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'tutup');">@csrf
-                                                    <button type="submit" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition" title="Tutup / Arsip">
-                                                        <i class="fa-solid fa-box-archive"></i>
-                                                    </button>
-                                                </form>
+                                                {{-- [MODIFIKASI] Hanya Administrator --}}
+                                                @if(optional(Auth::user()->jabatan)->is_admin)
+                                                    <form action="{{ route('berkas.tutup', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'tutup');">@csrf
+                                                        <button type="submit" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition" title="Tutup / Arsip">
+                                                            <i class="fa-solid fa-box-archive"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
                                             </div>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5" class="px-6 py-12 text-center text-gray-400 flex flex-col items-center justify-center">
+                                    <tr><td colspan="6" class="px-6 py-12 text-center text-gray-400 flex flex-col items-center justify-center">
                                         <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
                                         <span>Meja Anda bersih! Tidak ada berkas yang sedang diproses.</span>
                                     </td></tr>

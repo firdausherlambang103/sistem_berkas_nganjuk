@@ -54,10 +54,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
     
-    // Route Peminjaman Buku Tanah
-    Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
-    // Route Khusus Ajax Cek Berkas
+
+    // 1. Route Ajax (Untuk Auto Fill)
     Route::get('/ajax/cek-berkas-bt', [PeminjamanBukuTanahController::class, 'cekBerkas'])->name('ajax.cek-berkas-bt');
+
+    // 2. Route Riwayat (WAJIB DI ATAS RESOURCE)
+    Route::get('peminjaman-bt/riwayat', [PeminjamanBukuTanahController::class, 'riwayat'])->name('peminjaman-bt.riwayat');
+
+    // 3. Route Resource (Index, Create, Store, Edit, Update, Destroy)
+    Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
     
     // --- FITUR WHATSAPP (MODAL & SEND) ---
     // [UPDATE] API Template dengan parameter berkas_id untuk menghitung usage count

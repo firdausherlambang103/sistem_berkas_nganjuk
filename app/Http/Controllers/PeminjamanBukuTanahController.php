@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\PeminjamanBukuTanah;
-// Pastikan Model Berkas di-import. Jika nama file model Anda berbeda, sesuaikan baris ini.
 use App\Models\Berkas; 
 use App\Models\Desa;
 use App\Models\Kecamatan;
@@ -13,45 +12,94 @@ use Illuminate\Support\Facades\Log;
 
 class PeminjamanBukuTanahController extends Controller
 {
+    // ... Method index, riwayat, create, store, cekBerkas (GUNAKAN YG LAMA / TIDAK PERLU DIUBAH) ...
+    // HANYA PASTIKAN METHOD DI BAWAH INI ADA & BENAR:
+
     /**
-     * Tampilkan daftar peminjaman.
+     * Tampilkan daftar peminjaman (Hanya yang BELUM dikembalikan).
      */
-    public function index()
+/**
+     * Tampilkan daftar peminjaman (Hanya yang BELUM dikembalikan).
+     */
+    public function index(Request $request)
     {
-        $data = PeminjamanBukuTanah::with(['desa', 'kecamatan', 'user'])
-            ->latest()
-            ->paginate(10);
+        $query = PeminjamanBukuTanah::with(['desa', 'kecamatan', 'user'])
+            ->where('status', '!=', 'Dikembalikan');
+
+        // LOGIKA PENCARIAN
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nomor_berkas', 'like', "%{$search}%")
+                  ->orWhere('nomor_hak', 'like', "%{$search}%")
+                  ->orWhere('jenis_hak', 'like', "%{$search}%")
+                  ->orWhere('catatan', 'like', "%{$search}%")
+                  ->orWhereHas('desa', function($d) use ($search) {
+                      $d->where('nama_desa', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('kecamatan', function($k) use ($search) {
+                      $k->where('nama_kecamatan', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $data = $query->latest()->paginate(10);
 
         return view('peminjaman-bt.index', compact('data'));
     }
 
     /**
-     * Tampilkan form tambah.
+     * Tampilkan Riwayat Peminjaman (Hanya yang SUDAH dikembalikan).
      */
+    public function riwayat(Request $request)
+    {
+        $query = PeminjamanBukuTanah::with(['desa', 'kecamatan', 'user'])
+            ->where('status', 'Dikembalikan');
+
+        // LOGIKA PENCARIAN
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nomor_berkas', 'like', "%{$search}%")
+                  ->orWhere('nomor_hak', 'like', "%{$search}%")
+                  ->orWhere('jenis_hak', 'like', "%{$search}%")
+                  ->orWhere('catatan', 'like', "%{$search}%")
+                  ->orWhereHas('desa', function($d) use ($search) {
+                      $d->where('nama_desa', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('kecamatan', function($k) use ($search) {
+                      $k->where('nama_kecamatan', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $data = $query->latest('updated_at')->paginate(10);
+
+        return view('peminjaman-bt.riwayat', compact('data'));
+    }
+
     public function create()
     {
         $kecamatans = Kecamatan::orderBy('nama_kecamatan', 'asc')->get();
         $desas = Desa::orderBy('nama_desa', 'asc')->get();
-        
         return view('peminjaman-bt.create', compact('kecamatans', 'desas'));
     }
 
-    /**
-     * Simpan data.
-     */
     public function store(Request $request)
     {
+        // Validasi
         $request->validate([
             'jenis_hak' => 'required',
             'nomor_hak' => 'required',
-            'desa_id' => 'required|exists:desas,id',
-            'kecamatan_id' => 'required|exists:kecamatans,id',
+            'desa_id' => 'required',
+            'kecamatan_id' => 'required',
             'status' => 'required',
         ]);
 
+        // Simpan Data (Sesuaikan nama kolom 'nomer_berkas' dengan DB Anda)
         PeminjamanBukuTanah::create([
             'user_id' => Auth::id(),
-            'nomor_berkas' => $request->nomor_berkas,
+            'nomor_berkas' => $request->nomor_berkas, // Pastikan ini sesuai kolom DB (nomor_berkas atau nomer_berkas)
             'jenis_hak' => $request->jenis_hak,
             'nomor_hak' => $request->nomor_hak,
             'desa_id' => $request->desa_id,
@@ -63,69 +111,146 @@ class PeminjamanBukuTanahController extends Controller
         return redirect()->route('peminjaman-bt.index')->with('success', 'Data berhasil disimpan.');
     }
 
+    // --- BAGIAN EDIT & UPDATE YANG PENTING ---
+
     /**
-     * AJAX: Cari data berkas (DEBUG MODE - ANTI 500 ERROR)
+     * Tampilkan form Edit.
+     */
+    public function edit($id)
+    {
+        try {
+            $item = PeminjamanBukuTanah::findOrFail($id);
+            $kecamatans = Kecamatan::orderBy('nama_kecamatan', 'asc')->get();
+            $desas = Desa::orderBy('nama_desa', 'asc')->get();
+
+            return view('peminjaman-bt.edit', compact('item', 'kecamatans', 'desas'));
+        } catch (\Exception $e) {
+            return redirect()->route('peminjaman-bt.index')->with('error', 'Data tidak ditemukan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update data (Termasuk Pengembalian).
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'jenis_hak' => 'required',
+            'nomor_hak' => 'required',
+            'desa_id' => 'required',
+            'kecamatan_id' => 'required',
+            'status' => 'required',
+        ]);
+
+        $item = PeminjamanBukuTanah::findOrFail($id);
+
+        // Data yang akan diupdate
+        $dataToUpdate = [
+            'jenis_hak' => $request->jenis_hak,
+            'nomor_hak' => $request->nomor_hak,
+            'desa_id' => $request->desa_id,
+            'kecamatan_id' => $request->kecamatan_id,
+            'status' => $request->status,
+            'catatan' => $request->catatan,
+        ];
+
+        // Tambahkan nomor_berkas (Menangani kemungkinan beda nama kolom)
+        // Cek apakah model punya kolom 'nomer_berkas' atau 'nomor_berkas'
+        // Ini hack sederhana: kita coba masukkan 'nomor_berkas'.
+        // Jika di model Anda sudah diset guarded=[], maka aman.
+        $dataToUpdate['nomor_berkas'] = $request->nomor_berkas;
+
+        // Lakukan Update
+        try {
+            $item->update($dataToUpdate);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Jika error kolom tidak ditemukan, coba nama lain (nomer vs nomor)
+            if (str_contains($e->getMessage(), 'Unknown column')) {
+                // Hapus key yang salah, ganti dengan yang benar (misal nomer_berkas)
+                unset($dataToUpdate['nomor_berkas']);
+                $dataToUpdate['nomer_berkas'] = $request->nomor_berkas; 
+                $item->update($dataToUpdate);
+            } else {
+                throw $e;
+            }
+        }
+
+        if ($request->status == 'Dikembalikan') {
+            return redirect()->route('peminjaman-bt.riwayat')->with('success', 'Buku Tanah berhasil dikembalikan.');
+        }
+
+        return redirect()->route('peminjaman-bt.index')->with('success', 'Data berhasil diperbarui.');
+    }
+    
+/**
+     * AJAX: Cari data berkas (SMART SEARCH WILAYAH)
      */
     public function cekBerkas(Request $request)
     {
         try {
-            // 1. Cek Input
             if (!$request->filled('nomor_berkas')) {
                 throw new \Exception('Nomor Berkas tidak boleh kosong.');
             }
 
-            $nomorBerkas = trim($request->query('nomor_berkas'));
+            $inputNomor = trim($request->query('nomor_berkas'));
+            $berkas = \App\Models\Berkas::where('nomer_berkas', $inputNomor)->first();
 
-            // 2. Cek Keberadaan Class Model Berkas (Untuk Debugging)
-            if (!class_exists(\App\Models\Berkas::class)) {
-                throw new \Exception('Model Berkas tidak ditemukan di App\Models\Berkas. Cek nama file model Anda.');
-            }
-
-            // 3. Query Database (Dibungkus try-catch database khusus)
-            try {
-                // Asumsi nama kolom di database adalah 'nomor_berkas'
-                // Jika nama kolom Anda berbeda (misal: 'no_berkas'), ubah di sini.
-                $berkas = \App\Models\Berkas::where('nomor_berkas', $nomorBerkas)->first();
-            } catch (\Illuminate\Database\QueryException $e) {
-                // Tangkap error kolom tidak ditemukan
-                throw new \Exception('Error Database: ' . $e->getMessage());
-            }
-
-            // 4. Jika Data Kosong
             if (!$berkas) {
-                return response()->json([
-                    'success' => false, 
-                    'message' => 'Berkas nomor "' . $nomorBerkas . '" tidak ditemukan.'
-                ]);
+                return response()->json(['success' => false, 'message' => 'Berkas tidak ditemukan.']);
             }
 
-            // 5. Ambil Data (Safe Mode - Menghindari error null object)
-            // Kita gunakan logic "Safe Access" agar jika relasi null, tidak error.
-            
-            $desaId = $berkas->desa_id ?? null;
-            $kecamatanId = $berkas->kecamatan_id ?? null;
-            $nomorHak = $berkas->nomor_hak ?? '';
+            // === 1. LOGIKA MAPPING WILAYAH PINTAR ===
+            $kecamatanId = null;
+            $desaId = null;
 
-            // Logika Mengambil Jenis Hak
-            $jenisHak = '';
-            
-            // Cek apakah ada kolom 'jenis_hak' langsung di tabel berkas
-            if (isset($berkas->jenis_hak)) {
-                $jenisHak = $berkas->jenis_hak;
-            } 
-            // Cek apakah ada relasi ke jenisPermohonan (pastikan nama method relasi benar di Model Berkas)
-            elseif (method_exists($berkas, 'jenisPermohonan') && $berkas->jenisPermohonan) {
-                // Ambil nama dari relasi
-                $namaPermohonan = $berkas->jenisPermohonan->nama_jenis_permohonan ?? $berkas->jenisPermohonan->nama ?? '';
+            // Ambil teks asli dari tabel Berkas
+            $txtKecamatan = $berkas->kecamatan; // Misal: "KEC. MOJOROTO"
+            $txtDesa = $berkas->desa;           // Misal: "KEL. BANDAR LOR"
+
+            // A. Cari Kecamatan (Hapus awalan KEC/KECAMATAN agar pencarian lebih luas)
+            if (!empty($txtKecamatan)) {
+                // Hapus kata 'KECAMATAN', 'KEC.', 'KEC ' (Case Insensitive)
+                $cleanKec = trim(str_ireplace(['KECAMATAN', 'KEC.', 'KEC '], '', $txtKecamatan));
                 
-                // Mapping Sederhana dari Nama Permohonan ke Singkatan Hak
-                if (stripos($namaPermohonan, 'Milik') !== false) $jenisHak = 'HM';
-                elseif (stripos($namaPermohonan, 'Guna Bangunan') !== false) $jenisHak = 'HGB';
-                elseif (stripos($namaPermohonan, 'Pakai') !== false) $jenisHak = 'HP';
-                elseif (stripos($namaPermohonan, 'Guna Usaha') !== false) $jenisHak = 'HGU';
-                elseif (stripos($namaPermohonan, 'Wakaf') !== false) $jenisHak = 'Wakaf';
-                elseif (stripos($namaPermohonan, 'Pengelolaan') !== false) $jenisHak = 'HPL';
+                // Cari yang namanya mirip
+                $kec = Kecamatan::where('nama_kecamatan', 'LIKE', "%{$cleanKec}%")->first();
+                
+                if ($kec) {
+                    $kecamatanId = $kec->id;
+                }
             }
+
+            // B. Cari Desa (Hapus awalan DESA/KELURAHAN)
+            if (!empty($txtDesa)) {
+                // Hapus kata 'DESA', 'KELURAHAN', 'KEL.', 'DSN'
+                $cleanDesa = trim(str_ireplace(['KELURAHAN', 'DESA', 'KEL.', 'DSN '], '', $txtDesa));
+                
+                $queryDesa = Desa::where('nama_desa', 'LIKE', "%{$cleanDesa}%");
+
+                // Jika Kecamatan sudah ketemu, persempit pencarian desa HANYA di kecamatan tersebut
+                // (Mencegah salah ambil jika ada nama desa yang sama di kecamatan lain)
+                if ($kecamatanId) {
+                    $queryDesa->where('kecamatan_id', $kecamatanId);
+                }
+
+                $des = $queryDesa->first();
+                if ($des) {
+                    $desaId = $des->id;
+                }
+            }
+
+            // === 2. LOGIKA MAPPING HAK ===
+            $rawJenis = $berkas->jenis_alas_hak ?? $berkas->jenis_permohonan ?? '';
+            $jenisHak = '';
+
+            if (stripos($rawJenis, 'Milik') !== false) $jenisHak = 'HM';
+            elseif (stripos($rawJenis, 'Guna Bangunan') !== false) $jenisHak = 'HGB';
+            elseif (stripos($rawJenis, 'Pakai') !== false) $jenisHak = 'HP';
+            elseif (stripos($rawJenis, 'Guna Usaha') !== false) $jenisHak = 'HGU';
+            elseif (stripos($rawJenis, 'Wakaf') !== false) $jenisHak = 'Wakaf';
+            elseif (stripos($rawJenis, 'Pengelolaan') !== false) $jenisHak = 'HPL';
+
+            $nomorHak = $berkas->nomer_hak ?? $berkas->nomor_hak ?? '';
 
             return response()->json([
                 'success' => true,
@@ -138,14 +263,7 @@ class PeminjamanBukuTanahController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            // Log error ke file storage/logs/laravel.log untuk admin
-            Log::error('Error Cek Berkas BT: ' . $e->getMessage());
-
-            // Kirim pesan error detail ke browser (agar Anda bisa baca alert-nya)
-            return response()->json([
-                'success' => false,
-                'message' => 'SYSTEM ERROR: ' . $e->getMessage()
-            ], 200); // Kita kirim 200 OK agar Javascript bisa membaca pesan JSON-nya
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 200);
         }
     }
 }
