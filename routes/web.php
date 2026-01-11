@@ -16,6 +16,7 @@ use App\Http\Controllers\SuratTugasController;
 use App\Models\WaTemplate;
 use App\Models\WaLog;
 use App\Http\Controllers\Admin\WaPlaceholderController;
+use App\Http\Controllers\PeminjamanBukuTanahController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,7 +53,12 @@ Route::middleware('auth')->group(function () {
     // --- RUANG KERJA ---
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
-
+    
+    // Route Peminjaman Buku Tanah
+    Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
+    // Route Khusus Ajax Cek Berkas
+    Route::get('/ajax/cek-berkas-bt', [PeminjamanBukuTanahController::class, 'cekBerkas'])->name('ajax.cek-berkas-bt');
+    
     // --- FITUR WHATSAPP (MODAL & SEND) ---
     // [UPDATE] API Template dengan parameter berkas_id untuk menghitung usage count
     Route::get('/api/wa-templates/{berkas_id?}', function ($berkas_id = null) {

@@ -18,12 +18,19 @@
                     <x-nav-link :href="route('ruang-kerja')" :active="request()->routeIs('ruang-kerja')">
                         {{ __('Ruang Kerja') }}
                     </x-nav-link>
-                        {{-- MENU BARU --}}
+                    
                     <x-nav-link :href="route('surat-tugas.create')" :active="request()->routeIs('surat-tugas.create')">
                         {{ __('Surat Tugas & BA') }}
                     </x-nav-link>
 
-                    {{-- Penjadwalan Ukur diubah menjadi Dropdown --}}
+                    {{-- [BARU] MENU PEMINJAMAN BUKU TANAH (Khusus Petugas Buku Tanah) --}}
+                    @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
+                        <x-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
+                            {{ __('Peminjaman Buku Tanah') }}
+                        </x-nav-link>
+                    @endif
+
+                    {{-- Penjadwalan Ukur Dropdown --}}
                     <div class="hidden sm:flex sm:items-center sm:ms-6">
                         <x-dropdown align="left" width="48">
                             <x-slot name="trigger">
@@ -81,14 +88,12 @@
                                     <x-dropdown-link :href="route('admin.permohonan.index')">
                                         {{ __('Manajemen Jenis Permohonan') }}
                                     </x-dropdown-link>
-                                    {{-- [BARU] Link Template WA --}}
                                     <x-dropdown-link :href="route('admin.wa-placeholders.index')">
                                         {{ __('Placeholder WA') }}
                                     </x-dropdown-link>
                                     <x-dropdown-link :href="route('admin.wa-templates.index')">
                                         {{ __('Template WA') }}
                                     </x-dropdown-link>
-                                    {{-- [BARU] Menu Riwayat WA --}}
                                     <x-dropdown-link :href="route('admin.wa-logs.index')">
                                         {{ __('Riwayat WA') }}
                                     </x-dropdown-link>
@@ -152,7 +157,17 @@
             <x-responsive-nav-link :href="route('ruang-kerja')" :active="request()->routeIs('ruang-kerja')">
                 {{ __('Ruang Kerja') }}
             </x-responsive-nav-link>
-            {{-- Tambahkan link responsive untuk penjadwalan jika diperlukan --}}
+            
+            <x-responsive-nav-link :href="route('surat-tugas.create')" :active="request()->routeIs('surat-tugas.create')">
+                 {{ __('Surat Tugas & BA') }}
+            </x-responsive-nav-link>
+
+            {{-- [BARU] Responsive Peminjaman Buku Tanah --}}
+            @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
+                <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
+                    {{ __('Peminjaman Buku Tanah') }}
+                </x-responsive-nav-link>
+            @endif
         </div>
 
         <div class="pt-4 pb-1 border-t border-gray-200">
@@ -197,17 +212,18 @@
                             <x-responsive-nav-link :href="route('admin.desa.index')">
                                 {{ __('Manajemen Desa') }}
                             </x-responsive-nav-link>
+                            <x-responsive-nav-link :href="route('admin.kuasa.index')">
+                                    {{ __('Manajemen Penerima Kuasa') }}
+                            </x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('admin.permohonan.index')">
                                 {{ __('Manajemen Jenis Permohonan') }}
                             </x-responsive-nav-link>
-                            {{-- [BARU] Link Template WA Responsive --}}
                             <x-responsive-nav-link :href="route('admin.wa-placeholders.index')" :active="request()->routeIs('admin.wa-placeholders.*')">
                                 {{ __('Placeholder WA') }}
                             </x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('admin.wa-templates.index')">
                                 {{ __('Template WA') }}
                             </x-responsive-nav-link>
-                            {{-- [BARU] Menu Riwayat WA Responsive --}}
                             <x-responsive-nav-link :href="route('admin.wa-logs.index')" :active="request()->routeIs('admin.wa-logs.*')">
                                 {{ __('Riwayat WA') }}
                             </x-responsive-nav-link>
