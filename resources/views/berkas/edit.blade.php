@@ -75,6 +75,17 @@
 
                             {{-- KOLOM KANAN --}}
                             <div class="space-y-4">
+                                
+                                {{-- [BARU] Status Buku Tanah --}}
+                                <div>
+                                    <x-input-label for="status_buku_tanah" :value="__('Ketersediaan Buku Tanah')" />
+                                    <select id="status_buku_tanah" name="status_buku_tanah" class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm block mt-1 w-full" required>
+                                        <option value="Ada" {{ old('status_buku_tanah', $berkas->status_buku_tanah) == 'Sertipikat Elektronik' ? 'selected' : '' }}>Sertipikat Elektronik</option>
+                                        <option value="Butuh" {{ old('status_buku_tanah', $berkas->status_buku_tanah) == 'Butuh' ? 'selected' : '' }}>Butuh (Perlu pinjam arsip)</option>
+                                    </select>
+                                    <x-input-error :messages="$errors->get('status_buku_tanah')" class="mt-2" />
+                                </div>
+
                                 {{-- Kecamatan --}}
                                 <div>
                                     <x-input-label for="kecamatan" :value="__('Kecamatan')" />
@@ -92,9 +103,7 @@
                                 {{-- Desa --}}
                                 <div>
                                     <x-input-label for="desa" :value="__('Desa')" />
-                                    {{-- Jika desa berupa input text --}}
                                     <x-text-input id="desa" class="block mt-1 w-full" type="text" name="desa" :value="old('desa', $berkas->desa)" required />
-                                    {{-- Jika desa berupa dropdown, ganti dengan select seperti kecamatan --}}
                                     <x-input-error :messages="$errors->get('desa')" class="mt-2" />
                                 </div>
 

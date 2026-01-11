@@ -88,6 +88,18 @@
 
                         {{-- ================= KOLOM KANAN (LOKASI & KONTAK) ================= --}}
                         <div class="space-y-6">
+                            
+                            {{-- [BARU] Input Status Buku Tanah --}}
+                            <div>
+                                <x-input-label for="status_buku_tanah" value="Ketersediaan Buku Tanah (Arsip)" />
+                                <select id="status_buku_tanah" name="status_buku_tanah" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="Ada" {{ old('status_buku_tanah') == 'Ada' ? 'selected' : '' }}>Ada (Sudah dibawa pemohon/tersedia)</option>
+                                    <option value="Butuh" {{ old('status_buku_tanah') == 'Butuh' ? 'selected' : '' }}>Butuh (Perlu pinjam di arsip)</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('status_buku_tanah')" class="mt-2" />
+                                <p class="text-xs text-gray-500 mt-1">*Pilih "Butuh" agar muncul di menu Peminjaman Buku Tanah.</p>
+                            </div>
+
                             {{-- Input Kecamatan --}}
                             <div>
                                 <x-input-label for="kecamatan" value="Kecamatan" />

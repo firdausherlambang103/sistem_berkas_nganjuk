@@ -125,9 +125,15 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left w-10"><input type="checkbox" id="select-all-checkbox" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Info Berkas</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pemohon</th>
-                                    {{-- [MODIFIKASI] Header Tambahan --}}
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Alas Hak & No</th>
+                                    
+                                    {{-- [MODIFIKASI] Header: Kuasa / Pemohon --}}
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Kuasa / Pemohon</th>
+                                    
+                                    {{-- [MODIFIKASI] Header: Hak & Lokasi --}}
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Hak & Lokasi</th>
+                                    
+                                    {{-- [MODIFIKASI] Header: Status BT --}}
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status BT</th>
                                     
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status WA</th>
                                     <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -137,6 +143,8 @@
                                 @forelse ($berkasDiMeja as $berkas)
                                     <tr class="hover:bg-gray-50 transition">
                                         <td class="px-4 py-4"><input type="checkbox" name="berkas_id[]" value="{{ $berkas->id }}" class="berkas-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></td>
+                                        
+                                        {{-- 1. Info Berkas --}}
                                         <td class="px-4 py-4">
                                             <a href="{{ route('berkas.show', $berkas) }}" class="text-sm font-bold text-indigo-600 hover:text-indigo-800 hover:underline">
                                                 {{ $berkas->nomer_berkas }}
@@ -144,19 +152,78 @@
                                             <div class="text-xs text-gray-500 mt-1">{{ optional($berkas->jenisPermohonan)->nama_permohonan }}</div>
                                             <div class="text-[10px] text-gray-400 mt-0.5"><i class="fa-regular fa-calendar mr-1"></i>{{ $berkas->updated_at->format('d/m/Y H:i') }}</div>
                                         </td>
+
+                                        {{-- 2. Kuasa / Pemohon (Tampilkan Kuasa UTAMA jika ada) --}}
                                         <td class="px-4 py-4">
-                                            <div class="text-sm font-medium text-gray-900">{{ $berkas->nama_pemohon }}</div>
+                                            <div class="text-sm font-bold text-gray-900">
+                                                {{ $berkas->penerimaKuasa ? $berkas->penerimaKuasa->nama_kuasa : $berkas->nama_pemohon }}
+                                            </div>
+                                            
+                                            {{-- Jika pakai kuasa, tampilkan nama pemohon asli di bawahnya --}}
+                                            @if($berkas->penerimaKuasa)
+                                                <div class="text-xs text-gray-500 mt-1 flex items-center">
+                                                    <i class="fa-solid fa-user-tag mr-1 text-blue-400" title="Pemohon Asli"></i> 
+                                                    {{ Str::limit($berkas->nama_pemohon, 20) }}
+                                                </div>
+                                            @endif
+                                        </td>
+
+                                        {{-- 3. Hak & Lokasi (Gabungan Alas Hak, No Hak, Desa, Kecamatan) --}}
+                                        <td class="px-4 py-4">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ $berkas->jenis_alas_hak }} 
+                                                <span class="font-mono bg-gray-100 px-1 rounded ml-1 text-gray-700">{{ $berkas->nomer_hak }}</span>
+                                            </div>
                                             <div class="text-xs text-gray-500 flex items-center mt-1">
                                                 <i class="fa-solid fa-location-dot mr-1 text-red-400"></i> 
                                                 {{ Str::limit($berkas->desa, 15) }}, {{ Str::limit($berkas->kecamatan, 15) }}
                                             </div>
                                         </td>
-                                        {{-- [MODIFIKASI] Data Tambahan --}}
-                                        <td class="px-4 py-4">
-                                            <div class="text-sm font-medium text-gray-900">{{ $berkas->jenis_alas_hak }}</div>
-                                            <div class="text-xs text-gray-500 font-mono bg-gray-100 inline-block px-1 rounded mt-1">
-                                                {{ $berkas->nomer_hak }}
-                                            </div>
+                                        
+                                        {{-- 4. Status BT (Sinkronisasi dengan Peminjaman) --}}
+                                        <td class="px-4 py-4 text-center">
+                                            @if($berkas->peminjamanBukuTanah)
+                                                {{-- Jika ada data di peminjaman, ambil status REAL-TIME dari sana --}}
+                                                @php $statusPinjam = $berkas->peminjamanBukuTanah->status; @endphp
+                                                
+                                                @if($statusPinjam == 'Ditemukan')
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-blue-500 rounded-full shadow-sm" title="Buku Tanah Ditemukan">
+                                                        Ditemukan
+                                                    </span>
+                                                @elseif($statusPinjam == 'Surat Tugas' || str_contains($statusPinjam, 'Surat Tugas'))
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-indigo-500 rounded-full shadow-sm" title="Surat Tugas">
+                                                        Surat Tugas
+                                                    </span>
+                                                @elseif($statusPinjam == 'Blokir')
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-red-600 rounded-full shadow-sm">
+                                                        Blokir
+                                                    </span>
+                                                @elseif($statusPinjam == 'Dipinjam')
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-orange-500 rounded-full shadow-sm">
+                                                        Dipinjam
+                                                    </span>
+                                                @elseif($statusPinjam == 'Dikembalikan')
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">
+                                                        Dikembalikan
+                                                    </span>
+                                                @else
+                                                    {{-- Status lain dari peminjaman --}}
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-gray-700 bg-gray-200 rounded-full">
+                                                        {{ $statusPinjam }}
+                                                    </span>
+                                                @endif
+
+                                            @elseif($berkas->status_buku_tanah == 'Butuh')
+                                                {{-- Jika status_buku_tanah 'Butuh' dan BELUM ada di peminjaman (Permintaan Baru) --}}
+                                                <span class="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200 animate-pulse">
+                                                    Perlu BT
+                                                </span>
+                                            @else
+                                                {{-- Jika 'Ada' (dibawa pemohon) --}}
+                                                <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">
+                                                    Ada
+                                                </span>
+                                            @endif
                                         </td>
 
                                         <td class="px-4 py-4 text-center">
@@ -202,8 +269,7 @@
                                                     </form>
                                                 @endif
 
-                                                {{-- TUTUP --}}
-                                                {{-- [MODIFIKASI] Hanya Administrator --}}
+                                                {{-- TUTUP (Hanya Administrator) --}}
                                                 @if(optional(Auth::user()->jabatan)->is_admin)
                                                     <form action="{{ route('berkas.tutup', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'tutup');">@csrf
                                                         <button type="submit" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition" title="Tutup / Arsip">
@@ -215,7 +281,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="6" class="px-6 py-12 text-center text-gray-400 flex flex-col items-center justify-center">
+                                    <tr><td colspan="7" class="px-6 py-12 text-center text-gray-400 flex flex-col items-center justify-center">
                                         <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
                                         <span>Meja Anda bersih! Tidak ada berkas yang sedang diproses.</span>
                                     </td></tr>

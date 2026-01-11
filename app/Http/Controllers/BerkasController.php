@@ -48,6 +48,8 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
+            // [BARU] Validasi status buku tanah
+            'status_buku_tanah' => 'required|in:Ada,Butuh', 
         ]);
 
         $berkas = null; // Inisialisasi variabel berkas
@@ -67,6 +69,10 @@ class BerkasController extends Controller
                     'nomer_wa' => $validatedData['nomer_wa'],
                     'penerima_kuasa_id' => $validatedData['penerima_kuasa_id'] ?? null,
                     'catatan' => $validatedData['catatan'],
+                    
+                    // [BARU] Simpan status buku tanah
+                    'status_buku_tanah' => $validatedData['status_buku_tanah'],
+
                     'posisi_sekarang_user_id' => $currentUser->id,
                     'status' => 'Diproses',
                     'status_pengiriman' => 'Diterima',
@@ -147,6 +153,8 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
+            // [BARU] Validasi status buku tanah saat update
+            'status_buku_tanah' => 'required|in:Ada,Butuh',
         ]);
 
         try {
