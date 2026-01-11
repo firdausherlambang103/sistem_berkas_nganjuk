@@ -12,11 +12,18 @@ use Carbon\Carbon;
 class LaporanController extends Controller
 {
     /**
-     * Menampilkan halaman laporan statistik (Index).
+     * Menampilkan halaman laporan statistik (Index) dengan Filter Seksi.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $jabatans = Jabatan::with([
+        // 1. Ambil daftar Seksi unik untuk filter dropdown (abaikan yang null)
+        $listSeksi = Jabatan::select('seksi')
+            ->whereNotNull('seksi')
+            ->distinct()
+            ->pluck('seksi');
+
+        // 2. Mulai Query Jabatan dengan Eager Loading
+        $query = Jabatan::with([
             'users' => function ($query) {
                 $query->withCount([
                     // 1. Total Masuk
@@ -36,14 +43,70 @@ class LaporanController extends Controller
                     }
                 ]);
             }
-        ])
-        // Urutkan: Kepala Kantor paling atas
-        ->orderByRaw("CASE WHEN nama_jabatan = 'Kepala Kantor Pertanahan' THEN 0 ELSE 1 END ASC")
-        ->orderBy('nama_jabatan', 'asc')
-        ->get();
+        ]);
+
+        // 3. Terapkan Filter jika user memilih 'seksi'
+        if ($request->filled('seksi')) {
+            $query->where('seksi', $request->input('seksi'));
+        }
+
+        // 4. Eksekusi Query dengan Sorting
+        $jabatans = $query
+            // Urutkan: Kepala Kantor paling atas
+            ->orderByRaw("CASE WHEN nama_jabatan = 'Kepala Kantor Pertanahan' THEN 0 ELSE 1 END ASC")
+            ->orderBy('nama_jabatan', 'asc')
+            ->get();
         
         return view('laporan.index', [
             'jabatans' => $jabatans,
+            'listSeksi' => $listSeksi,              // Data untuk dropdown
+            'currentSeksi' => $request->input('seksi'), // Agar dropdown tetap terpilih setelah submit
+        ]);
+    }
+
+    /**
+     * Menampilkan halaman dashboard khusus monitor (Full Screen).
+     * Logika query mirip dengan index, namun return view ke 'laporan.monitor'
+     */
+    public function monitor(Request $request)
+    {
+        // 1. Ambil daftar Seksi unik
+        $listSeksi = Jabatan::select('seksi')
+            ->whereNotNull('seksi')
+            ->distinct()
+            ->pluck('seksi');
+
+        // 2. Query Jabatan dengan Eager Loading
+        $query = Jabatan::with([
+            'users' => function ($query) {
+                $query->withCount([
+                    'riwayatDiterima as total_masuk', 
+                    'riwayatDikirim as total_keluar',
+                    'berkasDiTangan as sisa_berkas' => function ($q) {
+                        $q->whereIn('status', ['Diproses', 'Pending']);
+                    },
+                    'riwayatDikirim as produktivitas_harian' => function ($q) {
+                        $q->whereDate('created_at', Carbon::today());
+                    }
+                ]);
+            }
+        ]);
+
+        // 3. Filter Seksi
+        if ($request->filled('seksi')) {
+            $query->where('seksi', $request->input('seksi'));
+        }
+
+        // 4. Sorting
+        $jabatans = $query
+            ->orderByRaw("CASE WHEN nama_jabatan = 'Kepala Kantor Pertanahan' THEN 0 ELSE 1 END ASC")
+            ->orderBy('nama_jabatan', 'asc')
+            ->get();
+        
+        return view('laporan.monitor', [
+            'jabatans' => $jabatans,
+            'listSeksi' => $listSeksi,
+            'currentSeksi' => $request->input('seksi'),
         ]);
     }
 

@@ -7,7 +7,30 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            
+
+            <div class="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <form method="GET" action="{{ route('laporan.index') }}" class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <label for="seksi" class="text-sm font-medium text-gray-700 whitespace-nowrap">
+                        Filter berdasarkan Seksi:
+                    </label>
+                    
+                    <select name="seksi" id="seksi" onchange="this.form.submit()" 
+                            class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm w-full sm:w-64">
+                        <option value="">-- Tampilkan Semua --</option>
+                        @foreach($listSeksi as $seksi)
+                            <option value="{{ $seksi }}" {{ isset($currentSeksi) && $currentSeksi == $seksi ? 'selected' : '' }}>
+                                {{ $seksi }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    @if(request('seksi'))
+                        <a href="{{ route('laporan.index') }}" class="text-sm text-red-600 hover:text-red-800 underline">
+                            Reset Filter
+                        </a>
+                    @endif
+                </form>
+            </div>
             @foreach($jabatans as $jabatan)
                 @if($jabatan->users->isNotEmpty())
                 <div class="mb-8">

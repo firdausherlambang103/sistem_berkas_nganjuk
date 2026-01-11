@@ -39,6 +39,8 @@ Route::middleware('auth')->group(function () {
     // --- LAPORAN ---
     Route::prefix('laporan')->name('laporan.')->controller(LaporanController::class)->group(function () {
         Route::get('/rinci', 'index')->name('index');
+        // [BARU] Route untuk Monitor Dashboard (Full Screen + Auto Refresh)
+        Route::get('/monitor', 'monitor')->name('monitor');
         Route::get('/user/{user}', 'showBerkasByUser')->name('berkas_by_user');
     });
     
@@ -160,7 +162,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaUpdate'])->name('setting-area-kerja.update');
 
     // --- MANAJEMEN WHATSAPP (Admin) ---
-    // 1. Template (PERBAIKAN: Menghapus except agar fungsi create/edit berjalan)
+    // 1. Template
     Route::resource('wa-templates', WaTemplateController::class);
     
     // 2. Log / Riwayat
@@ -169,7 +171,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // 3. Scan QR (Socket IO)
     Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
 
-    // Route Placeholder WA (PERBAIKAN: Menghapus except)
+    // Route Placeholder WA
     Route::resource('wa-placeholders', WaPlaceholderController::class);
 });
 
