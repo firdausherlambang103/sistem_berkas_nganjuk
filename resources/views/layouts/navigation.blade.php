@@ -18,15 +18,19 @@
                     <x-nav-link :href="route('ruang-kerja')" :active="request()->routeIs('ruang-kerja')">
                         {{ __('Ruang Kerja') }}
                     </x-nav-link>
-                    
                     <x-nav-link :href="route('surat-tugas.create')" :active="request()->routeIs('surat-tugas.create')">
                         {{ __('Surat Tugas & BA') }}
+                    </x-nav-link>
+                    
+                    {{-- [BARU] MENU PETA WAKAF --}}
+                    <x-nav-link :href="route('sensus-wakaf.index')" :active="request()->routeIs('sensus-wakaf.index')">
+                        {{ __('Peta Wakaf') }}
                     </x-nav-link>
 
                     {{-- [BARU] MENU PEMINJAMAN BUKU TANAH (Khusus Petugas Buku Tanah) --}}
                     @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
                         <x-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
-                            {{ __('Peminjaman Buku Tanah') }}
+                            {{ __('Simbuta') }}
                         </x-nav-link>
                     @endif
 
@@ -100,6 +104,7 @@
                                     <x-dropdown-link :href="route('admin.whatsapp.scan')">
                                         {{ __('Scan WhatsApp') }}
                                     </x-dropdown-link>
+                                    
                                 </x-slot>
                             </x-dropdown>
                         </div>
@@ -161,11 +166,16 @@
             <x-responsive-nav-link :href="route('surat-tugas.create')" :active="request()->routeIs('surat-tugas.create')">
                  {{ __('Surat Tugas & BA') }}
             </x-responsive-nav-link>
+            
+            {{-- [BARU] Responsive Peta Wakaf --}}
+            <x-responsive-nav-link :href="route('sensus-wakaf.index')" :active="request()->routeIs('sensus-wakaf.index')">
+                {{ __('Peta Wakaf') }}
+            </x-responsive-nav-link>
 
             {{-- [BARU] Responsive Peminjaman Buku Tanah --}}
             @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
                 <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
-                    {{ __('Peminjaman Buku Tanah') }}
+                    {{ __('Simbuta') }}
                 </x-responsive-nav-link>
             @endif
         </div>

@@ -13,6 +13,7 @@ use App\Http\Controllers\WhatsappWebController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
+use App\Http\Controllers\SensusWakafController; // [BARU] Import Controller Wakaf
 use App\Models\WaTemplate;
 use App\Models\WaLog;
 use App\Http\Controllers\Admin\WaPlaceholderController;
@@ -37,6 +38,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/selesai', [DashboardController::class, 'showSelesai'])->name('dashboard.selesai');
     Route::get('/dashboard/jatuh-tempo', [DashboardController::class, 'showJatuhTempo'])->name('dashboard.jatuh-tempo');
     
+    // --- SENSUS WAKAF (PETA) [BARU] ---
+    Route::get('/sensus-wakaf', [SensusWakafController::class, 'index'])->name('sensus-wakaf.index');
+    Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
+
     // --- LAPORAN ---
     Route::prefix('laporan')->name('laporan.')->controller(LaporanController::class)->group(function () {
         Route::get('/rinci', 'index')->name('index');
@@ -53,7 +58,6 @@ Route::middleware('auth')->group(function () {
     // --- RUANG KERJA ---
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
-    
 
     // 1. Route Ajax (Untuk Auto Fill)
     Route::get('/ajax/cek-berkas-bt', [PeminjamanBukuTanahController::class, 'cekBerkas'])->name('ajax.cek-berkas-bt');
