@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Jabatan;
-use App\Models\RiwayatBerkas;
 use App\Models\Berkas;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class LaporanController extends Controller
@@ -30,17 +28,19 @@ class LaporanController extends Controller
         $query = Jabatan::with([
             'users' => function ($query) use ($tahun) {
                 $query->withCount([
-                    // 1. Total Masuk (Difilter Tahun Berkas)
+                    // 1. Total Masuk (Difilter Tahun Berkas & Kecualikan 'Ditutup')
                     'riwayatDiterima as total_masuk' => function ($q) use ($tahun) {
                         $q->whereHas('berkas', function ($b) use ($tahun) {
-                            $b->where('tahun', $tahun);
+                            $b->where('tahun', $tahun)
+                              ->where('status', '!=', 'Ditutup');
                         });
                     },
                     
-                    // 2. Total Keluar (Selesai) (Difilter Tahun Berkas)
+                    // 2. Total Keluar (Selesai) (Difilter Tahun Berkas & Kecualikan 'Ditutup')
                     'riwayatDikirim as total_keluar' => function ($q) use ($tahun) {
                         $q->whereHas('berkas', function ($b) use ($tahun) {
-                            $b->where('tahun', $tahun);
+                            $b->where('tahun', $tahun)
+                              ->where('status', '!=', 'Ditutup');
                         });
                     },
 
@@ -63,14 +63,14 @@ class LaporanController extends Controller
             $query->where('seksi', $request->input('seksi'));
         }
 
-        // 5. Eksekusi Query dengan Sorting
+        // 5. Eksekusi Query dengan Sorting (UPDATED)
+        // Menggunakan kolom 'urutan' dari database, lalu fallback ke nama_jabatan
         $jabatans = $query
-            ->orderByRaw("CASE WHEN nama_jabatan = 'Kepala Kantor Pertanahan' THEN 0 ELSE 1 END ASC")
+            ->orderBy('urutan', 'asc') 
             ->orderBy('nama_jabatan', 'asc')
             ->get();
         
         // 6. Data Tabular (Daftar Semua Berkas Filter Tahun)
-        // Ini tambahan agar tampilan tabel di view index berfungsi
         $data = Berkas::with(['jenisPermohonan', 'posisiSekarang.jabatan'])
                       ->where('tahun', $tahun);
 
@@ -92,8 +92,8 @@ class LaporanController extends Controller
             'jabatans' => $jabatans,
             'listSeksi' => $listSeksi,
             'currentSeksi' => $request->input('seksi'),
-            'tahun' => $tahun, // Kirim variabel tahun ke view
-            'data' => $data    // Kirim data tabular ke view
+            'tahun' => $tahun, 
+            'data' => $data    
         ]);
     }
 
@@ -112,20 +112,26 @@ class LaporanController extends Controller
         $query = Jabatan::with([
             'users' => function ($query) use ($tahun) {
                 $query->withCount([
+                    // 1. Total Masuk (Kecualikan 'Ditutup')
                     'riwayatDiterima as total_masuk' => function ($q) use ($tahun) {
                         $q->whereHas('berkas', function ($b) use ($tahun) {
-                            $b->where('tahun', $tahun);
+                            $b->where('tahun', $tahun)
+                              ->where('status', '!=', 'Ditutup');
                         });
                     },
+                    // 2. Total Keluar (Kecualikan 'Ditutup')
                     'riwayatDikirim as total_keluar' => function ($q) use ($tahun) {
                         $q->whereHas('berkas', function ($b) use ($tahun) {
-                            $b->where('tahun', $tahun);
+                            $b->where('tahun', $tahun)
+                              ->where('status', '!=', 'Ditutup');
                         });
                     },
+                    // 3. Sisa Berkas
                     'berkasDiTangan as sisa_berkas' => function ($q) use ($tahun) {
                         $q->whereIn('status', ['Diproses', 'Pending'])
                           ->where('tahun', $tahun);
                     },
+                    // 4. Produktivitas Harian
                     'riwayatDikirim as produktivitas_harian' => function ($q) {
                         $q->whereDate('created_at', Carbon::today());
                     }
@@ -137,8 +143,9 @@ class LaporanController extends Controller
             $query->where('seksi', $request->input('seksi'));
         }
 
+        // Sorting (UPDATED)
         $jabatans = $query
-            ->orderByRaw("CASE WHEN nama_jabatan = 'Kepala Kantor Pertanahan' THEN 0 ELSE 1 END ASC")
+            ->orderBy('urutan', 'asc')
             ->orderBy('nama_jabatan', 'asc')
             ->get();
         
@@ -164,19 +171,21 @@ class LaporanController extends Controller
             ->latest()
             ->get();
 
-        // 2. Ambil Riwayat Berkas yang Sudah Selesai (Dikirim oleh User) - Filter Tahun
+        // 2. Ambil Riwayat Berkas yang Sudah Selesai (Dikirim oleh User) - Filter Tahun & Kecualikan 'Ditutup'
         $berkasKeluar = $user->riwayatDikirim()
             ->whereHas('berkas', function ($q) use ($tahun) {
-                $q->where('tahun', $tahun);
+                $q->where('tahun', $tahun)
+                  ->where('status', '!=', 'Ditutup');
             })
             ->with(['berkas.jenisPermohonan', 'keUser.jabatan'])
             ->latest()
             ->get();
 
-        // 3. Hitung Statistik Pelengkap
+        // 3. Hitung Statistik Pelengkap (Total Masuk) - Kecualikan 'Ditutup'
         $totalMasuk = $user->riwayatDiterima()
             ->whereHas('berkas', function ($q) use ($tahun) {
-                $q->where('tahun', $tahun);
+                $q->where('tahun', $tahun)
+                  ->where('status', '!=', 'Ditutup');
             })->count();
             
         $totalKeluar = $berkasKeluar->count();
@@ -209,7 +218,7 @@ class LaporanController extends Controller
             'totalKeluar' => $totalKeluar,
             'sisaBerkas' => $sisaBerkas,
             'persentasePenyelesaian' => $persentasePenyelesaian,
-            'tahun' => $tahun // Kirim tahun agar bisa difilter di view detail juga jika perlu
+            'tahun' => $tahun 
         ]);
     }
 }

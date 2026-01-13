@@ -20,14 +20,15 @@ class ManajemenController extends Controller
 
     public function jabatanIndex()
     {
-        $jabatans = Jabatan::orderBy('nama_jabatan')->get();
+    // Urutkan berdasarkan urutan terkecil (1, 2, 3...)
+        $jabatans = Jabatan::orderBy('urutan', 'asc')->orderBy('nama_jabatan')->get();
         return view('admin.manajemen.jabatan', compact('jabatans'));
     }
 
     public function jabatanStore(Request $request)
     {
-        $request->validate(['nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan', 'is_admin' => 'nullable|boolean']);
-        Jabatan::create(['nama_jabatan' => $request->nama_jabatan, 'is_admin' => $request->has('is_admin')]);
+        $request->validate(['nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan', 'is_admin' => 'nullable|boolean', 'urutan' => 'nullable|integer']);
+        Jabatan::create(['nama_jabatan' => $request->nama_jabatan, 'is_admin' => $request->has('is_admin'), 'urutan' => $request->urutan ?? 99]);
         return redirect()->route('admin.jabatan.index')->with('success', 'Jabatan baru berhasil ditambahkan.');
     }
 
@@ -38,9 +39,10 @@ class ManajemenController extends Controller
 
     public function jabatanUpdate(Request $request, Jabatan $jabatan)
     {
-        $request->validate(['nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan,' . $jabatan->id, 'is_admin' => 'nullable|boolean']);
+        $request->validate(['nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan,' . $jabatan->id, 'is_admin' => 'nullable|boolean', 'urutan' => 'nullable|integer']);
         $jabatan->nama_jabatan = $request->nama_jabatan;
         $jabatan->is_admin = $request->has('is_admin');
+        $jabatan->urutan = $request->urutan ?? 99;
         $jabatan->save();
         return redirect()->route('admin.jabatan.index')->with('success', 'Jabatan berhasil diperbarui.');
     }

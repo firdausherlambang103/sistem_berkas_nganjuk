@@ -18,7 +18,11 @@
                         <x-text-input id="nama_jabatan" name="nama_jabatan" type="text" class="mt-1 block w-full" :value="old('nama_jabatan', $jabatan->nama_jabatan)" required autofocus />
                         <x-input-error :messages="$errors->get('nama_jabatan')" class="mt-2" />
                     </div>
-                    
+                    <div class="mb-4">
+                        <x-input-label for="urutan" value="Nomor Urut Tampilan" />
+                        <x-text-input id="urutan" name="urutan" type="number" class="mt-1 block w-full" :value="old('urutan', $jabatan->urutan)" required />
+                        <x-input-error :messages="$errors->get('urutan')" class="mt-2" />
+                    </div>
                     {{-- Opsi untuk mengubah status admin --}}
                     <div class="block mt-4">
                         <label for="is_admin" class="inline-flex items-center">

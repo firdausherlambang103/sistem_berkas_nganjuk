@@ -20,6 +20,12 @@
                             <x-text-input id="nama_jabatan" name="nama_jabatan" type="text" class="mt-1 block w-full" :value="old('nama_jabatan')" required autofocus />
                             <x-input-error :messages="$errors->get('nama_jabatan')" class="mt-2" />
                         </div>
+                        <div class="mt-4">
+                            <x-input-label for="urutan" value="Nomor Urut Tampilan" />
+                            <x-text-input id="urutan" name="urutan" type="number" class="mt-1 block w-full" :value="old('urutan', 99)" />
+                            <p class="text-xs text-gray-500 mt-1">Semakin kecil angkanya, semakin di atas posisinya (Contoh: Kepala Kantor = 1).</p>
+                            <x-input-error :messages="$errors->get('urutan')" class="mt-2" />
+                        </div>
                         <div class="block">
                             <label for="is_admin" class="inline-flex items-center">
                                 <input id="is_admin" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="is_admin" value="1">
@@ -41,7 +47,7 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nama Jabatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Urutan</th> <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nama Jabatan</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status Admin</th>
                                     <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Aksi</th>
                                 </tr>
@@ -49,7 +55,7 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse ($jabatans as $jabatan)
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $jabatan->nama_jabatan }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap font-mono text-sm">{{ $jabatan->urutan }}</td> <td class="px-6 py-4 whitespace-nowrap">{{ $jabatan->nama_jabatan }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             @if($jabatan->is_admin)
                                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Ya</span>

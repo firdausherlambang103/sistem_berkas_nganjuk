@@ -36,12 +36,38 @@ class DashboardController extends Controller
             ->whereRaw('DATE_ADD(berkas.waktu_mulai_proses, INTERVAL jenis_permohonans.waktu_timeline_hari DAY) < NOW()')
             ->count();
 
-        // 5. Data Berkas Terbaru untuk Tabel Dashboard
+        // 5. Data Berkas Terbaru untuk Tabel Dashboard (Hanya 5 Teratas)
         $berkasTerbaru = (clone $baseQuery)
             ->with(['posisiSekarang.jabatan', 'jenisPermohonan'])
             ->latest('created_at') // Urutkan dari yang paling baru dibuat
             ->take(5) // Ambil 5 data saja untuk dashboard
             ->get();
+
+        // 6. [BARU] Logika Tambahan untuk Pencarian / Lihat Semua
+        $additionalBerkas = null;
+        $searchQuery = $request->input('search');
+        $isModeAll = $request->input('mode') === 'all';
+
+        // Jika ada pencarian ATAU mode 'all' aktif, jalankan query tambahan
+        if ($searchQuery || $isModeAll) {
+            $queryLanjutan = (clone $baseQuery) // Clone lagi agar filter tahun tetap terbawa
+                ->with(['posisiSekarang.jabatan', 'jenisPermohonan']);
+
+            // Jika sedang mencari, tambahkan kondisi filter
+            if ($searchQuery) {
+                $queryLanjutan->where(function($q) use ($searchQuery) {
+                    $q->where('nomer_berkas', 'like', "%{$searchQuery}%")
+                      ->orWhere('nama_pemohon', 'like', "%{$searchQuery}%")
+                      ->orWhere('nomer_hak', 'like', "%{$searchQuery}%")
+                      ->orWhere('desa', 'like', "%{$searchQuery}%");
+                });
+            }
+            
+            // Ambil data dengan pagination (misal 20 per halaman)
+            $additionalBerkas = $queryLanjutan->latest('created_at')
+                ->paginate(20)
+                ->withQueryString();
+        }
 
         // Mengirim semua data ke view
         return view('dashboard', compact(
@@ -52,7 +78,11 @@ class DashboardController extends Controller
             'totalDitutup',
             'berkasJatuhTempoCount',
             'berkasTerbaru',
-            'tahun'
+            'tahun',
+            // Variabel Baru yang dikirim ke View
+            'additionalBerkas',
+            'searchQuery',
+            'isModeAll'
         ));
     }
 
