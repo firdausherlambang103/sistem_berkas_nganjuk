@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Sistem Pelacakan Berkas Digital & SIMBUTA</title>
+        <title>Sistem Pelacakan Berkas Digital & SILABUS</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,800&display=swap" rel="stylesheet" />
@@ -48,7 +48,7 @@
                     {{-- Logo / Icon --}}
                     <div class="flex justify-center mb-8 animate-fade-in-down">
                         <div class="p-5 bg-white rounded-3xl shadow-xl border border-white/50 ring-4 ring-indigo-50">
-                            {{-- Icon Buku (Mewakili Simbuta) & Folder (Mewakili Berkas Digital) --}}
+                            {{-- Icon Buku (Mewakili Silabus) & Folder (Mewakili Berkas Digital) --}}
                             <div class="flex items-center gap-2">
                                 <i class="fa-solid fa-folder-tree text-5xl text-blue-500"></i>
                                 <span class="text-gray-300 text-4xl">|</span>
@@ -60,7 +60,7 @@
                     {{-- Title (DIGABUNGKAN) --}}
                     <h1 class="text-4xl md:text-6xl font-black mb-4 tracking-tight text-gray-900 leading-tight">
                         Sistem Pelacakan Berkas Digital <br>
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">& SIMBUTA</span>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">& SILABUS</span>
                     </h1>
 
                     {{-- Subtitle --}}
@@ -113,7 +113,7 @@
                             </div>
                             <h3 class="font-bold text-xl text-gray-900 mb-3">Manajemen Buku Tanah</h3>
                             <p class="text-gray-500 leading-relaxed">
-                                (SIMBUTA) Pengelolaan peminjaman dan pengembalian buku tanah yang terstruktur dan aman.
+                                (SILABUS) Sistem Pengelolaan Buku Tanah dan Surat Ukur yang terstruktur dan aman.
                             </p>
                         </div>
 
@@ -134,7 +134,7 @@
                 {{-- Footer --}}
                 <div class="mt-20 text-center border-t border-gray-200 pt-8">
                     <p class="text-sm text-gray-400">
-                        &copy; {{ date('Y') }} Kantor Pertanahan. <strong>Sistem Pelacakan Berkas & SIMBUTA</strong>.
+                        &copy; {{ date('Y') }} Kantor Pertanahan. <strong>Sistem Pelacakan Berkas & SILABUS</strong>.
                     </p>
                 </div>
 

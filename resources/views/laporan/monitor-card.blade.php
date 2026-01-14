@@ -1,7 +1,10 @@
 @php
     $masuk = $user->total_masuk;
     $keluar = $user->total_keluar;
-    $persen = $masuk > 0 ? round(($keluar / $masuk) * 100) : 0;
+    
+    // PERBAIKAN: Hitung persen dan batasi maksimal 100%
+    $hitungPersen = $masuk > 0 ? ($keluar / $masuk) * 100 : 0;
+    $persen = round($hitungPersen > 100 ? 100 : $hitungPersen);
     
     // Warna Indikator (Gunakan 'green' & 'yellow' yang standar)
     $textWarna = $persen >= 80 ? 'text-green-600' : ($persen >= 50 ? 'text-yellow-600' : 'text-red-600');

@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'SIMBUTA') }}</title>
+        <title>{{ config('app.name', 'SILABUS') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
@@ -40,7 +40,7 @@
                         </div>
                     </div>
 
-                    <h1 class="text-4xl font-extrabold mb-4 tracking-tight">Sistem Pelacakan Berkas & SIMBUTA</h1>
+                    <h1 class="text-4xl font-extrabold mb-4 tracking-tight">Sistem Pelacakan Berkas & SILABUS</h1>
                     <p class="text-indigo-200 text-lg leading-relaxed">
                         Kelola arsip pertanahan dan lacak berkas digital dalam satu platform yang terintegrasi, aman, dan efisien.
                     </p>

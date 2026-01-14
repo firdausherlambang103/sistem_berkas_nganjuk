@@ -22,7 +22,7 @@
                     {{-- [BARU] MENU PEMINJAMAN BUKU TANAH (Khusus Petugas Buku Tanah) --}}
                     @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
                         <x-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
-                            {{ __('Simbuta') }}
+                            {{ __('Silabus') }}
                         </x-nav-link>
                     @endif
 
@@ -158,7 +158,7 @@
             {{-- [BARU] Responsive Peminjaman Buku Tanah --}}
             @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
                 <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
-                    {{ __('Simbuta') }}
+                    {{ __('Silabus') }}
                 </x-responsive-nav-link>
             @endif
         </div>
