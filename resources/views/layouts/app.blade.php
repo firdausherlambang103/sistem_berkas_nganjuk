@@ -34,6 +34,8 @@
             <main>
                 {{ $slot }}
             </main>
+            {{-- Tambahkan Komponen Chat Di Sini --}}
+            @livewire('chat-box')
         </div>
 
         <!-- ApexCharts for Dashboard (jika diperlukan) -->
