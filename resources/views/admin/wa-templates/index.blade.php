@@ -4,7 +4,6 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 <i class="fa-brands fa-whatsapp mr-2 text-green-500"></i> {{ __('WA Templates') }}
             </h2>
-            {{-- PERBAIKAN: admin.wa-templates.create --}}
             <a href="{{ route('admin.wa-templates.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none transition">
                 <i class="fa-solid fa-plus mr-2"></i> Tambah Template
             </a>
@@ -27,6 +26,7 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nama Template</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Isi Pesan</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
                             </tr>
                         </thead>
@@ -34,15 +34,20 @@
                             @forelse ($templates as $item)
                                 <tr class="hover:bg-gray-50 transition top-align">
                                     <td class="px-6 py-4 whitespace-nowrap align-top font-bold text-gray-700">
-                                        {{ $item->nama_template }}
+                                        {{ $item->nama }}
                                     </td>
-                                    <td class="px-6 py-4 align-top text-sm text-gray-600 whitespace-pre-wrap leading-relaxed max-w-lg">{{ $item->isi_pesan }}</td>
+                                    <td class="px-6 py-4 align-top text-sm text-gray-600 whitespace-pre-wrap leading-relaxed max-w-lg">
+                                        {{ $item->template }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap align-top">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $item->status == 'aktif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                            {{ ucfirst($item->status) }}
+                                        </span>
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium align-top">
-                                        {{-- PERBAIKAN: admin.wa-templates.edit --}}
                                         <a href="{{ route('admin.wa-templates.edit', $item->id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">
                                             <i class="fa-regular fa-pen-to-square"></i> Edit
                                         </a>
-                                        {{-- PERBAIKAN: admin.wa-templates.destroy --}}
                                         <form action="{{ route('admin.wa-templates.destroy', $item->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus template ini?');">
                                             @csrf
                                             @method('DELETE')
@@ -54,7 +59,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="3" class="px-6 py-4 text-center text-gray-500 italic">
+                                    <td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">
                                         Belum ada template.
                                     </td>
                                 </tr>

@@ -125,16 +125,9 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left w-10"><input type="checkbox" id="select-all-checkbox" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Info Berkas</th>
-                                    
-                                    {{-- [MODIFIKASI] Header: Kuasa / Pemohon --}}
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Kuasa / Pemohon</th>
-                                    
-                                    {{-- [MODIFIKASI] Header: Hak & Lokasi --}}
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Hak & Lokasi</th>
-                                    
-                                    {{-- [MODIFIKASI] Header: Status BT --}}
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status BT</th>
-                                    
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status WA</th>
                                     <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
                                 </tr>
@@ -153,13 +146,11 @@
                                             <div class="text-[10px] text-gray-400 mt-0.5"><i class="fa-regular fa-calendar mr-1"></i>{{ $berkas->updated_at->format('d/m/Y H:i') }}</div>
                                         </td>
 
-                                        {{-- 2. Kuasa / Pemohon (Tampilkan Kuasa UTAMA jika ada) --}}
+                                        {{-- 2. Kuasa / Pemohon --}}
                                         <td class="px-4 py-4">
                                             <div class="text-sm font-bold text-gray-900">
                                                 {{ $berkas->penerimaKuasa ? $berkas->penerimaKuasa->nama_kuasa : $berkas->nama_pemohon }}
                                             </div>
-                                            
-                                            {{-- Jika pakai kuasa, tampilkan nama pemohon asli di bawahnya --}}
                                             @if($berkas->penerimaKuasa)
                                                 <div class="text-xs text-gray-500 mt-1 flex items-center">
                                                     <i class="fa-solid fa-user-tag mr-1 text-blue-400" title="Pemohon Asli"></i> 
@@ -168,7 +159,7 @@
                                             @endif
                                         </td>
 
-                                        {{-- 3. Hak & Lokasi (Gabungan Alas Hak, No Hak, Desa, Kecamatan) --}}
+                                        {{-- 3. Hak & Lokasi --}}
                                         <td class="px-4 py-4">
                                             <div class="text-sm font-medium text-gray-900">
                                                 {{ $berkas->jenis_alas_hak }} 
@@ -180,54 +171,32 @@
                                             </div>
                                         </td>
                                         
-                                        {{-- 4. Status BT (Sinkronisasi dengan Peminjaman) --}}
+                                        {{-- 4. Status BT --}}
                                         <td class="px-4 py-4 text-center">
                                             @if($berkas->peminjamanBukuTanah)
-                                                {{-- Jika ada data di peminjaman, ambil status REAL-TIME dari sana --}}
                                                 @php $statusPinjam = $berkas->peminjamanBukuTanah->status; @endphp
-                                                
                                                 @if($statusPinjam == 'Ditemukan')
-                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-blue-500 rounded-full shadow-sm" title="Buku Tanah Ditemukan">
-                                                        Ditemukan
-                                                    </span>
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-blue-500 rounded-full shadow-sm">Ditemukan</span>
                                                 @elseif($statusPinjam == 'Surat Tugas' || str_contains($statusPinjam, 'Surat Tugas'))
-                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-indigo-500 rounded-full shadow-sm" title="Surat Tugas">
-                                                        Surat Tugas
-                                                    </span>
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-indigo-500 rounded-full shadow-sm">Surat Tugas</span>
                                                 @elseif($statusPinjam == 'Blokir')
-                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-red-600 rounded-full shadow-sm">
-                                                        Blokir
-                                                    </span>
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-red-600 rounded-full shadow-sm">Blokir</span>
                                                 @elseif($statusPinjam == 'Dipinjam')
-                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-orange-500 rounded-full shadow-sm">
-                                                        Dipinjam
-                                                    </span>
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-white bg-orange-500 rounded-full shadow-sm">Dipinjam</span>
                                                 @elseif($statusPinjam == 'Dikembalikan')
-                                                    <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">
-                                                        Dikembalikan
-                                                    </span>
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">Dikembalikan</span>
                                                 @else
-                                                    {{-- Status lain dari peminjaman --}}
-                                                    <span class="px-2 py-1 text-[10px] font-bold text-gray-700 bg-gray-200 rounded-full">
-                                                        {{ $statusPinjam }}
-                                                    </span>
+                                                    <span class="px-2 py-1 text-[10px] font-bold text-gray-700 bg-gray-200 rounded-full">{{ $statusPinjam }}</span>
                                                 @endif
-
                                             @elseif($berkas->status_buku_tanah == 'Butuh')
-                                                {{-- Jika status_buku_tanah 'Butuh' dan BELUM ada di peminjaman (Permintaan Baru) --}}
-                                                <span class="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200 animate-pulse">
-                                                    Perlu BT
-                                                </span>
+                                                <span class="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200 animate-pulse">Perlu BT</span>
                                             @else
-                                                {{-- Jika 'Ada' (dibawa pemohon) --}}
-                                                <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">
-                                                    Ada
-                                                </span>
+                                                <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">Ada</span>
                                             @endif
                                         </td>
 
+                                        {{-- 5. Tombol WA --}}
                                         <td class="px-4 py-4 text-center">
-                                            {{-- BUTTON WA DENGAN BADGE --}}
                                             <div class="relative inline-block group">
                                                 <button type="button" 
                                                         onclick="openWaModal('{{ $berkas->id }}', '{{ $berkas->nomer_wa }}', '{{ $berkas->nama_pemohon }}', '{{ $berkas->nomer_berkas }}', '{{ $berkas->status }}', {{ $berkas->waLogs->count() }})"
@@ -236,7 +205,6 @@
                                                     <i class="fa-brands fa-whatsapp text-xl"></i>
                                                 </button>
                                                 
-                                                {{-- Badge Count --}}
                                                 @if($berkas->waLogs && $berkas->waLogs->count() > 0)
                                                     <span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white text-[10px] font-bold text-white shadow-sm">
                                                         {{ $berkas->waLogs->count() }}
@@ -244,9 +212,9 @@
                                                 @endif
                                             </div>
                                         </td>
+
                                         <td class="px-4 py-4 text-right">
                                             <div class="flex items-center justify-end gap-2">
-                                                {{-- EDIT --}}
                                                 @php
                                                     $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
                                                     $isAdmin = optional(Auth::user()->jabatan)->is_admin;
@@ -259,14 +227,12 @@
                                                     </a>
                                                 @endif
 
-                                                {{-- PENDING --}}
                                                 <form action="{{ route('berkas.pending', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'pending');">@csrf
                                                     <button type="submit" class="p-2 text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded transition" title="Tunda (Pending)">
                                                         <i class="fa-solid fa-clock"></i>
                                                     </button>
                                                 </form>
 
-                                                {{-- SELESAI (Khusus Penyerahan) --}}
                                                 @if(optional(Auth::user()->jabatan)->nama_jabatan === 'Petugas Loket Penyerahan')
                                                     <form action="{{ route('berkas.selesaikan', $berkas) }}" method="POST" class="inline">@csrf
                                                         <button type="submit" class="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition" title="Selesaikan">
@@ -275,7 +241,6 @@
                                                     </form>
                                                 @endif
 
-                                                {{-- TUTUP (Hanya Administrator) --}}
                                                 @if(optional(Auth::user()->jabatan)->is_admin)
                                                     <form action="{{ route('berkas.tutup', $berkas) }}" method="POST" class="inline" onsubmit="return handleAksiDenganCatatan(this, 'tutup');">@csrf
                                                         <button type="submit" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition" title="Tutup / Arsip">
@@ -352,14 +317,11 @@
     {{-- MODAL PILIH TEMPLATE WA --}}
     <div id="waModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            {{-- Background --}}
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeWaModal()"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-            {{-- Panel Modal --}}
             <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 
-                {{-- Header Modal --}}
                 <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                     <h3 class="text-lg leading-6 font-bold text-gray-800" id="modal-title">
                         <i class="fa-brands fa-whatsapp text-green-500 mr-2 text-xl"></i> Kirim Pesan WhatsApp
@@ -369,9 +331,7 @@
                     </button>
                 </div>
 
-                {{-- Body Modal --}}
                 <div class="px-6 py-6 bg-white">
-                    {{-- Info Penerima --}}
                     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-5 flex items-start gap-3">
                         <div class="bg-blue-200 rounded-full p-2 text-blue-700"><i class="fa-solid fa-user"></i></div>
                         <div>
@@ -382,7 +342,6 @@
                     </div>
 
                     <div class="space-y-4">
-                        {{-- Dropdown Template --}}
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label for="waTemplateSelect" class="block text-sm font-medium text-gray-700">Pilih Template</label>
@@ -395,18 +354,16 @@
                             </select>
                         </div>
 
-                        {{-- Preview Textarea --}}
                         <div>
                             <label for="waMessagePreview" class="block text-sm font-medium text-gray-700 mb-2">Pratinjau Pesan</label>
                             <div class="relative">
-                                <textarea id="waMessagePreview" rows="6" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50 text-gray-700" readonly></textarea>
-                                <div class="absolute bottom-2 right-2 text-xs text-gray-400 italic">Read-only</div>
+                                <textarea id="waMessagePreview" rows="6" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50 text-gray-700"></textarea>
+                                <div class="absolute bottom-2 right-2 text-xs text-gray-400 italic">Bisa diedit</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {{-- Footer Modal --}}
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
                     <button type="button" id="btnKirimWA" onclick="sendWhatsapp()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm transition">
                         <i class="fa-regular fa-paper-plane mr-2"></i> Kirim Pesan
@@ -421,7 +378,6 @@
     
     @push('scripts')
     <script>
-        // --- LOGIKA FORM AKSI ---
         function handleAksiDenganCatatan(form, aksi) {
             event.preventDefault(); 
             const pesan = aksi === 'pending' ? 'Masukkan alasan menunda berkas:' : 'Masukkan catatan untuk menutup berkas:';
@@ -441,7 +397,6 @@
             form.submit(); 
         }
 
-        // --- LOGIKA BULK ACTION ---
         document.addEventListener('DOMContentLoaded', function () {
             const selectAllCheckbox = document.getElementById('select-all-checkbox');
             const berkasCheckboxes = document.querySelectorAll('.berkas-checkbox');
@@ -471,26 +426,27 @@
             }
         });
 
-        // --- LOGIKA WA TEMPLATE & KIRIM (SERVER SIDE) ---
+        // --- LOGIKA WA TEMPLATE & SENDING ---
         let currentWaData = { id: null, phone: '', nama: '', berkas: '', status: '' };
         let templatesData = [];
 
         function openWaModal(id, phone, nama, berkas, status, count = 0) {
             // Bersihkan nomor HP
-            let cleanPhone = phone.replace(/[^0-9]/g, '');
+            let cleanPhone = String(phone).replace(/[^0-9]/g, '');
             if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
 
             currentWaData = { id: id, phone: cleanPhone, nama: nama, berkas: berkas, status: status };
             
-            // Update UI Modal
+            // Set UI Modal
             document.getElementById('wa-modal-name').innerText = nama;
             document.getElementById('wa-modal-phone').innerText = cleanPhone || 'Nomor Kosong';
             document.getElementById('wa-modal-count').innerText = count;
             
-            // Reset Form
             const select = document.getElementById('waTemplateSelect');
             select.innerHTML = '<option value="">Sedang memuat...</option>';
-            document.getElementById('waMessagePreview').value = "";
+            document.getElementById('waMessagePreview').value = ""; // Reset Preview
+            
+            // Reset Tombol
             const btnKirim = document.getElementById('btnKirimWA');
             btnKirim.disabled = false;
             btnKirim.innerHTML = '<i class="fa-regular fa-paper-plane mr-2"></i> Kirim Pesan';
@@ -498,33 +454,26 @@
             // Tampilkan Modal
             document.getElementById('waModal').classList.remove('hidden');
 
-            // API Fetch
-            var apiUrl = "{{ url('/api/wa-templates') }}/" + id;
-
-            fetch(apiUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error('Gagal mengambil template');
-                    return response.json();
-                })
+            // Fetch Template dari API
+            fetch("{{ url('/api/wa-templates') }}/" + id)
+                .then(res => res.json())
                 .then(data => {
-                    templatesData = data;
+                    templatesData = data; 
                     select.innerHTML = '<option value="">-- Pilih Template Pesan --</option>';
                     
                     if(data.length === 0) {
                         select.innerHTML = '<option value="">Tidak ada template aktif</option>';
+                        return;
                     }
                     
                     data.forEach((tpl, index) => {
-                        // Tampilkan indikator jika sudah dikirim
-                        let labelCount = "";
-                        if (tpl.usage_count && tpl.usage_count > 0) {
-                            labelCount = ` (✅ ${tpl.usage_count}x)`;
-                        }
-                        select.innerHTML += `<option value="${index}">${tpl.judul}${labelCount}</option>`;
+                        let labelUsage = tpl.usage_count > 0 ? ` (✅ ${tpl.usage_count}x)` : '';
+                        let tplName = tpl.nama || tpl.nama_template || tpl.judul || 'Template Tanpa Nama';
+                        select.innerHTML += `<option value="${index}">${tplName}${labelUsage}</option>`;
                     });
                 })
-                .catch(error => {
-                    console.error('Error:', error);
+                .catch(err => {
+                    console.error(err);
                     select.innerHTML = '<option value="">Gagal memuat template</option>';
                 });
         }
@@ -535,43 +484,49 @@
 
         function updatePreview() {
             const index = document.getElementById('waTemplateSelect').value;
+            const previewArea = document.getElementById('waMessagePreview');
+
             if (index === "") {
-                document.getElementById('waMessagePreview').value = "";
+                previewArea.value = "";
                 return;
             }
 
-            let pesan = templatesData[index].pesan;
-            // Ganti Placeholder dengan Data Asli
-            pesan = pesan.replace(/{nama_pemohon}/g, currentWaData.nama)
-                         .replace(/{nomer_berkas}/g, currentWaData.berkas)
-                         .replace(/{status}/g, currentWaData.status);
+            let tpl = templatesData[index];
+            let rawMessage = tpl.template || tpl.isi_pesan || tpl.pesan || '';
 
-            document.getElementById('waMessagePreview').value = pesan;
+            // Replace Placeholder dengan Data Asli
+            let finalMessage = rawMessage
+                .replace(/\[NAMA_PEMOHON\]/gi, currentWaData.nama)
+                .replace(/\[NOMOR_BERKAS\]/gi, currentWaData.berkas)
+                .replace(/\[STATUS\]/gi, currentWaData.status)
+                .replace(/{nama_pemohon}/gi, currentWaData.nama)
+                .replace(/{nomer_berkas}/gi, currentWaData.berkas);
+
+            previewArea.value = finalMessage;
         }
 
         function sendWhatsapp() {
             const index = document.getElementById('waTemplateSelect').value;
-            const pesan = document.getElementById('waMessagePreview').value;
+            const finalMessage = document.getElementById('waMessagePreview').value;
 
-            if (index === "" || !pesan) {
-                alert('Silakan pilih template terlebih dahulu.');
+            if (index === "" && !finalMessage) {
+                alert('Silakan pilih template atau tulis pesan.');
                 return;
             }
             
-            if (!currentWaData.phone) {
-                alert('Nomor WhatsApp tidak tersedia untuk pemohon ini.');
+            if (!currentWaData.phone || currentWaData.phone.length < 5) {
+                alert('Nomor WhatsApp tidak valid.');
                 return;
             }
 
-            // UI Loading
             const btnKirim = document.getElementById('btnKirimWA');
             const originalText = btnKirim.innerHTML;
             btnKirim.disabled = true;
             btnKirim.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim...';
 
-            const templateId = templatesData[index].id;
+            const templateId = index !== "" ? templatesData[index].id : null;
 
-            // Kirim ke Backend (Laravel) -> Server WA
+            // KIRIM KE CONTROLLER
             fetch("{{ route('whatsapp.send') }}", {
                 method: "POST",
                 headers: {
@@ -582,24 +537,25 @@
                 body: JSON.stringify({
                     berkas_id: currentWaData.id,
                     template_id: templateId,
-                    nomer_tujuan: currentWaData.phone
+                    number: currentWaData.phone,
+                    message: finalMessage 
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Berhasil! Pesan telah dikirim dan dicatat.');
+                    alert('✅ ' + data.message);
                     closeWaModal();
                     location.reload(); 
                 } else {
-                    alert('Gagal mengirim: ' + data.message);
+                    alert('❌ Gagal: ' + data.message);
                     btnKirim.disabled = false;
                     btnKirim.innerHTML = originalText;
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Terjadi kesalahan sistem saat menghubungi server.');
+                console.error('Fetch Error:', error);
+                alert('⚠️ Terjadi kesalahan koneksi.');
                 btnKirim.disabled = false;
                 btnKirim.innerHTML = originalText;
             });

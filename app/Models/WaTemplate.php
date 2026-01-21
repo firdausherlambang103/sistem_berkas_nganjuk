@@ -11,9 +11,10 @@ class WaTemplate extends Model
 
     protected $table = 'wa_templates';
 
+    // PERBAIKAN: Sesuaikan dengan kolom database Anda
     protected $fillable = [
-        'nama',
-        'template',
-        'status',
+        'nama',      // Di form: nama_template
+        'template',  // Di form: isi_pesan
+        'status',    // Status aktif/tidak aktif
     ];
 }

@@ -17,6 +17,7 @@
                         {{-- Nama Template --}}
                         <div class="mb-4">
                             <x-input-label for="nama_template" :value="__('Nama Template')" />
+                            {{-- Input Name: nama_template (sesuai Controller) --}}
                             <x-text-input id="nama_template" class="block mt-1 w-full" type="text" name="nama_template" :value="old('nama_template')" required autofocus placeholder="Contoh: BERKAS_DITERIMA" />
                             <p class="text-xs text-gray-500 mt-1">Gunakan huruf kapital dan garis bawah (underscore) untuk nama template.</p>
                             <x-input-error :messages="$errors->get('nama_template')" class="mt-2" />
@@ -25,6 +26,7 @@
                         {{-- Isi Pesan --}}
                         <div class="mb-4">
                             <x-input-label for="isi_pesan" :value="__('Isi Pesan WhatsApp')" />
+                            {{-- Input Name: isi_pesan (sesuai Controller) --}}
                             <textarea id="isi_pesan" name="isi_pesan" rows="8" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required placeholder="Halo [NAMA_PEMOHON], berkas Anda dengan nomor [NOMOR_BERKAS] sudah kami terima.">{{ old('isi_pesan') }}</textarea>
                             <x-input-error :messages="$errors->get('isi_pesan')" class="mt-2" />
                         </div>
@@ -57,7 +59,7 @@
                                     </button>
                                 @endforeach
                             @else
-                                <p class="text-xs text-gray-400 italic">Belum ada placeholder yang dibuat.</p>
+                                <p class="text-xs text-gray-400 italic">Belum ada placeholder.</p>
                             @endif
                         </div>
 
@@ -75,9 +77,7 @@
     {{-- Script untuk Copy Paste --}}
     <script>
         function copyToClipboard(text) {
-            // Salin ke clipboard
             navigator.clipboard.writeText(text).then(function() {
-                // Tampilkan notifikasi
                 const feedback = document.getElementById('copy-feedback');
                 feedback.classList.remove('hidden');
                 feedback.classList.add('block');
@@ -87,16 +87,12 @@
                     feedback.classList.remove('block');
                 }, 2000);
                 
-                // Masukkan teks ke dalam textarea di posisi kursor
                 const textarea = document.getElementById('isi_pesan');
                 const start = textarea.selectionStart;
                 const end = textarea.selectionEnd;
                 const value = textarea.value;
                 
-                // Sisipkan teks
                 textarea.value = value.substring(0, start) + text + value.substring(end);
-                
-                // Pindahkan kursor ke setelah teks yang disisipkan
                 textarea.focus();
                 textarea.selectionEnd = start + text.length;
             });
