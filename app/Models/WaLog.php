@@ -11,26 +11,29 @@ class WaLog extends Model
 
     protected $table = 'wa_logs';
 
-    // Tambahkan 'berkas_id' dan 'user_id' ke fillable
     protected $fillable = [
-        'tujuan', 
-        'pesan', 
-        'status', 
+        'tujuan',
+        'pesan',
+        'status',
         'error_message',
-        'berkas_id', // <-- PENTING
-        'user_id',   // <-- PENTING
-        'template_id'
+        'berkas_id',   // <--- WAJIB ADA
+        'user_id',     // <--- WAJIB ADA
+        'template_id'  // <--- WAJIB ADA
     ];
 
-    // Relasi ke Berkas (Opsional, untuk mempermudah tracking)
+    // Relasi (Opsional tapi berguna)
     public function berkas()
     {
         return $this->belongsTo(Berkas::class, 'berkas_id');
     }
 
-    // Relasi ke User
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+    
+    public function template()
+    {
+        return $this->belongsTo(WaTemplate::class, 'template_id');
     }
 }
