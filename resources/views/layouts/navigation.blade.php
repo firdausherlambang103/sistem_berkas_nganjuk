@@ -19,7 +19,7 @@
                         {{ __('Ruang Kerja') }}
                     </x-nav-link>
                     
-                    {{-- [BARU] MENU PEMINJAMAN BUKU TANAH (Khusus Petugas Buku Tanah) --}}
+                    {{-- MENU PEMINJAMAN BUKU TANAH (Khusus Petugas Buku Tanah) --}}
                     @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
                         <x-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
                             {{ __('Silabus') }}
@@ -46,6 +46,7 @@
                         </x-dropdown>
                     </div>
 
+                    {{-- MENU ADMIN & WHATSAPP --}}
                     @if(Auth::user()->jabatan && Auth::user()->jabatan->is_admin)
                         <div class="hidden sm:flex sm:items-center sm:ms-6">
                             <x-dropdown align="right" width="48">
@@ -60,6 +61,10 @@
                                     </button>
                                 </x-slot>
                                 <x-slot name="content">
+                                    {{-- Group: Master Data --}}
+                                    <div class="block px-4 py-2 text-xs text-gray-400">
+                                        {{ __('Master Data') }}
+                                    </div>
                                     <x-dropdown-link :href="route('admin.users.index')">
                                         {{ __('User Approval') }}
                                     </x-dropdown-link>
@@ -84,17 +89,23 @@
                                     <x-dropdown-link :href="route('admin.permohonan.index')">
                                         {{ __('Manajemen Jenis Permohonan') }}
                                     </x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.wa-placeholders.index')">
+
+                                    {{-- Group: WhatsApp Gateway --}}
+                                    <div class="border-t border-gray-100"></div>
+                                    <div class="block px-4 py-2 text-xs text-gray-400">
+                                        {{ __('WhatsApp Gateway') }}
+                                    </div>
+                                    <x-dropdown-link :href="route('admin.whatsapp.scan')" :active="request()->routeIs('admin.whatsapp.scan')">
+                                        {{ __('Scan WhatsApp') }}
+                                    </x-dropdown-link>
+                                    <x-dropdown-link :href="route('admin.wa-templates.index')" :active="request()->routeIs('admin.wa-templates.*')">
+                                        {{ __('Template Pesan') }}
+                                    </x-dropdown-link>
+                                    <x-dropdown-link :href="route('admin.wa-placeholders.index')" :active="request()->routeIs('admin.wa-placeholders.*')">
                                         {{ __('Placeholder WA') }}
                                     </x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.wa-templates.index')">
-                                        {{ __('Template WA') }}
-                                    </x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.wa-logs.index')">
-                                        {{ __('Riwayat WA') }}
-                                    </x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.whatsapp.scan')">
-                                        {{ __('Scan WhatsApp') }}
+                                    <x-dropdown-link :href="route('admin.wa-logs.index')" :active="request()->routeIs('admin.wa-logs.*')">
+                                        {{ __('Riwayat Pesan') }}
                                     </x-dropdown-link>
                                     
                                 </x-slot>
@@ -143,6 +154,7 @@
         </div>
     </div>
 
+    {{-- MENU MOBILE RESPONSIVE --}}
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
@@ -155,7 +167,6 @@
                 {{ __('Ruang Kerja') }}
             </x-responsive-nav-link>
             
-            {{-- [BARU] Responsive Peminjaman Buku Tanah --}}
             @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
                 <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
                     {{ __('Silabus') }}
@@ -211,17 +222,19 @@
                             <x-responsive-nav-link :href="route('admin.permohonan.index')">
                                 {{ __('Manajemen Jenis Permohonan') }}
                             </x-responsive-nav-link>
+                            
+                            {{-- WA Menu Mobile --}}
+                            <x-responsive-nav-link :href="route('admin.whatsapp.scan')" :active="request()->routeIs('admin.whatsapp.scan')">
+                                {{ __('Scan WhatsApp') }}
+                            </x-responsive-nav-link>
+                            <x-responsive-nav-link :href="route('admin.wa-templates.index')" :active="request()->routeIs('admin.wa-templates.*')">
+                                {{ __('Template WA') }}
+                            </x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('admin.wa-placeholders.index')" :active="request()->routeIs('admin.wa-placeholders.*')">
                                 {{ __('Placeholder WA') }}
                             </x-responsive-nav-link>
-                            <x-responsive-nav-link :href="route('admin.wa-templates.index')">
-                                {{ __('Template WA') }}
-                            </x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('admin.wa-logs.index')" :active="request()->routeIs('admin.wa-logs.*')">
                                 {{ __('Riwayat WA') }}
-                            </x-responsive-nav-link>
-                            <x-responsive-nav-link :href="route('admin.whatsapp.scan')">
-                                {{ __('Scan WhatsApp') }}
                             </x-responsive-nav-link>
                         </div>
                     </div>

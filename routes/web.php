@@ -7,16 +7,16 @@ use App\Http\Controllers\BerkasController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ManajemenController;
-use App\Http\Controllers\Admin\WaTemplateController;
-use App\Http\Controllers\Admin\WaLogController;
+use App\Http\Controllers\Admin\WaTemplateController; // Pastikan di-import
+use App\Http\Controllers\Admin\WaPlaceholderController; // Pastikan di-import
+use App\Http\Controllers\Admin\WaLogController; // Pastikan di-import
 use App\Http\Controllers\WhatsappWebController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
-use App\Http\Controllers\SensusWakafController; // [BARU] Import Controller Wakaf
+use App\Http\Controllers\SensusWakafController;
 use App\Models\WaTemplate;
 use App\Models\WaLog;
-use App\Http\Controllers\Admin\WaPlaceholderController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
 
 /*
@@ -38,14 +38,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/selesai', [DashboardController::class, 'showSelesai'])->name('dashboard.selesai');
     Route::get('/dashboard/jatuh-tempo', [DashboardController::class, 'showJatuhTempo'])->name('dashboard.jatuh-tempo');
     Route::get('/dashboard/ditutup', [DashboardController::class, 'showDitutup'])->name('dashboard.ditutup');
-    // --- SENSUS WAKAF (PETA) [BARU] ---
+    
+    // --- SENSUS WAKAF (PETA) ---
     Route::get('/sensus-wakaf', [SensusWakafController::class, 'index'])->name('sensus-wakaf.index');
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
 
     // --- LAPORAN ---
     Route::prefix('laporan')->name('laporan.')->controller(LaporanController::class)->group(function () {
         Route::get('/rinci', 'index')->name('index');
-        // [BARU] Route untuk Monitor Dashboard (Full Screen + Auto Refresh)
         Route::get('/monitor', 'monitor')->name('monitor');
         Route::get('/user/{user}', 'showBerkasByUser')->name('berkas_by_user');
     });
@@ -69,18 +69,14 @@ Route::middleware('auth')->group(function () {
     Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
     Route::post('/peminjaman-bt/proses/{berkasId}', [PeminjamanBukuTanahController::class, 'prosesOtomatis'])->name('peminjaman-bt.proses-otomatis');
     
-    // --- FITUR WHATSAPP (MODAL & SEND) ---
-    // [UPDATE] API Template dengan parameter berkas_id untuk menghitung usage count
+    // --- FITUR WHATSAPP (API & SEND) ---
     Route::get('/api/wa-templates/{berkas_id?}', function ($berkas_id = null) {
-        // Ambil semua template aktif (disesuaikan dengan kolom 'status' di database)
         $templates = WaTemplate::where('status', 'aktif')->get();
-
-        // Jika ada ID berkas, hitung penggunaan per template
         if ($berkas_id) {
             $templates->map(function ($tpl) use ($berkas_id) {
                 $tpl->usage_count = WaLog::where('berkas_id', $berkas_id)
                                          ->where('template_id', $tpl->id)
-                                         ->where('status', 'Sukses') // Hanya hitung yang sukses
+                                         ->where('status', 'Sukses')
                                          ->count();
                 return $tpl;
             });
@@ -88,7 +84,7 @@ Route::middleware('auth')->group(function () {
         return response()->json($templates);
     })->name('api.wa-templates');
 
-    // Route untuk mengirim pesan
+    // Route untuk mengirim pesan (AJAX / Umum)
     Route::post('/whatsapp/send', [WhatsappWebController::class, 'send'])->name('whatsapp.send');
 
     // --- BERKAS ---
@@ -178,15 +174,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaUpdate'])->name('setting-area-kerja.update');
 
     
-    // 2. Log / Riwayat
+    // --- WHATSAPP MANAGEMENT (Perbaikan Routing) ---
+    
+    // 1. Log / Riwayat WA
     Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
 
-    // 3. Scan QR (Socket IO)
+    // 2. Scan QR (Halaman & Aksi)
     Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
+    Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test'); // Tambahan
+    Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout'); // Tambahan
 
-    // Route Placeholder WA
-    Route::resource('wa-templates', App\Http\Controllers\Admin\WaTemplateController::class);
-    Route::resource('wa-placeholders', App\Http\Controllers\Admin\WaPlaceholderController::class);
+    // 3. WA Templates & Placeholders (Resource Route)
+    Route::resource('wa-templates', WaTemplateController::class);
+    Route::resource('wa-placeholders', WaPlaceholderController::class);
 
 });
 
