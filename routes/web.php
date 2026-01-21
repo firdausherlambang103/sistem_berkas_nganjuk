@@ -185,8 +185,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout'); // Tambahan
 
     // 3. WA Templates & Placeholders (Resource Route)
-    Route::resource('wa-templates', WaTemplateController::class);
+    //Route::resource('wa-templates', WaTemplateController::class);
     Route::resource('wa-placeholders', WaPlaceholderController::class);
+    // ...
+    Route::resource('wa-templates', WaTemplateController::class);
 
 });
 

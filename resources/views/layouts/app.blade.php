@@ -14,11 +14,13 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-        {{-- Livewire Styles (Wajib dikembalikan untuk styling komponen) --}}
+        {{-- [PENTING] Style Livewire: Wajib ada agar tampilan chat/modal benar --}}
         @livewireStyles
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">
+            
+            {{-- Include Navigation --}}
             @include('layouts.navigation')
 
             @if (isset($header))
@@ -33,14 +35,14 @@
                 {{ $slot }}
             </main>
 
-            {{-- Komponen Chat Box (Floating) --}}
+            {{-- [PENTING] Komponen Chat Box (Floating di pojok) --}}
             @livewire('chat-box')
         </div>
 
-        {{-- Komponen Modal Wire Elements (Wajib ada untuk fitur Popup/Modal Livewire) --}}
+        {{-- [PENTING] Modal Wire Elements: Wajib ada untuk fitur Popup Livewire --}}
         @livewire('wire-elements-modal')
 
-        {{-- Livewire Scripts (Wajib dikembalikan agar interaksi JS berjalan) --}}
+        {{-- [PENTING] Script Livewire: Wajib ada agar tombol & interaksi berfungsi --}}
         @livewireScripts
 
         <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>

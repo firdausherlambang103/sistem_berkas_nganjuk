@@ -1,73 +1,71 @@
-@extends('layouts.app')
-
-@section('content')
-<div class="container-fluid">
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Daftar Template WhatsApp</h6>
-            <a href="{{ route('admin.wa-templates.create') }}" class="btn btn-sm btn-primary">
-                <i class="fas fa-plus"></i> Buat Template Baru
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                <i class="fa-brands fa-whatsapp mr-2 text-green-500"></i> {{ __('WA Templates') }}
+            </h2>
+            {{-- PERBAIKAN: admin.wa-templates.create --}}
+            <a href="{{ route('admin.wa-templates.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none transition">
+                <i class="fa-solid fa-plus mr-2"></i> Tambah Template
             </a>
         </div>
-        <div class="card-body">
-            @if (session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            
+            @if(session('success'))
+                <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                    <span class="block sm:inline">{{ session('success') }}</span>
                 </div>
             @endif
 
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>Nama Template</th>
-                            <th>Isi Pesan</th>
-                            <th>Status</th>
-                            <th>Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($templates as $template)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>{{ $template->nama }}</td>
-                            <td>{{ Str::limit($template->template, 50) }}</td>
-                            <td>
-                                @if($template->status == 'aktif')
-                                    <span class="badge badge-success">Aktif</span>
-                                @else
-                                    <span class="badge badge-secondary">Tidak Aktif</span>
-                                @endif
-                            </td>
-                            <td>
-                                <a href="{{ route('admin.wa-templates.edit', $template->id) }}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <form action="{{ route('admin.wa-templates.destroy', $template->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus template ini?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="5" class="text-center">Belum ada template.</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-3">
-                {{ $templates->links() }}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nama Template</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Isi Pesan</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @forelse ($templates as $item)
+                                <tr class="hover:bg-gray-50 transition top-align">
+                                    <td class="px-6 py-4 whitespace-nowrap align-top font-bold text-gray-700">
+                                        {{ $item->nama_template }}
+                                    </td>
+                                    <td class="px-6 py-4 align-top text-sm text-gray-600 whitespace-pre-wrap leading-relaxed max-w-lg">{{ $item->isi_pesan }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium align-top">
+                                        {{-- PERBAIKAN: admin.wa-templates.edit --}}
+                                        <a href="{{ route('admin.wa-templates.edit', $item->id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                            <i class="fa-regular fa-pen-to-square"></i> Edit
+                                        </a>
+                                        {{-- PERBAIKAN: admin.wa-templates.destroy --}}
+                                        <form action="{{ route('admin.wa-templates.destroy', $item->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus template ini?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 hover:text-red-900">
+                                                <i class="fa-regular fa-trash-can"></i> Hapus
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="px-6 py-4 text-center text-gray-500 italic">
+                                        Belum ada template.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-4 border-t border-gray-200">
+                    {{ $templates->links() }}
+                </div>
             </div>
         </div>
     </div>
-</div>
-@endsection
+</x-app-layout>

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\WaTemplate;
-use App\Models\WaPlaceholder; // Import Model
+use App\Models\WaPlaceholder;
 use Illuminate\Http\Request;
 
 class WaTemplateController extends Controller
@@ -17,7 +17,6 @@ class WaTemplateController extends Controller
 
     public function create()
     {
-        // Kirim list placeholder untuk bantuan saat mengetik pesan
         $placeholders = WaPlaceholder::all();
         return view('admin.wa-templates.create', compact('placeholders'));
     }
@@ -31,6 +30,7 @@ class WaTemplateController extends Controller
 
         WaTemplate::create($request->all());
 
+        // PERBAIKAN DI SINI: Tambahkan 'admin.'
         return redirect()->route('admin.wa-templates.index')
             ->with('success', 'Template WA berhasil ditambahkan.');
     }
@@ -50,6 +50,7 @@ class WaTemplateController extends Controller
 
         $waTemplate->update($request->all());
 
+        // PERBAIKAN DI SINI: Tambahkan 'admin.'
         return redirect()->route('admin.wa-templates.index')
             ->with('success', 'Template WA berhasil diperbarui.');
     }
@@ -57,6 +58,8 @@ class WaTemplateController extends Controller
     public function destroy(WaTemplate $waTemplate)
     {
         $waTemplate->delete();
+        
+        // PERBAIKAN DI SINI: Tambahkan 'admin.'
         return redirect()->route('admin.wa-templates.index')
             ->with('success', 'Template berhasil dihapus.');
     }
