@@ -4,98 +4,119 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\WaTemplate; // Tambahkan Model
-use App\Models\Berkas;     // Tambahkan Model
+use App\Models\WaLog;
+use App\Models\WaTemplate;
+use App\Models\WaPlaceholder;
+use Exception;
 
 class WaService
 {
-    /**
-     * Kirim pesan berdasarkan nama Template
-     * * @param string $target Nomor WA Tujuan
-     * @param string $templateName Nama template di database (case sensitive sesuai input admin)
-     * @param Berkas $berkas Data berkas untuk mengisi placeholder
-     */
-    public static function sendFromTemplate($target, $templateName, Berkas $berkas)
+    protected $baseUrl;
+    protected $apiKey;
+
+    public function __construct()
     {
-        // 1. Cek jika nomor kosong
-        if (empty($target)) {
-            return ['status' => false, 'detail' => 'Nomor tujuan kosong.'];
-        }
-
-        // 2. Ambil Template dari Database
-        $template = WaTemplate::where('nama', $templateName)
-                    ->where('status', 'aktif') // Hanya ambil yang aktif
-                    ->first();
-
-        if (!$template) {
-            Log::warning("WA Template '$templateName' tidak ditemukan atau tidak aktif.");
-            return ['status' => false, 'detail' => 'Template tidak ditemukan.'];
-        }
-
-        // 3. Proses Placeholder
-        $message = self::parsePlaceholder($template->template, $berkas);
-
-        // 4. Kirim Pesan
-        return self::send($target, $message);
+        // Pastikan Anda sudah mengatur ini di .env
+        $this->baseUrl = env('WA_API_URL', 'http://localhost:3000'); 
+        $this->apiKey = env('WA_API_KEY', '');
     }
 
     /**
-     * Mengganti {placeholder} dengan data asli dari Berkas
+     * Mengirim pesan WA (Text only atau dengan Template)
      */
-    private static function parsePlaceholder($message, Berkas $berkas)
+    public function send($number, $message, $berkasId = null, $userId = null)
     {
-        // Daftar Mapping Placeholder -> Data Database
-        // Pastikan key array ini sama dengan 'placeholder' di tabel wa_placeholders
-        $replacements = [
-            '{nomer_berkas}' => $berkas->nomer_berkas,
-            '{nama_pemohon}' => $berkas->nama_pemohon,
-            '{tahun}'        => $berkas->tahun,
-            '{kecamatan}'    => $berkas->kecamatan,
-            '{desa}'         => $berkas->desa,
-            '{status}'       => $berkas->status,
-            '{tanggal}'      => date('d-m-Y H:i'),
-            '{posisi}'       => optional($berkas->posisiSekarangUser)->name ?? 'Sistem',
-        ];
+        try {
+            // Format nomor (hapus karakter non-digit, ganti 08/628 dengan 628)
+            $number = $this->formatNumber($number);
 
-        // Lakukan replace string
-        foreach ($replacements as $key => $value) {
-            $message = str_replace($key, $value, $message);
+            $response = Http::post("{$this->baseUrl}/send-message", [
+                'number' => $number,
+                'message' => $message,
+                'api_key' => $this->apiKey
+            ]);
+
+            $status = $response->successful() ? 'success' : 'failed';
+            $responseData = $response->json();
+
+            // Simpan Log
+            $this->logMessage($number, $message, $status, $responseData['message'] ?? $response->body(), $berkasId, $userId);
+
+            return $responseData;
+
+        } catch (Exception $e) {
+            Log::error("WA Error: " . $e->getMessage());
+            $this->logMessage($number, $message, 'failed', $e->getMessage(), $berkasId, $userId);
+            return ['status' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Mengirim pesan berdasarkan Template
+     */
+    public function sendByTemplate($templateName, $number, $data = [], $userId = null)
+    {
+        $template = WaTemplate::where('nama_template', $templateName)->first();
+
+        if (!$template) {
+            return ['status' => false, 'message' => 'Template tidak ditemukan'];
+        }
+
+        $message = $this->parseTemplate($template->isi_pesan, $data);
+        
+        // Ambil berkas_id dari data jika ada
+        $berkasId = $data['berkas_id'] ?? null;
+
+        return $this->send($number, $message, $berkasId, $userId);
+    }
+
+    /**
+     * Mengganti Placeholder (misal: [NAMA_PEMOHON]) dengan data asli
+     */
+    protected function parseTemplate($message, $data)
+    {
+        $placeholders = WaPlaceholder::all();
+
+        foreach ($placeholders as $placeholder) {
+            $key = $placeholder->placeholder; // misal: [NAMA]
+            $field = $placeholder->deskripsi; // misal: nama_pemohon (sesuaikan mapping di DB)
+
+            if (isset($data[$field])) {
+                $message = str_replace($key, $data[$field], $message);
+            } elseif (isset($data[strtolower($key)])) {
+                 // Fallback cek key array lowercase tanpa kurung siku
+                 $message = str_replace($key, $data[strtolower($key)], $message);
+            }
         }
 
         return $message;
     }
 
-    /**
-     * Mengirim pesan ke WA Server (Fungsi Original Anda)
-     */
-    public static function send($target, $message)
+    protected function formatNumber($number)
     {
-        // ... (Kode original Anda tetap sama di sini) ...
-        $url = 'http://192.168.100.15:3000/send-message';
-        
-        try {
-            $target = preg_replace('/[^0-9]/', '', $target);
-            if (substr($target, 0, 1) == '0') {
-                $target = '62' . substr($target, 1);
-            }
-
-            $response = Http::timeout(15)->post($url, [
-                'number' => $target,
-                'message' => $message,
-            ]);
-
-            $body = $response->json();
-
-            if ($response->successful() && isset($body['status']) && $body['status'] == true) {
-                return ['status' => true, 'detail' => 'Pesan berhasil dikirim via WA Server.'];
-            } else {
-                $pesanError = $body['message'] ?? 'Gagal mengirim pesan.';
-                Log::error("WA Server Error: " . $pesanError);
-                return ['status' => false, 'detail' => $pesanError];
-            }
-        } catch (\Exception $e) {
-            Log::error('WA Service Exception: ' . $e->getMessage());
-            return ['status' => false, 'detail' => 'Koneksi ke Server WA Gagal.'];
+        $number = preg_replace('/[^0-9]/', '', $number);
+        if (substr($number, 0, 1) == '0') {
+            $number = '62' . substr($number, 1);
         }
+        if (substr($number, 0, 2) != '62') {
+            $number = '62' . $number;
+        }
+        // Tambahkan @c.us untuk format group/personal WA Web JS jika perlu
+        if (!str_ends_with($number, '@c.us')) {
+            $number .= '@c.us';
+        }
+        return $number;
+    }
+
+    protected function logMessage($number, $message, $status, $error = null, $berkasId = null, $userId = null)
+    {
+        WaLog::create([
+            'tujuan' => $number,
+            'pesan' => $message,
+            'status' => $status,
+            'error_message' => $error,
+            'berkas_id' => $berkasId,
+            'user_id' => $userId ?? auth()->id(),
+        ]);
     }
 }

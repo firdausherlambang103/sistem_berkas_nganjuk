@@ -4,80 +4,60 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\WaTemplate;
+use App\Models\WaPlaceholder; // Import Model
 use Illuminate\Http\Request;
 
 class WaTemplateController extends Controller
 {
-    /**
-     * Menampilkan daftar template.
-     */
     public function index()
     {
         $templates = WaTemplate::latest()->paginate(10);
         return view('admin.wa-templates.index', compact('templates'));
     }
 
-    /**
-     * Menampilkan form buat template baru.
-     */
     public function create()
     {
-        return view('admin.wa-templates.create');
+        // Kirim list placeholder untuk bantuan saat mengetik pesan
+        $placeholders = WaPlaceholder::all();
+        return view('admin.wa-templates.create', compact('placeholders'));
     }
 
-    /**
-     * Menyimpan template baru.
-     */
     public function store(Request $request)
     {
         $request->validate([
-            'nama' => 'required|string|max:255',
-            'template' => 'required|string',
-            'status' => 'required|in:aktif,tidak_aktif',
+            'nama_template' => 'required|unique:wa_templates,nama_template',
+            'isi_pesan' => 'required',
         ]);
 
         WaTemplate::create($request->all());
 
         return redirect()->route('admin.wa-templates.index')
-            ->with('success', 'Template WhatsApp berhasil ditambahkan.');
+            ->with('success', 'Template WA berhasil ditambahkan.');
     }
 
-    /**
-     * Menampilkan form edit template.
-     */
-    public function edit($id)
+    public function edit(WaTemplate $waTemplate)
     {
-        $template = WaTemplate::findOrFail($id);
-        return view('admin.wa-templates.edit', compact('template'));
+        $placeholders = WaPlaceholder::all();
+        return view('admin.wa-templates.edit', compact('waTemplate', 'placeholders'));
     }
 
-    /**
-     * Memperbarui template.
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, WaTemplate $waTemplate)
     {
         $request->validate([
-            'nama' => 'required|string|max:255',
-            'template' => 'required|string',
-            'status' => 'required|in:aktif,tidak_aktif',
+            'nama_template' => 'required|unique:wa_templates,nama_template,' . $waTemplate->id,
+            'isi_pesan' => 'required',
         ]);
 
-        $template = WaTemplate::findOrFail($id);
-        $template->update($request->all());
+        $waTemplate->update($request->all());
 
         return redirect()->route('admin.wa-templates.index')
-            ->with('success', 'Template WhatsApp berhasil diperbarui.');
+            ->with('success', 'Template WA berhasil diperbarui.');
     }
 
-    /**
-     * Menghapus template.
-     */
-    public function destroy($id)
+    public function destroy(WaTemplate $waTemplate)
     {
-        $template = WaTemplate::findOrFail($id);
-        $template->delete();
-
+        $waTemplate->delete();
         return redirect()->route('admin.wa-templates.index')
-            ->with('success', 'Template WhatsApp berhasil dihapus.');
+            ->with('success', 'Template berhasil dihapus.');
     }
 }

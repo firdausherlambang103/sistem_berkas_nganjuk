@@ -8,31 +8,22 @@ use Illuminate\Http\Request;
 
 class WaPlaceholderController extends Controller
 {
-    /**
-     * Menampilkan daftar placeholder.
-     */
     public function index()
     {
         $placeholders = WaPlaceholder::latest()->paginate(10);
         return view('admin.wa-placeholders.index', compact('placeholders'));
     }
 
-    /**
-     * Menampilkan form buat placeholder baru.
-     */
     public function create()
     {
         return view('admin.wa-placeholders.create');
     }
 
-    /**
-     * Menyimpan placeholder baru.
-     */
     public function store(Request $request)
     {
         $request->validate([
-            'placeholder' => 'required|string|unique:wa_placeholders,placeholder',
-            'deskripsi' => 'nullable|string',
+            'placeholder' => 'required|unique:wa_placeholders,placeholder',
+            'deskripsi' => 'required', // Ini adalah nama kolom di tabel berkas
         ]);
 
         WaPlaceholder::create($request->all());
@@ -41,40 +32,27 @@ class WaPlaceholderController extends Controller
             ->with('success', 'Placeholder berhasil ditambahkan.');
     }
 
-    /**
-     * Menampilkan form edit placeholder.
-     */
-    public function edit($id)
+    public function edit(WaPlaceholder $waPlaceholder)
     {
-        $placeholder = WaPlaceholder::findOrFail($id);
-        return view('admin.wa-placeholders.edit', compact('placeholder'));
+        return view('admin.wa-placeholders.edit', compact('waPlaceholder'));
     }
 
-    /**
-     * Memperbarui placeholder.
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, WaPlaceholder $waPlaceholder)
     {
         $request->validate([
-            'placeholder' => 'required|string|unique:wa_placeholders,placeholder,' . $id,
-            'deskripsi' => 'nullable|string',
+            'placeholder' => 'required|unique:wa_placeholders,placeholder,' . $waPlaceholder->id,
+            'deskripsi' => 'required',
         ]);
 
-        $placeholder = WaPlaceholder::findOrFail($id);
-        $placeholder->update($request->all());
+        $waPlaceholder->update($request->all());
 
         return redirect()->route('admin.wa-placeholders.index')
             ->with('success', 'Placeholder berhasil diperbarui.');
     }
 
-    /**
-     * Menghapus placeholder.
-     */
-    public function destroy($id)
+    public function destroy(WaPlaceholder $waPlaceholder)
     {
-        $placeholder = WaPlaceholder::findOrFail($id);
-        $placeholder->delete();
-
+        $waPlaceholder->delete();
         return redirect()->route('admin.wa-placeholders.index')
             ->with('success', 'Placeholder berhasil dihapus.');
     }

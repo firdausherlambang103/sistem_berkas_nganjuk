@@ -177,9 +177,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaIndex'])->name('setting-area-kerja.index');
     Route::post('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaUpdate'])->name('setting-area-kerja.update');
 
-    // --- MANAJEMEN WHATSAPP (Admin) ---
-    // 1. Template
-    Route::resource('wa-templates', WaTemplateController::class);
     
     // 2. Log / Riwayat
     Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
@@ -188,7 +185,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
 
     // Route Placeholder WA
-    Route::resource('wa-placeholders', WaPlaceholderController::class);
+    Route::resource('wa-templates', App\Http\Controllers\Admin\WaTemplateController::class);
+    Route::resource('wa-placeholders', App\Http\Controllers\Admin\WaPlaceholderController::class);
+
 });
 
 require __DIR__.'/auth.php';

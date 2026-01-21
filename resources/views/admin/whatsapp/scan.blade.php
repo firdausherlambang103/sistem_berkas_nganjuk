@@ -1,162 +1,140 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Scan WhatsApp') }}
+            {{ __('WhatsApp Gateway Scan') }}
         </h2>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 text-center">
-                    
-                    <h3 class="text-lg font-bold mb-4">Koneksi WhatsApp Web</h3>
-
-                    <div id="wa-container" class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 min-h-[300px]">
-                        
-                        <div id="loading-area" class="hidden">
-                            <svg class="animate-spin h-10 w-10 text-indigo-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <p class="text-gray-600 font-semibold" id="loading-text">Menghubungkan ke Server...</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {{-- Kiri: Area Scan QR --}}
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6 text-gray-900">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-700">Status Koneksi</h3>
+                            <span id="connection-status" class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-600 animate-pulse">
+                                Memeriksa...
+                            </span>
                         </div>
 
-                        <div id="qr-area" class="hidden flex-col items-center">
-                            <div id="qrcode" class="bg-white p-2 rounded shadow-md mb-4"></div>
-                            <p class="text-gray-700">Silakan scan QR Code ini dengan WhatsApp di HP Anda.</p>
-                            <p class="text-xs text-gray-500 mt-2">Buka WA > Titik Tiga > Perangkat Tertaut > Tautkan Perangkat</p>
-                        </div>
-
-                        <div id="connected-area" class="hidden flex-col items-center">
-                            <div class="bg-green-100 p-4 rounded-full mb-4">
-                                <i class="fa-brands fa-whatsapp text-6xl text-green-600"></i>
-                            </div>
-                            <h4 class="text-2xl font-bold text-green-700 mb-2">Terhubung!</h4>
-                            <p class="text-gray-600 mb-6">WhatsApp Server siap digunakan untuk mengirim pesan.</p>
+                        <div class="flex flex-col items-center justify-center min-h-[300px] border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 relative p-4">
                             
-                            <button onclick="logoutWA()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">
-                                <i class="fa-solid fa-right-from-bracket"></i> Logout Perangkat
-                            </button>
+                            {{-- Area Image QR --}}
+                            <img id="qr-code" src="" alt="QR Code" class="w-64 h-64 object-contain hidden shadow-lg rounded-lg">
+                            
+                            {{-- Loading State --}}
+                            <div id="loader" class="flex flex-col items-center">
+                                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-indigo-500 mb-3"></i>
+                                <p class="text-sm text-gray-500">Menghubungkan ke Server WA...</p>
+                            </div>
+
+                            {{-- Connected State --}}
+                            <div id="connected-state" class="hidden flex-col items-center text-center">
+                                <div class="h-16 w-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3">
+                                    <i class="fa-brands fa-whatsapp text-3xl"></i>
+                                </div>
+                                <h4 class="font-bold text-green-700 text-lg">Terhubung!</h4>
+                                <p class="text-sm text-gray-500 mt-1">WhatsApp siap digunakan mengirim notifikasi.</p>
+                                
+                                <form action="{{ route('whatsapp.logout') }}" method="POST" class="mt-4">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 disabled:opacity-25 transition">
+                                        <i class="fa-solid fa-power-off mr-2"></i> Logout Device
+                                    </button>
+                                </form>
+                            </div>
+
                         </div>
-
+                        
+                        <div class="mt-4 text-xs text-gray-400 text-center">
+                            Scan QR Code menggunakan aplikasi WhatsApp di HP Anda (Menu Linked Devices).
+                        </div>
                     </div>
-                    
-                    <div class="mt-4 text-sm text-gray-500">
-                        Status Server: <span id="server-status" class="font-mono bg-gray-200 px-2 py-1 rounded">Connecting...</span>
-                    </div>
-
                 </div>
+
+                {{-- Kanan: Test Kirim Pesan --}}
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6">
+                        <h3 class="text-lg font-bold text-gray-700 mb-4">Tes Pengiriman Pesan</h3>
+                        
+                        @if(session('success'))
+                            <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                                <span class="block sm:inline">{{ session('success') }}</span>
+                            </div>
+                        @endif
+                        @if(session('error'))
+                            <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                                <span class="block sm:inline">{{ session('error') }}</span>
+                            </div>
+                        @endif
+
+                        <form action="{{ route('whatsapp.send-test') }}" method="POST">
+                            @csrf
+                            <div class="mb-4">
+                                <x-input-label for="number" :value="__('Nomor Tujuan (Ex: 08123...)')" />
+                                <x-text-input id="number" class="block mt-1 w-full" type="text" name="number" required placeholder="08xxxxxxxx" />
+                            </div>
+
+                            <div class="mb-4">
+                                <x-input-label for="message" :value="__('Pesan')" />
+                                <textarea name="message" id="message" rows="4" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required placeholder="Halo, ini pesan tes..."></textarea>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <x-primary-button>
+                                    <i class="fa-regular fa-paper-plane mr-2"></i> {{ __('Kirim Pesan') }}
+                                </x-primary-button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 
-    {{-- Socket.IO Client --}}
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    {{-- QRCode.js untuk render QR --}}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
+    {{-- Script Socket.io / Polling untuk QR --}}
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        // Koneksi ke Node.js Server (Port 3000)
-        const socket = io("http://192.168.100.15:3000");
-        
-        const loadingArea = document.getElementById('loading-area');
-        const qrArea = document.getElementById('qr-area');
-        const connectedArea = document.getElementById('connected-area');
-        const statusLabel = document.getElementById('server-status');
-        const loadingText = document.getElementById('loading-text');
-        let qrCodeObj = null;
+        document.addEventListener("DOMContentLoaded", function() {
+            const socket = io("{{ $waUrl }}"); // URL Server Node.js WA
+            const qrImage = document.getElementById('qr-code');
+            const loader = document.getElementById('loader');
+            const connectedState = document.getElementById('connected-state');
+            const statusLabel = document.getElementById('connection-status');
 
-        // --- Helper: Tampilkan Area Tertentu ---
-        function showArea(areaName) {
-            loadingArea.classList.add('hidden');
-            qrArea.classList.add('hidden');
-            connectedArea.classList.add('hidden');
-
-            if (areaName === 'loading') loadingArea.classList.remove('hidden');
-            if (areaName === 'qr') qrArea.classList.remove('hidden');
-            if (areaName === 'connected') connectedArea.classList.remove('hidden');
-        }
-
-        // --- SOCKET EVENTS ---
-
-        socket.on('connect', () => {
-            console.log("Terhubung ke Socket Server");
-            statusLabel.innerText = "Connected to Server";
-            statusLabel.classList.replace('bg-gray-200', 'bg-blue-200');
-        });
-
-        socket.on('disconnect', () => {
-            console.log("Terputus dari Socket Server");
-            statusLabel.innerText = "Disconnected";
-            statusLabel.classList.replace('bg-blue-200', 'bg-red-200');
-            showArea('loading');
-            loadingText.innerText = "Koneksi ke Server WA terputus...";
-        });
-
-        // Menerima Pesan Status
-        socket.on('message', (msg) => {
-            console.log("Message:", msg);
-            loadingText.innerText = msg;
-        });
-
-        // Menerima QR Code String
-        socket.on('qr_code', (qrStr) => {
-            console.log("QR Diterima");
-            showArea('qr');
-            statusLabel.innerText = "Menunggu Scan";
-
-            // Render QR Code
-            const qrContainer = document.getElementById("qrcode");
-            qrContainer.innerHTML = ""; // Bersihkan QR lama
-            
-            // Generate baru
-            new QRCode(qrContainer, {
-                text: qrStr,
-                width: 256,
-                height: 256,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
+            // Listen QR
+            socket.on('qr', (src) => {
+                qrImage.src = src;
+                qrImage.classList.remove('hidden');
+                loader.classList.add('hidden');
+                connectedState.classList.add('hidden');
+                
+                statusLabel.innerText = "Scan QR Sekarang";
+                statusLabel.className = "px-3 py-1 rounded-full text-xs font-bold bg-yellow-200 text-yellow-700";
             });
-        });
 
-        // Menerima Perubahan Status WA
-        socket.on('status', (status) => {
-            console.log("Status WA:", status);
-            
-            if (status === 'ready' || status === 'authenticated') {
-                showArea('connected');
-                statusLabel.innerText = "WhatsApp Ready";
-                statusLabel.classList.replace('bg-blue-200', 'bg-green-200');
-            } 
-            else if (status === 'scan_qr') {
-                showArea('qr');
-            } 
-            else {
-                showArea('loading');
-            }
-        });
+            // Listen Ready
+            socket.on('ready', () => {
+                qrImage.classList.add('hidden');
+                loader.classList.add('hidden');
+                connectedState.classList.remove('hidden');
+                connectedState.classList.add('flex');
 
-        // --- FUNGSI LOGOUT ---
-        function logoutWA() {
-            if(!confirm('Apakah Anda yakin ingin logout dari WhatsApp Web?')) return;
-
-            // Kirim request logout ke Node.js via API (karena PHP/Laravel ada di port 8000, Node di 3000)
-            // Kita bisa pakai fetch langsung ke nodejs endpoint
-            fetch('http://192.168.100.15:3000/logout', {
-                method: 'POST'
-            })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-                showArea('loading');
-                loadingText.innerText = "Menunggu QR Code baru...";
-            })
-            .catch(err => {
-                console.error(err);
-                alert("Gagal logout server.");
+                statusLabel.innerText = "Terhubung";
+                statusLabel.className = "px-3 py-1 rounded-full text-xs font-bold bg-green-200 text-green-700";
             });
-        }
+
+            // Listen Authenticated
+            socket.on('authenticated', () => {
+                statusLabel.innerText = "Authenticating...";
+            });
+            
+            // Initial Check (Optional, tergantung implementasi API WA Anda)
+            // Bisa fetch ke endpoint /status di WA Gateway
+        });
     </script>
 </x-app-layout>
