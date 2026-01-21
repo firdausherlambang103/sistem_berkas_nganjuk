@@ -58,7 +58,8 @@
             </div>
 
             {{-- Kartu Statistik Utama --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {{-- Update Grid menjadi 5 kolom untuk menampung kartu baru --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                 {{-- Total Berkas --}}
                 <a href="{{ route('dashboard.total', ['tahun' => $tahun]) }}" class="block bg-white overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 sm:rounded-lg p-6 border-b-4 border-blue-500 group relative">
                     <div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -119,6 +120,23 @@
                         </div>
                         <div class="p-3 bg-green-50 rounded-full text-green-500 group-hover:bg-green-500 group-hover:text-white transition-all shadow-sm">
                             <i class="fa-solid fa-check-circle text-xl"></i>
+                        </div>
+                    </div>
+                </a>
+
+                {{-- [BARU] Ditutup --}}
+                {{-- Pastikan route 'dashboard.ditutup' sudah didefinisikan di web.php --}}
+                <a href="{{ route('dashboard.ditutup', ['tahun' => $tahun]) }}" class="block bg-white overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 sm:rounded-lg p-6 border-b-4 border-gray-500 group relative">
+                    <div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <i class="fa-solid fa-archive text-6xl text-gray-500"></i>
+                    </div>
+                    <div class="flex justify-between items-start relative z-10">
+                        <div>
+                            <div class="text-gray-500 text-xs font-bold uppercase tracking-widest group-hover:text-gray-600 transition-colors">Ditutup</div>
+                            <div class="mt-2 text-3xl font-bold text-gray-600">{{ $totalDitutup }}</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-full text-gray-500 group-hover:bg-gray-500 group-hover:text-white transition-all shadow-sm">
+                            <i class="fa-solid fa-archive text-xl"></i>
                         </div>
                     </div>
                 </a>

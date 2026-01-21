@@ -37,7 +37,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/diproses', [DashboardController::class, 'showDiproses'])->name('dashboard.diproses');
     Route::get('/dashboard/selesai', [DashboardController::class, 'showSelesai'])->name('dashboard.selesai');
     Route::get('/dashboard/jatuh-tempo', [DashboardController::class, 'showJatuhTempo'])->name('dashboard.jatuh-tempo');
-    
+    Route::get('/dashboard/ditutup', [DashboardController::class, 'showDitutup'])->name('dashboard.ditutup');
     // --- SENSUS WAKAF (PETA) [BARU] ---
     Route::get('/sensus-wakaf', [SensusWakafController::class, 'index'])->name('sensus-wakaf.index');
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');

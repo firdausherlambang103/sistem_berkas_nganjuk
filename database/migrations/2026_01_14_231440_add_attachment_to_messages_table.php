@@ -6,23 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('messages', function (Blueprint $table) {
-            //
+            $table->string('attachment')->nullable()->after('message');
+            $table->string('attachment_original_name')->nullable()->after('attachment'); // Simpan nama asli file
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('messages', function (Blueprint $table) {
-            //
+            $table->dropColumn(['attachment', 'attachment_original_name']);
         });
     }
 };

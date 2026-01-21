@@ -44,13 +44,29 @@ class LaporanController extends Controller
                         });
                     },
 
-                    // 3. Sisa Berkas (Pending) (Difilter Tahun Berkas)
-                    'berkasDiTangan as sisa_berkas' => function ($q) use ($tahun) {
-                        $q->whereIn('status', ['Diproses', 'Pending'])
+                    // 3. [BARU] Berkas Sedang Diproses (Status: Diproses)
+                    'berkasDiTangan as berkas_proses' => function ($q) use ($tahun) {
+                        $q->where('status', 'Diproses')
                           ->where('tahun', $tahun);
                     },
 
-                    // 4. Produktivitas Harian (Tetap Harian, tidak perlu filter tahun kecuali mau detail)
+                    // 4. [BARU] Berkas Pending/Ditunda (Status: Pending)
+                    'berkasDiTangan as berkas_pending' => function ($q) use ($tahun) {
+                        $q->where('status', 'Pending')
+                          ->where('tahun', $tahun);
+                    },
+
+                    // 5. [BARU] Berkas Jatuh Tempo
+                    // Logic: Status aktif (Diproses/Pending) DAN Waktu Sekarang > (Waktu Mulai + Timeline)
+                    'berkasDiTangan as berkas_jatuh_tempo' => function ($q) use ($tahun) {
+                        $q->whereIn('status', ['Diproses', 'Pending'])
+                          ->where('tahun', $tahun)
+                          ->whereHas('jenisPermohonan', function ($jp) {
+                              $jp->whereRaw('DATE_ADD(berkas.waktu_mulai_proses, INTERVAL jenis_permohonans.waktu_timeline_hari DAY) < NOW()');
+                          });
+                    },
+
+                    // 6. Produktivitas Harian (Tetap Harian)
                     'riwayatDikirim as produktivitas_harian' => function ($q) {
                         $q->whereDate('created_at', Carbon::today());
                     }
@@ -63,8 +79,7 @@ class LaporanController extends Controller
             $query->where('seksi', $request->input('seksi'));
         }
 
-        // 5. Eksekusi Query dengan Sorting (UPDATED)
-        // Menggunakan kolom 'urutan' dari database, lalu fallback ke nama_jabatan
+        // 5. Eksekusi Query dengan Sorting
         $jabatans = $query
             ->orderBy('urutan', 'asc') 
             ->orderBy('nama_jabatan', 'asc')
@@ -112,21 +127,21 @@ class LaporanController extends Controller
         $query = Jabatan::with([
             'users' => function ($query) use ($tahun) {
                 $query->withCount([
-                    // 1. Total Masuk (Kecualikan 'Ditutup')
+                    // 1. Total Masuk
                     'riwayatDiterima as total_masuk' => function ($q) use ($tahun) {
                         $q->whereHas('berkas', function ($b) use ($tahun) {
                             $b->where('tahun', $tahun)
                               ->where('status', '!=', 'Ditutup');
                         });
                     },
-                    // 2. Total Keluar (Kecualikan 'Ditutup')
+                    // 2. Total Keluar
                     'riwayatDikirim as total_keluar' => function ($q) use ($tahun) {
                         $q->whereHas('berkas', function ($b) use ($tahun) {
                             $b->where('tahun', $tahun)
                               ->where('status', '!=', 'Ditutup');
                         });
                     },
-                    // 3. Sisa Berkas
+                    // 3. Sisa Berkas (Masih pakai 'Sisa' untuk monitor global, atau bisa dipecah jika perlu)
                     'berkasDiTangan as sisa_berkas' => function ($q) use ($tahun) {
                         $q->whereIn('status', ['Diproses', 'Pending'])
                           ->where('tahun', $tahun);
@@ -143,7 +158,6 @@ class LaporanController extends Controller
             $query->where('seksi', $request->input('seksi'));
         }
 
-        // Sorting (UPDATED)
         $jabatans = $query
             ->orderBy('urutan', 'asc')
             ->orderBy('nama_jabatan', 'asc')
@@ -164,14 +178,14 @@ class LaporanController extends Controller
     {
         $tahun = $request->input('tahun', date('Y'));
 
-        // 1. Ambil Berkas yang Sedang Diproses (Di Tangan User) - Filter Tahun
+        // 1. Ambil Berkas yang Sedang Diproses (Di Tangan User)
         $daftarBerkas = $user->berkasDiTangan()
             ->where('tahun', $tahun)
             ->with('jenisPermohonan')
             ->latest()
             ->get();
 
-        // 2. Ambil Riwayat Berkas yang Sudah Selesai (Dikirim oleh User) - Filter Tahun & Kecualikan 'Ditutup'
+        // 2. Ambil Riwayat Berkas yang Sudah Selesai (Dikirim oleh User)
         $berkasKeluar = $user->riwayatDikirim()
             ->whereHas('berkas', function ($q) use ($tahun) {
                 $q->where('tahun', $tahun)
@@ -181,7 +195,7 @@ class LaporanController extends Controller
             ->latest()
             ->get();
 
-        // 3. Hitung Statistik Pelengkap (Total Masuk) - Kecualikan 'Ditutup'
+        // 3. Hitung Statistik Pelengkap
         $totalMasuk = $user->riwayatDiterima()
             ->whereHas('berkas', function ($q) use ($tahun) {
                 $q->where('tahun', $tahun)
@@ -197,7 +211,7 @@ class LaporanController extends Controller
             ? round(($totalKeluar / $totalBebanKerja) * 100, 1) 
             : 0;
 
-        // 5. Logika Durasi (Waktu Mulai Argo)
+        // 5. Logika Durasi
         foreach ($daftarBerkas as $berkas) {
             $riwayatPembayaran = $berkas->riwayat()
                 ->whereHas('dariUser.jabatan', function ($query) {
@@ -209,7 +223,6 @@ class LaporanController extends Controller
             $berkas->waktu_mulai_argo = $riwayatPembayaran ? $riwayatPembayaran->waktu_kirim : $berkas->created_at;
         }
 
-        // 6. Kirim semua data ke View
         return view('laporan.show_berkas_by_user', [
             'petugas' => $user,
             'daftarBerkas' => $daftarBerkas,

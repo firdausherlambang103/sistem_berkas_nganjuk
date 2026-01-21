@@ -4,71 +4,98 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\WaTemplate; // Tambahkan Model
+use App\Models\Berkas;     // Tambahkan Model
 
 class WaService
 {
     /**
-     * Mengirim pesan ke WA Server (Node.js)
-     * * @param string $target Nomor tujuan (08xxx atau 62xxx)
-     * @param string $message Isi pesan
-     * @return array ['status' => bool, 'detail' => string]
+     * Kirim pesan berdasarkan nama Template
+     * * @param string $target Nomor WA Tujuan
+     * @param string $templateName Nama template di database (case sensitive sesuai input admin)
+     * @param Berkas $berkas Data berkas untuk mengisi placeholder
+     */
+    public static function sendFromTemplate($target, $templateName, Berkas $berkas)
+    {
+        // 1. Cek jika nomor kosong
+        if (empty($target)) {
+            return ['status' => false, 'detail' => 'Nomor tujuan kosong.'];
+        }
+
+        // 2. Ambil Template dari Database
+        $template = WaTemplate::where('nama', $templateName)
+                    ->where('status', 'aktif') // Hanya ambil yang aktif
+                    ->first();
+
+        if (!$template) {
+            Log::warning("WA Template '$templateName' tidak ditemukan atau tidak aktif.");
+            return ['status' => false, 'detail' => 'Template tidak ditemukan.'];
+        }
+
+        // 3. Proses Placeholder
+        $message = self::parsePlaceholder($template->template, $berkas);
+
+        // 4. Kirim Pesan
+        return self::send($target, $message);
+    }
+
+    /**
+     * Mengganti {placeholder} dengan data asli dari Berkas
+     */
+    private static function parsePlaceholder($message, Berkas $berkas)
+    {
+        // Daftar Mapping Placeholder -> Data Database
+        // Pastikan key array ini sama dengan 'placeholder' di tabel wa_placeholders
+        $replacements = [
+            '{nomer_berkas}' => $berkas->nomer_berkas,
+            '{nama_pemohon}' => $berkas->nama_pemohon,
+            '{tahun}'        => $berkas->tahun,
+            '{kecamatan}'    => $berkas->kecamatan,
+            '{desa}'         => $berkas->desa,
+            '{status}'       => $berkas->status,
+            '{tanggal}'      => date('d-m-Y H:i'),
+            '{posisi}'       => optional($berkas->posisiSekarangUser)->name ?? 'Sistem',
+        ];
+
+        // Lakukan replace string
+        foreach ($replacements as $key => $value) {
+            $message = str_replace($key, $value, $message);
+        }
+
+        return $message;
+    }
+
+    /**
+     * Mengirim pesan ke WA Server (Fungsi Original Anda)
      */
     public static function send($target, $message)
     {
-        // -----------------------------------------------------------
-        // KONFIGURASI URL SERVER WA
-        // -----------------------------------------------------------
-        // Jika Node.js jalan di komputer yang sama: http://localhost:3000/send-message
-        // Jika Node.js jalan di komputer lain (LAN): Ganti localhost dengan IP (misal: 192.168.1.10)
+        // ... (Kode original Anda tetap sama di sini) ...
         $url = 'http://192.168.100.15:3000/send-message';
-        // -----------------------------------------------------------
-
+        
         try {
-            // 1. Bersihkan Format Nomor HP
-            $target = preg_replace('/[^0-9]/', '', $target); // Hapus spasi, strip, dll
-            
-            // Ubah 08xx menjadi 628xx
+            $target = preg_replace('/[^0-9]/', '', $target);
             if (substr($target, 0, 1) == '0') {
                 $target = '62' . substr($target, 1);
             }
 
-            // 2. Kirim Request POST ke Node.js Server
-            // Timeout 15 detik agar tidak loading selamanya jika server mati
             $response = Http::timeout(15)->post($url, [
                 'number' => $target,
                 'message' => $message,
             ]);
 
-            // 3. Ambil Respon JSON
             $body = $response->json();
 
-            // 4. Cek Status Pengiriman
             if ($response->successful() && isset($body['status']) && $body['status'] == true) {
-                return [
-                    'status' => true,
-                    'detail' => 'Pesan berhasil dikirim via WA Server.'
-                ];
+                return ['status' => true, 'detail' => 'Pesan berhasil dikirim via WA Server.'];
             } else {
-                // Jika server WA merespon error (misal: nomor tidak terdaftar / belum scan QR)
-                $pesanError = $body['message'] ?? 'Gagal mengirim pesan (Error tidak diketahui).';
-                
-                // Catat error ke Log Laravel (storage/logs/laravel.log)
-                Log::error("WA Server Gagal Kirim ke $target: " . $pesanError);
-
-                return [
-                    'status' => false,
-                    'detail' => $pesanError
-                ];
+                $pesanError = $body['message'] ?? 'Gagal mengirim pesan.';
+                Log::error("WA Server Error: " . $pesanError);
+                return ['status' => false, 'detail' => $pesanError];
             }
-
         } catch (\Exception $e) {
-            // Jika tidak bisa konek ke Node.js sama sekali (Server Mati)
             Log::error('WA Service Exception: ' . $e->getMessage());
-            
-            return [
-                'status' => false,
-                'detail' => 'Koneksi ke Server WA Gagal. Pastikan "node app.js" sudah dijalankan.'
-            ];
+            return ['status' => false, 'detail' => 'Koneksi ke Server WA Gagal.'];
         }
     }
 }

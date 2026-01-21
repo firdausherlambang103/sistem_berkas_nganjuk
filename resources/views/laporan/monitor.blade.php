@@ -22,21 +22,21 @@
 <body class="font-sans antialiased bg-gray-100 text-gray-900 h-screen flex flex-col">
 
     {{-- HEADER (FIXED TOP) --}}
-    <div class="bg-indigo-900 shadow-xl border-b border-indigo-700 py-3 px-6 flex justify-between items-center text-white h-20 shrink-0 z-50">
-        <div class="flex items-center gap-4">
-            <div class="bg-white/10 p-2 rounded backdrop-blur-sm border border-white/20">
-                <i class="fas fa-chart-line text-yellow-400 text-2xl"></i>
+    <div class="bg-indigo-900 shadow-xl border-b border-indigo-700 py-3 px-8 flex justify-between items-center text-white h-24 shrink-0 z-50">
+        <div class="flex items-center gap-5">
+            <div class="bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/20 shadow-inner">
+                <i class="fas fa-chart-line text-yellow-400 text-3xl"></i>
             </div>
             <div>
-                <h1 class="text-2xl font-extrabold tracking-tight leading-none text-white">MONITOR KINERJA</h1>
-                <p class="text-xs text-indigo-200 font-bold mt-0.5 uppercase tracking-wider">
-                    <i class="far fa-clock text-yellow-400 mr-1"></i> <span id="clock" class="text-white">--:--:--</span>
+                <h1 class="text-3xl font-black tracking-tight leading-none text-white drop-shadow-md">MONITOR KINERJA</h1>
+                <p class="text-sm text-indigo-200 font-bold mt-1 uppercase tracking-widest">
+                    <i class="far fa-clock text-yellow-400 mr-1.5"></i> <span id="clock" class="text-white">--:--:--</span>
                 </p>
             </div>
         </div>
 
-        <form method="GET" action="{{ route('laporan.monitor') }}" class="flex gap-3">
-             <select name="tahun" onchange="this.form.submit()" class="py-2 pl-4 pr-8 rounded-full border-2 border-indigo-500 bg-indigo-800 text-white font-bold text-sm focus:ring-yellow-400 focus:border-yellow-400 cursor-pointer hover:bg-indigo-700 transition shadow-lg">
+        <form method="GET" action="{{ route('laporan.monitor') }}" class="flex gap-4">
+             <select name="tahun" onchange="this.form.submit()" class="py-2.5 pl-5 pr-10 rounded-full border-2 border-indigo-500 bg-indigo-800 text-white font-bold text-base focus:ring-yellow-400 focus:border-yellow-400 cursor-pointer hover:bg-indigo-700 transition shadow-lg">
                 @for($y = date('Y'); $y >= 2024; $y--)
                     <option value="{{ $y }}" class="bg-white text-gray-800" {{ (request('tahun') ?? date('Y')) == $y ? 'selected' : '' }}>
                         {{ $y }}
@@ -44,7 +44,7 @@
                 @endfor
             </select>
 
-            <select name="seksi" onchange="this.form.submit()" class="py-2 pl-4 pr-8 rounded-full border-2 border-indigo-500 bg-indigo-800 text-white font-bold text-sm focus:ring-yellow-400 focus:border-yellow-400 cursor-pointer hover:bg-indigo-700 transition shadow-lg">
+            <select name="seksi" onchange="this.form.submit()" class="py-2.5 pl-5 pr-10 rounded-full border-2 border-indigo-500 bg-indigo-800 text-white font-bold text-base focus:ring-yellow-400 focus:border-yellow-400 cursor-pointer hover:bg-indigo-700 transition shadow-lg">
                 <option value="" class="text-gray-300">-- SEMUA SEKSI --</option>
                 @foreach($listSeksi as $seksi)
                     <option value="{{ $seksi }}" class="bg-white text-gray-800" {{ isset($currentSeksi) && $currentSeksi == $seksi ? 'selected' : '' }}>
@@ -56,10 +56,9 @@
     </div>
 
     {{-- MAIN CONTENT (Horizontal Scroll Container) --}}
-    {{-- id="scrollContainer" wajib ada untuk auto scroll JS --}}
-    <div id="scrollContainer" class="flex-1 overflow-x-auto hide-scrollbar p-6 bg-gray-100">
+    <div id="scrollContainer" class="flex-1 overflow-x-auto hide-scrollbar p-8 bg-gray-100">
         
-        <div class="flex gap-8 w-max h-full items-start">
+        <div class="flex gap-10 w-max h-full items-start">
             
             {{-- LOOP JABATAN --}}
             @foreach($jabatans as $jabatan)
@@ -67,33 +66,33 @@
                     
                     {{-- 1. KEPALA KANTOR (Tampil Sendiri) --}}
                     @if($jabatan->nama_jabatan === 'Kepala Kantor Pertanahan')
-                        <div class="flex flex-col h-full justify-center min-w-[24rem]">
+                        <div class="flex flex-col h-full justify-center min-w-[32rem]">
                             @foreach($jabatan->users as $user)
                                 @include('laporan.monitor-card', ['user' => $user, 'jabatan' => $jabatan, 'isKepala' => true])
                             @endforeach
                         </div>
 
-                    {{-- 2. JABATAN LAIN (Grid 8 Baris) --}}
+                    {{-- 2. JABATAN LAIN --}}
                     @else
-                        <div class="flex flex-col h-full bg-white/50 border border-white/60 rounded-2xl shadow-sm backdrop-blur-sm overflow-hidden">
+                        <div class="flex flex-col h-full bg-white/60 border border-white rounded-3xl shadow-sm backdrop-blur-md overflow-hidden">
                             
                             {{-- Header Jabatan --}}
-                            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-5 py-3 text-white flex justify-between items-center shadow-md shrink-0 z-10 w-[28rem] sticky left-0">
-                                <h3 class="font-bold text-lg leading-tight truncate flex items-center gap-2">
+                            <div class="bg-gradient-to-r from-blue-700 to-indigo-800 px-6 py-4 text-white flex justify-between items-center shadow-lg shrink-0 z-10 w-[30rem] sticky left-0">
+                                <h3 class="font-bold text-xl leading-tight truncate flex items-center gap-2">
                                     {{ $jabatan->nama_jabatan }}
                                 </h3>
-                                <span class="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full border border-white/20">
-                                    {{ $jabatan->users->count() }}
+                                <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full border border-white/20 shadow-sm">
+                                    {{ $jabatan->users->count() }} Pegawai
                                 </span>
                             </div>
 
                             {{-- CONTENT GRID --}}
-                            {{-- MENGGUNAKAN STYLE INLINE AGAR PASTI JALAN (8 BARIS) --}}
-                            <div class="p-4 h-full">
-                                <div class="grid grid-flow-col gap-4 content-start" 
-                                     style="grid-template-rows: repeat(8, min-content);">
+                            {{-- Ubah menjadi 5 baris agar muat dengan kartu yang lebih besar (h-40) --}}
+                            <div class="p-5 h-full">
+                                <div class="grid grid-flow-col gap-5 content-start" 
+                                     style="grid-template-rows: repeat(5, min-content);">
                                     @foreach($jabatan->users as $user)
-                                        <div class="w-[26rem]"> {{-- Lebar fix agar grid rapi --}}
+                                        <div class="w-[28rem]"> {{-- Lebar container kartu --}}
                                             @include('laporan.monitor-card', ['user' => $user, 'jabatan' => $jabatan, 'isKepala' => false])
                                         </div>
                                     @endforeach
@@ -115,7 +114,7 @@
             // 1. JAM
             function updateClock() {
                 const now = new Date();
-                document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID');
+                document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             }
             setInterval(updateClock, 1000);
             updateClock();
@@ -125,40 +124,35 @@
                 window.location.reload(); 
             }, 300000);
 
-            // 3. AUTO SCROLL HORIZONTAL (DIPERBAIKI)
+            // 3. AUTO SCROLL HORIZONTAL
             const container = document.getElementById('scrollContainer');
-            let scrollSpeed = 1; // Kecepatan scroll
-            let direction = 1;   // 1 = kanan, -1 = kiri
+            let scrollSpeed = 1; 
+            let direction = 1;   
             let isPaused = false;
 
             function autoScroll() {
                 if (isPaused) return;
 
-                // Hanya scroll jika konten lebih lebar dari layar
                 if (container.scrollWidth > container.clientWidth) {
                     container.scrollLeft += (scrollSpeed * direction);
 
-                    // Mentok Kanan -> Balik Kiri
-                    if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 1) {
+                    if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 2) {
                         isPaused = true;
                         setTimeout(() => { 
                             direction = -1; 
                             isPaused = false; 
-                        }, 3000); // Tunggu 3 detik
+                        }, 4000); 
                     }
-                    // Mentok Kiri -> Balik Kanan
                     else if (container.scrollLeft <= 0) {
                         isPaused = true;
                         setTimeout(() => { 
                             direction = 1; 
                             isPaused = false; 
-                        }, 3000); // Tunggu 3 detik
+                        }, 4000);
                     }
                 }
             }
-
-            // Interval halus
-            setInterval(autoScroll, 20);
+            setInterval(autoScroll, 25);
         });
     </script>
 </body>
