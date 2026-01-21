@@ -16,7 +16,7 @@ class WaService
 
     public function __construct()
     {
-        // GANTI DEFAULT LOCALHOST MENJADI IP
+        // PERBAIKAN: Default ke IP 192.168.100.15, bukan localhost
         $this->baseUrl = env('WA_API_URL', 'http://192.168.100.15:3000'); 
         $this->apiKey = env('WA_API_KEY', '');
     }
@@ -26,10 +26,8 @@ class WaService
         try {
             $number = $this->formatNumber($number);
 
-            // Log untuk debugging jika terjadi error
-            // Log::info("Mengirim WA ke: $number via {$this->baseUrl}/send-message");
-
-            $response = Http::timeout(10)->post("{$this->baseUrl}/send-message", [
+            // Request ke Node.js Server
+            $response = Http::timeout(15)->post("{$this->baseUrl}/send-message", [
                 'number' => $number,
                 'message' => $message,
                 'api_key' => $this->apiKey
@@ -38,7 +36,7 @@ class WaService
             $status = $response->successful() ? 'success' : 'failed';
             $responseData = $response->json();
 
-            // Jika response sukses tapi status di JSON false (misal nomor tidak terdaftar)
+            // Cek status dari API WA (misal: nomor tidak terdaftar)
             if (isset($responseData['status']) && !$responseData['status']) {
                 $status = 'failed';
             }
@@ -48,14 +46,20 @@ class WaService
             return $responseData;
 
         } catch (Exception $e) {
-            Log::error("WA Error: " . $e->getMessage());
-            $this->logMessage($number, $message, 'failed', $e->getMessage(), $berkasId, $userId);
-            return ['status' => false, 'message' => 'Gagal terhubung ke WA Server: ' . $e->getMessage()];
+            // Log error agar bisa dicek di storage/logs/laravel.log
+            Log::error("WA Gagal Kirim ke {$number}: " . $e->getMessage());
+            
+            $this->logMessage($number, $message, 'failed', "Koneksi Gagal: " . $e->getMessage(), $berkasId, $userId);
+            
+            return [
+                'status' => false, 
+                'message' => 'Gagal terhubung ke Server WA (Pastikan server Node.js jalan di 192.168.100.15:3000)'
+            ];
         }
     }
 
-    // ... (Fungsi formatNumber, parseTemplate, logMessage biarkan seperti sebelumnya) ...
-    
+    // --- Helper Methods (Tidak Berubah) ---
+
     public function sendByTemplate($templateName, $number, $data = [], $userId = null)
     {
         $template = WaTemplate::where('nama_template', $templateName)->first();
@@ -73,9 +77,10 @@ class WaService
         foreach ($placeholders as $placeholder) {
             $key = $placeholder->placeholder;
             $field = $placeholder->deskripsi;
+            
             if (isset($data[$field])) {
                 $message = str_replace($key, $data[$field], $message);
-            } elseif (isset($data[strtolower($key)])) {
+            } elseif (isset($data[strtolower($key)])) { // Fallback lowercase key
                  $message = str_replace($key, $data[strtolower($key)], $message);
             }
         }
@@ -103,7 +108,7 @@ class WaService
             'tujuan' => $number,
             'pesan' => $message,
             'status' => $status,
-            'error_message' => substr($error, 0, 255), // Potong error jika terlalu panjang
+            'error_message' => substr((string)$error, 0, 255),
             'berkas_id' => $berkasId,
             'user_id' => $userId ?? auth()->id(),
         ]);
