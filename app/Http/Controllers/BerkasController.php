@@ -58,7 +58,8 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
-            'status_buku_tanah' => 'required|in:Ada,Butuh', 
+            // UPDATE VALIDASI: Menerima 3 opsi baru
+            'status_buku_tanah' => 'required|in:Sertipikat Elektronik,Sertipikat Analog,Belum Sertipikat', 
         ]);
 
         $berkas = null; 
@@ -97,7 +98,6 @@ class BerkasController extends Controller
             return redirect()->back()->withInput()->with('error', 'Gagal menyimpan berkas. Error: ' . $e->getMessage());
         }
 
-        // [PERUBAHAN] Redirect ke Ruang Kerja (Bukan ke Pilih Petugas)
         return redirect()->route('ruang-kerja')
                          ->with('success', 'Berkas baru berhasil dibuat!');
     }
@@ -179,7 +179,8 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
-            'status_buku_tanah' => 'required|in:Ada,Butuh',
+            // UPDATE VALIDASI: Menerima 3 opsi baru
+            'status_buku_tanah' => 'required|in:Sertipikat Elektronik,Sertipikat Analog,Belum Sertipikat',
         ]);
 
         try {

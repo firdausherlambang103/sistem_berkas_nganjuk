@@ -188,10 +188,13 @@
                                                 @else
                                                     <span class="px-2 py-1 text-[10px] font-bold text-gray-700 bg-gray-200 rounded-full">{{ $statusPinjam }}</span>
                                                 @endif
-                                            @elseif($berkas->status_buku_tanah == 'Butuh')
+                                            {{-- [UPDATE LOGIKA STATUS BT] --}}
+                                            @elseif($berkas->status_buku_tanah == 'Sertipikat Analog')
                                                 <span class="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200 animate-pulse">Perlu BT</span>
+                                            @elseif($berkas->status_buku_tanah == 'Sertipikat Elektronik')
+                                                <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">Elektronik</span>
                                             @else
-                                                <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200">Ada</span>
+                                                <span class="px-2 py-1 text-[10px] font-bold text-gray-600 bg-gray-200 rounded-full border border-gray-300">Belum Sertipikat</span>
                                             @endif
                                         </td>
 

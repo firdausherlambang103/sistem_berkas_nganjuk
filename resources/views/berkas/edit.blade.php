@@ -83,14 +83,16 @@
                             {{-- KOLOM KANAN --}}
                             <div class="space-y-4">
                                 
-                                {{-- [BARU] Status Buku Tanah --}}
+                                {{-- [MODIFIKASI] Status Buku Tanah --}}
                                 <div>
-                                    <x-input-label for="status_buku_tanah" :value="__('Ketersediaan Buku Tanah')" />
+                                    <x-input-label for="status_buku_tanah" :value="__('Status Sertipikat / Buku Tanah')" />
                                     <select id="status_buku_tanah" name="status_buku_tanah" class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm block mt-1 w-full" required>
-                                        <option value="Ada" {{ old('status_buku_tanah', $berkas->status_buku_tanah) == 'Sertipikat Elektronik' ? 'selected' : '' }}>Sertipikat Elektronik</option>
-                                        <option value="Butuh" {{ old('status_buku_tanah', $berkas->status_buku_tanah) == 'Butuh' ? 'selected' : '' }}>Butuh (Perlu pinjam arsip)</option>
+                                        <option value="Sertipikat Elektronik" {{ old('status_buku_tanah', $berkas->status_buku_tanah) == 'Sertipikat Elektronik' ? 'selected' : '' }}>Sertipikat Elektronik</option>
+                                        <option value="Sertipikat Analog" {{ old('status_buku_tanah', $berkas->status_buku_tanah) == 'Sertipikat Analog' ? 'selected' : '' }}>Sertipikat Analog</option>
+                                        <option value="Belum Sertipikat" {{ old('status_buku_tanah', $berkas->status_buku_tanah) == 'Belum Sertipikat' ? 'selected' : '' }}>Belum Sertipikat</option>
                                     </select>
                                     <x-input-error :messages="$errors->get('status_buku_tanah')" class="mt-2" />
+                                    <p class="text-xs text-gray-500 mt-1">*Pilih "Sertipikat Analog" jika memerlukan peminjaman buku tanah di arsip.</p>
                                 </div>
 
                                 {{-- Kecamatan --}}

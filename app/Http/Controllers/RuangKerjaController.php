@@ -27,7 +27,6 @@ class RuangKerjaController extends Controller
         // Menampilkan berkas yang dikirim ke user ini tapi belum diterima
         $berkasMenungguQuery = Berkas::where('penerima_id', $currentUserId)
             ->where('status_pengiriman', 'Dikirim')
-            // [UPDATE] Tambahkan 'waLogs' agar bisa dihitung di view
             ->with(['pengirim.jabatan', 'jenisPermohonan', 'waLogs']);
 
         if ($searchMasuk) {
@@ -49,8 +48,8 @@ class RuangKerjaController extends Controller
         $berkasDiMejaQuery = Berkas::where('posisi_sekarang_user_id', $currentUserId)
             ->where('status', 'Diproses')
             ->where('status_pengiriman', 'Diterima')
-            // [UPDATE] Tambahkan 'waLogs' agar badge counter muncul
-            ->with(['jenisPermohonan', 'waLogs']);
+            // [OPTIMASI] Load relasi pendukung agar query lebih cepat (mengurangi N+1 Query)
+            ->with(['jenisPermohonan', 'waLogs', 'penerimaKuasa', 'peminjamanBukuTanah']);
 
         if ($searchDiMeja) {
             $searchTerms = array_filter(array_map('trim', explode(',', $searchDiMeja)));
@@ -67,7 +66,6 @@ class RuangKerjaController extends Controller
         // --- 3. Query untuk Berkas yang Ditunda (Pending) ---
         $berkasDitundaQuery = Berkas::where('posisi_sekarang_user_id', $currentUserId)
             ->where('status', 'Pending')
-            // [UPDATE] Tambahkan 'waLogs'
             ->with(['jenisPermohonan', 'waLogs']);
 
         if ($searchDitunda) {

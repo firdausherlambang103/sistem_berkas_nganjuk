@@ -41,8 +41,8 @@ class PeminjamanBukuTanahController extends Controller
         $data = $query->latest()->paginate(10);
 
         // 2. DATA REQUEST OTOMATIS DARI RUANG KERJA
-        // Syarat: Status buku tanah 'Butuh' DAN belum masuk tabel peminjaman
-        $requestOtomatis = Berkas::where('status_buku_tanah', 'Butuh')
+        // [PERBAIKAN] Mengganti 'Butuh' menjadi 'Sertipikat Analog' sesuai struktur database baru
+        $requestOtomatis = Berkas::where('status_buku_tanah', 'Sertipikat Analog')
             ->whereDoesntHave('peminjamanBukuTanah') 
             ->with(['jenisPermohonan'])
             ->get();
