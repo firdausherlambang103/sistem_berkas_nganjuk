@@ -12,16 +12,15 @@ class WaLog extends Model
     protected $table = 'wa_logs';
 
     protected $fillable = [
-        'target_phone', // UBAH: 'tujuan' menjadi 'target_phone' sesuai DB
+        'target_phone', // PENTING: Sesuaikan dengan DB
         'pesan',
         'status',
-        'keterangan',   // UBAH: 'error_message' menjadi 'keterangan' sesuai DB
+        'keterangan',   // PENTING: Sesuaikan dengan DB
         'berkas_id',
         'user_id',
         'template_id'
     ];
 
-    // Relasi
     public function berkas()
     {
         return $this->belongsTo(Berkas::class, 'berkas_id');
