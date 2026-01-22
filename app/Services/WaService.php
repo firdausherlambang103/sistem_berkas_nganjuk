@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Log;
 use App\Models\WaLog;
 use App\Models\WaTemplate;
 use App\Models\WaPlaceholder;
-use App\Models\Berkas; // Pastikan Model Berkas di-import
+use App\Models\Berkas; // Import Model Berkas
+use Illuminate\Support\Str; // Import Str untuk manipulasi string
 use Exception;
 
 class WaService
@@ -17,7 +18,7 @@ class WaService
 
     public function __construct()
     {
-        // Sesuaikan URL Node.js Anda
+        // IP Server WA (Default 192.168.100.15)
         $this->baseUrl = env('WA_API_URL', 'http://192.168.100.15:3000'); 
         $this->apiKey = env('WA_API_KEY', '');
     }
@@ -34,15 +35,15 @@ class WaService
             return ['status' => false, 'message' => 'Template tidak ditemukan'];
         }
 
-        // 2. OLAH DATA BERKAS (KUNCI PERBAIKAN)
-        // Kita pastikan dataBerkas memuat semua relasi agar placeholder {jenis_permohonan} dsb bisa tampil.
+        // 2. SIAPKAN DATA BERKAS (Load Semua Relasi)
         $berkas = $this->prepareBerkasData($dataBerkas);
 
         if (!$berkas) {
-            return ['status' => false, 'message' => 'Data berkas tidak valid'];
+            // Jika data tidak valid, kirim pesan raw tanpa replace (fallback)
+            return $this->send($targetPhone, $template->isi_pesan, null, $userId, $template->id);
         }
 
-        // 3. Parse Placeholder
+        // 3. Parse Placeholder dengan Smart Detection
         $message = $this->parseTemplate($template->isi_pesan, $berkas);
         
         // 4. Kirim Pesan
@@ -66,7 +67,7 @@ class WaService
             $responseData = $response->json();
             $status = ($response->successful() && isset($responseData['status']) && $responseData['status']) ? 'success' : 'failed';
 
-            // Log ke Database
+            // Log ke Database (Sesuai struktur db_1.sql)
             $this->logMessage($number, $message, $status, $responseData['message'] ?? $response->body(), $berkasId, $userId, $templateId);
 
             return $responseData;
@@ -74,7 +75,6 @@ class WaService
         } catch (Exception $e) {
             Log::error("WA Exception to {$number}: " . $e->getMessage());
             
-            // Log Error
             $this->logMessage($number, $message, 'failed', "Koneksi Error: " . $e->getMessage(), $berkasId, $userId, $templateId);
             
             return ['status' => false, 'message' => 'Gagal koneksi ke Server WA'];
@@ -82,16 +82,14 @@ class WaService
     }
 
     // =========================================================================
-    // HELPER FUNCTIONS (LOGIC INTI)
+    // LOGIC PERBAIKAN (SMART RELATION LOADER)
     // =========================================================================
 
     /**
-     * Memastikan Data Berkas memuat Relasi (Eager Loading)
-     * Ini menyamakan logika dengan aplikasi-berkas agar data relasi tampil.
+     * Memastikan Data Berkas memuat Relasi
      */
     protected function prepareBerkasData($data)
     {
-        // Ambil ID dari data (bisa berupa object Model, Array, atau Integer ID)
         $id = null;
         if ($data instanceof Berkas) {
             $id = $data->id;
@@ -103,38 +101,44 @@ class WaService
 
         if (!$id) return null;
 
-        // LOAD ULANG BERKAS DENGAN SEMUA RELASI
-        // Sesuaikan nama fungsi relasi di Model Berkas Anda (camelCase)
+        // LOAD ULANG dengan semua relasi yang mungkin ada di Model Berkas
         return Berkas::with([
-            'jenisPermohonan', // relasi ke jenis_permohonans
-            'desa',            // relasi ke desas
-            'kecamatan',       // relasi ke kecamatans
-            'user',            // relasi ke users (petugas loket/penginput)
-            'petugasUkur',     // relasi ke petugas_ukur
-            'penerimaKuasa'    // relasi ke penerima_kuasas
+            'jenisPermohonan', // Pastikan nama method di Model Berkas benar (camelCase)
+            'desa',            
+            'kecamatan',       
+            'user',            
+            'petugasUkur',
+            'penerimaKuasa'
         ])->find($id);
     }
 
     /**
-     * Mengganti {placeholder} dengan data asli
+     * Mengganti {placeholder} dengan data asli (Support Snake Case & Camel Case)
      */
     protected function parseTemplate($message, $data)
     {
         $placeholders = WaPlaceholder::all();
         
         foreach ($placeholders as $p) {
-            $key = $p->placeholder; // contoh: {nama_pemohon}
-            $field = $p->deskripsi; // contoh: jenisPermohonan.nama_jenis
+            $key = $p->placeholder; // contoh: {jenis_permohonan}
+            $field = trim($p->deskripsi); // contoh: jenis_permohonan.nama_jenis
 
-            // Gunakan data_get untuk mengambil data relasi (support dot notation)
-            // Contoh: $data->jenisPermohonan->nama_jenis
+            // 1. Coba ambil langsung (persis seperti di database)
             $value = data_get($data, $field);
 
-            // Cek jika value kosong, set string kosong agar tidak tampil {placeholder} mentah
-            if (is_null($value)) {
-                $value = ''; 
-            } elseif (is_object($value) || is_array($value)) {
-                // Jika hasil masih berupa object (karena salah set field), kosongkan
+            // 2. Jika GAGAL & mengandung titik (relasi), coba konversi ke camelCase
+            // Contoh: DB tulis 'jenis_permohonan.nama', tapi Model pakai 'jenisPermohonan'
+            if (is_null($value) && str_contains($field, '.')) {
+                $parts = explode('.', $field);
+                if (count($parts) == 2) {
+                    $relationName = Str::camel($parts[0]); // ubah jenis_permohonan -> jenisPermohonan
+                    $attributeName = $parts[1];
+                    $value = data_get($data, "$relationName.$attributeName");
+                }
+            }
+
+            // 3. Bersihkan Value (jika null/object, jadikan string kosong)
+            if (is_null($value) || is_array($value) || is_object($value)) {
                 $value = ''; 
             }
 
@@ -153,13 +157,14 @@ class WaService
         return $number;
     }
 
+    // LOG Sesuai Kolom Database db_1.sql
     protected function logMessage($number, $message, $status, $keterangan, $berkasId, $userId, $templateId)
     {
         WaLog::create([
-            'target_phone' => $number,
+            'target_phone' => $number, // DB: target_phone
             'pesan' => $message,
             'status' => $status,
-            'keterangan' => substr((string)$keterangan, 0, 255),
+            'keterangan' => substr((string)$keterangan, 0, 255), // DB: keterangan
             'berkas_id' => $berkasId,
             'user_id' => $userId ?? auth()->id(),
             'template_id' => $templateId
