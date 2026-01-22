@@ -1,92 +1,133 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            <i class="fa-solid fa-users-cog mr-2"></i>
-            Manajemen Pengguna
-        </h2>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <h2 class="font-bold text-2xl text-gray-800 leading-tight">
+                <i class="fa-solid fa-users-cog mr-2 text-indigo-600"></i>
+                Manajemen Pengguna
+            </h2>
+        </div>
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
             
             @if (session('success'))
-                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4" role="alert">
-                    <p>{{ session('success') }}</p>
+                <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-r shadow-sm flex items-start sm:items-center animate-fade-in-down" role="alert">
+                    <i class="fa-solid fa-check-circle mr-2 mt-1 sm:mt-0"></i>
+                    <p class="text-sm sm:text-base">{{ session('success') }}</p>
                 </div>
             @endif
             @if (session('error'))
-                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
-                    <p>{{ session('error') }}</p>
+                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-r shadow-sm flex items-start sm:items-center animate-fade-in-down" role="alert">
+                    <i class="fa-solid fa-exclamation-circle mr-2 mt-1 sm:mt-0"></i>
+                    <p class="text-sm sm:text-base">{{ session('error') }}</p>
                 </div>
             @endif
 
-            <!-- Tabel Persetujuan Pengguna Baru -->
             <div>
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Persetujuan Pengguna Baru</h3>
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            {{-- ... thead ... --}}
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse ($pendingUsers as $user)
-                                    <tr class="hover:bg-gray-100">
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->email }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->created_at->isoFormat('D MMMM YYYY') }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right">
-                                            <form action="{{ route('admin.users.approve', $user) }}" method="POST">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-md hover:bg-green-700">Setujui</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Tidak ada pengguna baru yang menunggu persetujuan.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="flex items-center mb-4 space-x-2">
+                    <div class="w-1 h-6 bg-indigo-600 rounded"></div>
+                    <h3 class="text-lg md:text-xl font-bold text-gray-800">Menunggu Persetujuan</h3>
+                    @if($pendingUsers->count() > 0)
+                        <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-bold">{{ $pendingUsers->count() }}</span>
+                    @endif
                 </div>
+
+                @if($pendingUsers->count() > 0)
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        @foreach ($pendingUsers as $user)
+                            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 relative overflow-hidden group hover:shadow-md transition duration-300">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-bold text-gray-800">{{ $user->name }}</h4>
+                                        <p class="text-sm text-gray-500 break-all">{{ $user->email }}</p>
+                                        <div class="text-xs text-gray-400 mt-2 flex items-center">
+                                            <i class="fa-regular fa-clock mr-1"></i>
+                                            {{ $user->created_at->diffForHumans() }}
+                                        </div>
+                                    </div>
+                                    <div class="p-2 bg-indigo-50 text-indigo-600 rounded-full">
+                                        <i class="fa-solid fa-user-clock"></i>
+                                    </div>
+                                </div>
+                                <form action="{{ route('admin.users.approve', $user) }}" method="POST" class="mt-4">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="w-full justify-center inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition shadow-sm">
+                                        <i class="fa-solid fa-check mr-2"></i> Setujui
+                                    </button>
+                                </form>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+                        <p class="text-gray-500 text-sm">Tidak ada permohonan baru.</p>
+                    </div>
+                @endif
             </div>
 
-            <!-- Tabel Pengguna Aktif -->
             <div>
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Daftar Pengguna Aktif</h3>
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nama</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Jabatan</th>
-                                    <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse ($approvedUsers as $user)
-                                    <tr class="hover:bg-gray-100">
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->email }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->jabatan->nama_jabatan ?? 'N/A' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right space-x-2">
-                                            <a href="{{ route('admin.users.edit', $user) }}" class="inline-flex items-center px-4 py-2 bg-yellow-500 text-white text-xs font-semibold rounded-md hover:bg-yellow-600">Edit</a>
-                                            <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline-block" onsubmit="return confirm('Apakah Anda yakin ingin menghapus user ini? Berkas yang terkait mungkin akan error.');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700">Hapus</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Tidak ada pengguna aktif.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="flex items-center mb-4 space-x-2">
+                    <div class="w-1 h-6 bg-green-600 rounded"></div>
+                    <h3 class="text-lg md:text-xl font-bold text-gray-800">Daftar Pengguna Aktif</h3>
                 </div>
-            </div>
+
+                <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
+                    <ul class="divide-y divide-gray-100">
+                        @forelse ($approvedUsers as $user)
+                            <li class="p-4 sm:p-5 hover:bg-gray-50 transition duration-150">
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                    
+                                    <div class="flex items-start sm:items-center space-x-4">
+                                        <div class="flex-shrink-0 h-10 w-10 md:h-12 md:w-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg md:text-xl">
+                                            {{ substr($user->name, 0, 1) }}
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-bold text-gray-900 truncate">
+                                                {{ $user->name }}
+                                            </p>
+                                            <p class="text-sm text-gray-500 break-all">
+                                                {{ $user->email }}
+                                            </p>
+                                            <div class="mt-1 flex flex-wrap gap-2">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                    {{ $user->jabatan->nama_jabatan ?? 'Tanpa Jabatan' }}
+                                                </span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-100">
+                                                    Aktif
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-end space-x-2 mt-2 sm:mt-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
+                                        <a href="{{ route('admin.users.edit', $user) }}" class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                            <i class="fa-solid fa-pen mr-1.5 text-yellow-500"></i> Edit
+                                        </a>
+                                        
+                                        <form action="{{ route('admin.users.destroy', $user) }}" method="POST" onsubmit="return confirm('Yakin hapus user ini?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-white border border-red-200 shadow-sm text-xs font-medium rounded text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                                <i class="fa-solid fa-trash mr-1.5"></i> Hapus
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </li>
+                        @empty
+                            <li class="p-8 text-center text-gray-500">
+                                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
+                                    <i class="fa-regular fa-folder-open text-gray-400"></i>
+                                </div>
+                                <p>Tidak ada pengguna aktif.</p>
+                            </li>
+                        @endforelse
+                    </ul>
+                </div>
+                </div>
+
         </div>
     </div>
 </x-app-layout>

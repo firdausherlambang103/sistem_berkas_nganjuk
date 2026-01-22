@@ -8,6 +8,7 @@
                     </a>
                 </div>
 
+                {{-- Desktop Navigation --}}
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
@@ -46,6 +47,7 @@
                         </x-dropdown>
                     </div>
 
+                    {{-- Admin Dropdown --}}
                     @if(Auth::user()->jabatan && Auth::user()->jabatan->is_admin)
                         <div class="hidden sm:flex sm:items-center sm:ms-6">
                             <x-dropdown align="right" width="48">
@@ -60,13 +62,14 @@
                                     </button>
                                 </x-slot>
                                 <x-slot name="content">
+                                    <div class="block px-4 py-2 text-xs text-gray-400">Master Data</div>
                                     <x-dropdown-link :href="route('admin.users.index')">
                                         {{ __('User Approval') }}
                                     </x-dropdown-link>
                                     <x-dropdown-link :href="route('admin.jabatan.index')">
                                         {{ __('Manajemen Jabatan') }}
                                     </x-dropdown-link>
-                                     <x-dropdown-link :href="route('admin.petugas-ukur.index')">
+                                    <x-dropdown-link :href="route('admin.petugas-ukur.index')">
                                         {{ __('Manajemen Petugas Ukur') }}
                                     </x-dropdown-link>
                                     <x-dropdown-link :href="route('admin.setting-area-kerja.index')">
@@ -84,6 +87,18 @@
                                     <x-dropdown-link :href="route('admin.permohonan.index')">
                                         {{ __('Manajemen Jenis Permohonan') }}
                                     </x-dropdown-link>
+                                    
+                                    <div class="border-t border-gray-100 my-1"></div>
+                                    <div class="block px-4 py-2 text-xs text-gray-400">Alat Bantu</div>
+                                    
+                                    {{-- [BARU] Perbaikan Posisi Berkas --}}
+                                    <x-dropdown-link :href="route('admin.perbaikan.index')">
+                                        {{ __('Perbaikan Posisi Berkas') }}
+                                    </x-dropdown-link>
+
+                                    <div class="border-t border-gray-100 my-1"></div>
+                                    <div class="block px-4 py-2 text-xs text-gray-400">WhatsApp Gateway</div>
+
                                     <x-dropdown-link :href="route('admin.wa-placeholders.index')">
                                         {{ __('Placeholder WA') }}
                                     </x-dropdown-link>
@@ -104,6 +119,7 @@
                 </div>
             </div>
 
+            {{-- User Dropdown --}}
             <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
@@ -132,6 +148,7 @@
                 </x-dropdown>
             </div>
 
+            {{-- Hamburger --}}
             <div class="-me-2 flex items-center sm:hidden">
                 <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -143,6 +160,7 @@
         </div>
     </div>
 
+    {{-- Responsive Navigation Menu --}}
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
@@ -155,7 +173,6 @@
                 {{ __('Ruang Kerja') }}
             </x-responsive-nav-link>
             
-            {{-- [BARU] Responsive Peminjaman Buku Tanah --}}
             @if(Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah')
                 <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
                     {{ __('Silabus') }}
@@ -163,6 +180,7 @@
             @endif
         </div>
 
+        {{-- Responsive Settings Options --}}
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="px-4">
                 <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
@@ -183,9 +201,10 @@
                     </x-responsive-nav-link>
                 </form>
 
+                {{-- Responsive Admin Menu --}}
                 @if(Auth::user()->jabatan && Auth::user()->jabatan->is_admin)
                     <div class="border-t border-gray-200 mt-3 pt-3">
-                        <div class="px-4 font-medium text-base text-gray-800">Administrasi</div>
+                        <div class="px-4 font-medium text-base text-gray-800 bg-gray-50 py-2">Administrasi</div>
                          <div class="mt-1 space-y-1">
                             <x-responsive-nav-link :href="route('admin.users.index')">
                                 {{ __('User Approval') }}
@@ -211,10 +230,16 @@
                             <x-responsive-nav-link :href="route('admin.permohonan.index')">
                                 {{ __('Manajemen Jenis Permohonan') }}
                             </x-responsive-nav-link>
+                            
+                            {{-- [BARU] Perbaikan Posisi Berkas --}}
+                            <x-responsive-nav-link :href="route('admin.perbaikan.index')" :active="request()->routeIs('admin.perbaikan.*')">
+                                {{ __('Perbaikan Posisi Berkas') }}
+                            </x-responsive-nav-link>
+
                             <x-responsive-nav-link :href="route('admin.wa-placeholders.index')" :active="request()->routeIs('admin.wa-placeholders.*')">
                                 {{ __('Placeholder WA') }}
                             </x-responsive-nav-link>
-                            <x-dropdown-link :href="route('admin.wa-templates.index')">
+                            <x-responsive-nav-link :href="route('admin.wa-templates.index')">
                                 {{ __('Template WA') }}
                             </x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('admin.wa-logs.index')" :active="request()->routeIs('admin.wa-logs.*')">

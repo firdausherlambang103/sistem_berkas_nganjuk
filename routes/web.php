@@ -7,9 +7,10 @@ use App\Http\Controllers\BerkasController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ManajemenController;
-use App\Http\Controllers\Admin\WaTemplateController; // Pastikan di-import
-use App\Http\Controllers\Admin\WaPlaceholderController; // Pastikan di-import
-use App\Http\Controllers\Admin\WaLogController; // Pastikan di-import
+use App\Http\Controllers\Admin\WaTemplateController;
+use App\Http\Controllers\Admin\WaPlaceholderController;
+use App\Http\Controllers\Admin\WaLogController;
+use App\Http\Controllers\Admin\PerbaikanBerkasController; // <-- TAMBAHAN BARU
 use App\Http\Controllers\WhatsappWebController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
@@ -18,12 +19,6 @@ use App\Http\Controllers\SensusWakafController;
 use App\Models\WaTemplate;
 use App\Models\WaLog;
 use App\Http\Controllers\PeminjamanBukuTanahController;
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
 
 Route::get('/', function () {
     return view('welcome');
@@ -69,22 +64,40 @@ Route::middleware('auth')->group(function () {
     Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
     Route::post('/peminjaman-bt/proses/{berkasId}', [PeminjamanBukuTanahController::class, 'prosesOtomatis'])->name('peminjaman-bt.proses-otomatis');
     
-    // --- FITUR WHATSAPP (API & SEND) ---
+    // --- FITUR WHATSAPP (API & SEND) - PERBAIKAN ---
     Route::get('/api/wa-templates/{berkas_id?}', function ($berkas_id = null) {
-        $templates = WaTemplate::where('status', 'aktif')->get();
-        if ($berkas_id) {
-            $templates->map(function ($tpl) use ($berkas_id) {
-                $tpl->usage_count = WaLog::where('berkas_id', $berkas_id)
-                                         ->where('template_id', $tpl->id)
-                                         ->where('status', 'Sukses')
-                                         ->count();
-                return $tpl;
+        try {
+            // Ambil semua data (tanpa filter status dulu untuk memastikan data keluar)
+            $templates = WaTemplate::all();
+            
+            // Mapping agar frontend menerima field yang konsisten
+            $formattedData = $templates->map(function ($tpl) use ($berkas_id) {
+                $usageCount = 0;
+                if ($berkas_id) {
+                    $usageCount = WaLog::where('berkas_id', $berkas_id)
+                                       ->where('template_id', $tpl->id)
+                                       ->where('status', 'Sukses')
+                                       ->count();
+                }
+                
+                return [
+                    'id' => $tpl->id,
+                    'nama' => $tpl->nama,           // Kolom DB baru
+                    'judul' => $tpl->nama,          // Alias untuk frontend lama
+                    'template' => $tpl->template,   // Kolom DB baru
+                    'pesan' => $tpl->template,      // Alias untuk frontend lama
+                    'isi_pesan' => $tpl->template, // Alias lagi
+                    'usage_count' => $usageCount
+                ];
             });
+
+            return response()->json($formattedData);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-        return response()->json($templates);
     })->name('api.wa-templates');
 
-    // Route untuk mengirim pesan (AJAX / Umum)
+    // Route untuk mengirim pesan
     Route::post('/whatsapp/send', [WhatsappWebController::class, 'send'])->name('whatsapp.send');
 
     // --- BERKAS ---
@@ -173,22 +186,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaIndex'])->name('setting-area-kerja.index');
     Route::post('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaUpdate'])->name('setting-area-kerja.update');
 
-    
-    // --- WHATSAPP MANAGEMENT (Perbaikan Routing) ---
-    
-    // 1. Log / Riwayat WA
+    // --- WHATSAPP MANAGEMENT ---
     Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
-
-    // 2. Scan QR (Halaman & Aksi)
     Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
-    Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test'); // Tambahan
-    Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout'); // Tambahan
+    Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test');
+    Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout');
 
-    // 3. WA Templates & Placeholders (Resource Route)
-    //Route::resource('wa-templates', WaTemplateController::class);
-    Route::resource('wa-placeholders', WaPlaceholderController::class);
-    // ...
     Route::resource('wa-templates', WaTemplateController::class);
+    Route::resource('wa-placeholders', WaPlaceholderController::class);
+
+    // --- [NEW] PERBAIKAN BERKAS (POSISI) ---
+    // Menu ini digunakan admin untuk memperbaiki/memindah posisi berkas secara paksa
+    Route::get('/perbaikan-berkas', [PerbaikanBerkasController::class, 'index'])->name('perbaikan.index');
+    Route::patch('/perbaikan-berkas/{id}', [PerbaikanBerkasController::class, 'update'])->name('perbaikan.update');
 
 });
 
