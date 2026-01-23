@@ -30,6 +30,7 @@ class BerkasController extends Controller
         $kecamatans = Kecamatan::orderBy('nama_kecamatan')->get();
         $jenisPermohonans = JenisPermohonan::orderBy('nama_permohonan')->get();
         $penerimaKuasas = PenerimaKuasa::orderBy('nama_kuasa')->get();
+        
         return view('berkas.create', compact('kecamatans', 'jenisPermohonans', 'penerimaKuasas'));
     }
 
@@ -38,6 +39,7 @@ class BerkasController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // 1. Validasi Input
         $validatedData = $request->validate([
             'tahun' => 'required|digits:4|integer|min:2000|max:'.(date('Y')+1),
             'nomer_berkas' => [
@@ -58,7 +60,6 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
-            // UPDATE VALIDASI: Menerima 3 opsi baru
             'status_buku_tanah' => 'required|in:Sertipikat Elektronik,Sertipikat Analog,Belum Sertipikat', 
         ]);
 
@@ -67,6 +68,8 @@ class BerkasController extends Controller
         try {
             DB::transaction(function () use ($validatedData, &$berkas) {
                 $currentUser = Auth::user();
+
+                // 2. Buat Data Berkas
                 $berkas = Berkas::create([
                     'tahun' => $validatedData['tahun'],
                     'nomer_berkas' => $validatedData['nomer_berkas'],
@@ -80,12 +83,16 @@ class BerkasController extends Controller
                     'penerima_kuasa_id' => $validatedData['penerima_kuasa_id'] ?? null,
                     'catatan' => $validatedData['catatan'],
                     'status_buku_tanah' => $validatedData['status_buku_tanah'],
+                    
+                    // Set default values
                     'posisi_sekarang_user_id' => $currentUser->id,
                     'status' => 'Diproses',
                     'status_pengiriman' => 'Diterima',
-                    'pengirim_id' => $currentUser->id,
+                    'pengirim_id' => $currentUser->id, // Pengirim awal adalah pembuat
                     'waktu_mulai_proses' => now(),
                 ]);
+
+                // 3. Catat Riwayat Pembuatan
                 RiwayatBerkas::create([
                     'berkas_id' => $berkas->id,
                     'dari_user_id' => $currentUser->id,
@@ -94,6 +101,10 @@ class BerkasController extends Controller
                     'catatan_pengiriman' => 'Berkas baru dibuat dan masuk ke ruang kerja pembuat.'
                 ]);
             });
+
+            // (Opsional) Kirim WA Notifikasi di sini jika diperlukan menggunakan WaService
+            // WaService::sendByTemplate('BERKAS_MASUK', $berkas->nomer_wa, $berkas);
+
         } catch (\Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Gagal menyimpan berkas. Error: ' . $e->getMessage());
         }
@@ -107,7 +118,17 @@ class BerkasController extends Controller
      */
     public function show(Berkas $berkas): View
     {
-        $berkas->load('riwayat.dariUser.jabatan', 'riwayat.keUser.jabatan', 'posisiSekarang.jabatan', 'jenisPermohonan');
+        // Load relasi penting untuk tampilan detail
+        $berkas->load([
+            'riwayat.dariUser.jabatan', 
+            'riwayat.keUser.jabatan', 
+            'posisiSekarang.jabatan', 
+            'jenisPermohonan',
+            'dataDesa',       // Pastikan relasi ini ada di Model Berkas
+            'dataKecamatan',  // Pastikan relasi ini ada di Model Berkas
+            'penerimaKuasa'
+        ]);
+        
         return view('berkas.show', compact('berkas'));
     }
 
@@ -162,13 +183,13 @@ class BerkasController extends Controller
         $validatedData = $request->validate([
             'tahun' => 'required|digits:4|integer',
             'nomer_berkas' => [
-            'required',
-            'string',
-            'max:255',
-            // Cek unik kecuali ID ini sendiri
-            Rule::unique('berkas')->where(function ($query) use ($request) {
-                return $query->where('tahun', $request->tahun);
-            })->ignore($berkas->id),
+                'required',
+                'string',
+                'max:255',
+                // Cek unik kecuali ID ini sendiri
+                Rule::unique('berkas')->where(function ($query) use ($request) {
+                    return $query->where('tahun', $request->tahun);
+                })->ignore($berkas->id),
             ],
             'nama_pemohon' => 'required|string|max:255',
             'jenis_alas_hak' => 'required|string|max:255',
@@ -179,7 +200,6 @@ class BerkasController extends Controller
             'nomer_wa' => 'nullable|string|max:20',
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
-            // UPDATE VALIDASI: Menerima 3 opsi baru
             'status_buku_tanah' => 'required|in:Sertipikat Elektronik,Sertipikat Analog,Belum Sertipikat',
         ]);
 
@@ -194,6 +214,7 @@ class BerkasController extends Controller
     public function destroy(Berkas $berkas): RedirectResponse
     {
         try {
+            // Cek otorisasi hapus jika perlu (misal hanya Admin)
             $berkas->delete();
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus berkas. Error: ' . $e->getMessage());
@@ -201,6 +222,9 @@ class BerkasController extends Controller
         return redirect()->route('dashboard')->with('success', 'Berkas berhasil dihapus!');
     }
 
+    /**
+     * Mengirim berkas ke user lain.
+     */
     public function kirim(Request $request): RedirectResponse
     {
         $request->validate([
@@ -217,13 +241,19 @@ class BerkasController extends Controller
 
                 foreach ($berkasIds as $id) {
                     $berkas = Berkas::find(trim($id));
+                    
+                    // Pastikan berkas ada dan sedang dipegang oleh pengirim
                     if(!$berkas || $berkas->posisi_sekarang_user_id !== $pengirim->id) {
                         continue; 
                     }
+
+                    // Update Status Berkas
                     $berkas->status_pengiriman = 'Dikirim';
                     $berkas->pengirim_id = $pengirim->id;
                     $berkas->penerima_id = $request->tujuan_user_id;
                     $berkas->save();
+
+                    // Catat Riwayat
                     RiwayatBerkas::create([
                         'berkas_id' => $berkas->id,
                         'dari_user_id' => $pengirim->id,
@@ -231,15 +261,18 @@ class BerkasController extends Controller
                         'waktu_kirim' => now(),
                         'catatan_pengiriman' => $request->catatan_pengiriman,
                     ]);
+
                     $berkasDikirimCount++;
                 }
+
                 if ($berkasDikirimCount === 0) {
-                    throw new \Exception('Tidak ada berkas yang dapat Anda kirim.');
+                    throw new \Exception('Tidak ada berkas valid yang dapat Anda kirim.');
                 }
             });
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage() ?: 'Gagal mengirim berkas. Silakan coba lagi.');
         }
+
         return redirect()->route('ruang-kerja')->with('success', 'Berkas yang dipilih berhasil dikirim!');
     }
 
@@ -248,11 +281,17 @@ class BerkasController extends Controller
         if ($berkas->penerima_id !== Auth::id()) {
             return redirect()->back()->with('error', 'Anda tidak memiliki wewenang untuk menerima berkas ini.');
         }
+
         $berkas->status_pengiriman = 'Diterima';
         $berkas->posisi_sekarang_user_id = Auth::id();
-        $berkas->pengirim_id = null;
+        
+        // Reset pengirim/penerima sementara agar status 'Dikirim' hilang
+        // Namun, riwayat tetap tersimpan di tabel riwayat_berkas
+        $berkas->pengirim_id = null; 
         $berkas->penerima_id = null;
+        
         $berkas->save();
+
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} berhasil diterima.");
     }
     
@@ -261,15 +300,20 @@ class BerkasController extends Controller
         if ($berkas->penerima_id !== Auth::id()) {
             return redirect()->back()->with('error', 'Anda tidak memiliki wewenang untuk menolak berkas ini.');
         }
+
         $pengirimAsalId = $berkas->pengirim_id;
         $penolakSaatIniId = Auth::id();
+
         if (!$pengirimAsalId) {
             return redirect()->back()->with('error', 'Tidak dapat menolak berkas karena data pengirim asal tidak ditemukan.');
         }
-        $berkas->penerima_id = $pengirimAsalId;
-        $berkas->pengirim_id = $penolakSaatIniId;
-        $berkas->status_pengiriman = 'Dikirim';
+
+        // Kembalikan berkas ke pengirim asal
+        $berkas->penerima_id = $pengirimAsalId; // Tujuan balik
+        $berkas->pengirim_id = $penolakSaatIniId; // Pengirim balik (si penolak)
+        $berkas->status_pengiriman = 'Dikirim'; // Status jadi dikirim balik
         $berkas->save();
+
         RiwayatBerkas::create([
             'berkas_id' => $berkas->id,
             'dari_user_id' => $penolakSaatIniId,
@@ -277,21 +321,27 @@ class BerkasController extends Controller
             'waktu_kirim' => now(),
             'catatan_pengiriman' => 'Berkas ditolak dan dikembalikan.'
         ]);
+
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah ditolak dan dikembalikan.");
     }
 
     public function selesaikan(Berkas $berkas)
     {
         $user = Auth::user();
+        
+        // Validasi Jabatan
         if (optional($user->jabatan)->nama_jabatan !== 'Petugas Loket Penyerahan') {
             return redirect()->back()->with('error', 'Hanya Petugas Loket Penyerahan yang dapat menyelesaikan berkas.');
         }
+
         if ($berkas->posisi_sekarang_user_id !== $user->id) {
             return redirect()->back()->with('error', 'Anda tidak memiliki wewenang untuk berkas ini.');
         }
+
         $berkas->status = 'Selesai';
         $berkas->waktu_selesai_proses = now();
         $berkas->save();
+
         RiwayatBerkas::create([
             'berkas_id' => $berkas->id,
             'dari_user_id' => $user->id,
@@ -299,6 +349,10 @@ class BerkasController extends Controller
             'waktu_kirim' => now(),
             'catatan_pengiriman' => 'Berkas telah diselesaikan oleh Petugas Loket Penyerahan.'
         ]);
+
+        // (Opsional) Trigger Notifikasi WA "Berkas Selesai"
+        // WaService::sendByTemplate('BERKAS_SELESAI', $berkas->nomer_wa, $berkas);
+
         return redirect()->route('ruang-kerja')->with('success', 'Berkas berhasil diselesaikan!');
     }
 
@@ -309,8 +363,10 @@ class BerkasController extends Controller
         if ($berkas->posisi_sekarang_user_id !== Auth::id()) {
             return redirect()->back()->with('error', 'Anda tidak memiliki wewenang untuk berkas ini.');
         }
+
         $berkas->status = 'Ditutup';
         $berkas->save();
+
         RiwayatBerkas::create([
             'berkas_id' => $berkas->id,
             'dari_user_id' => Auth::id(),
@@ -318,6 +374,7 @@ class BerkasController extends Controller
             'waktu_kirim' => now(),
             'catatan_pengiriman' => 'Berkas Ditutup. Catatan: ' . $request->catatan_aksi,
         ]);
+
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah ditutup.");
     }
 
@@ -328,8 +385,10 @@ class BerkasController extends Controller
         if ($berkas->posisi_sekarang_user_id !== Auth::id()) {
             return redirect()->back()->with('error', 'Anda tidak memiliki wewenang untuk berkas ini.');
         }
+
         $berkas->status = 'Pending';
         $berkas->save();
+
         RiwayatBerkas::create([
             'berkas_id' => $berkas->id,
             'dari_user_id' => Auth::id(),
@@ -337,6 +396,7 @@ class BerkasController extends Controller
             'waktu_kirim' => now(),
             'catatan_pengiriman' => 'Berkas Ditunda (Pending). Catatan: ' . $request->catatan_aksi,
         ]);
+
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah ditunda.");
     }
     
@@ -345,11 +405,13 @@ class BerkasController extends Controller
         if ($berkas->posisi_sekarang_user_id !== Auth::id()) {
             return redirect()->back()->with('error', 'Anda tidak memiliki wewenang untuk berkas ini.');
         }
+
         $berkas->status = 'Diproses';
         if (is_null($berkas->waktu_mulai_proses)) {
             $berkas->waktu_mulai_proses = now();
         }
         $berkas->save();
+
         RiwayatBerkas::create([
             'berkas_id' => $berkas->id,
             'dari_user_id' => Auth::id(),
@@ -357,9 +419,13 @@ class BerkasController extends Controller
             'waktu_kirim' => now(),
             'catatan_pengiriman' => 'Berkas diaktifkan kembali dari status Pending.',
         ]);
+
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah diaktifkan kembali.");
     }
 
+    /**
+     * Menyimpan data Kuasa Baru via Ajax (dipanggil dari Modal).
+     */
     public function storeKuasaAjax(Request $request)
     {
         $request->validate([
@@ -368,15 +434,23 @@ class BerkasController extends Controller
             'nomer_wa_baru'   => 'required|string|max:20',
         ]);
 
-        $kuasa = PenerimaKuasa::create([
-            'kode_kuasa' => $request->kode_kuasa_baru,
-            'nama_kuasa' => $request->nama_kuasa_baru,
-            'nomer_wa'   => $request->nomer_wa_baru,
-        ]);
+        try {
+            $kuasa = PenerimaKuasa::create([
+                'kode_kuasa' => $request->kode_kuasa_baru,
+                'nama_kuasa' => $request->nama_kuasa_baru,
+                'nomer_wa'   => $request->nomer_wa_baru,
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'data' => $kuasa
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $kuasa,
+                'message' => 'Penerima Kuasa berhasil ditambahkan'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

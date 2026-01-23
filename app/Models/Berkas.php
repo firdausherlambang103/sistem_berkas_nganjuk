@@ -67,6 +67,16 @@ class Berkas extends Model
         return $this->belongsTo(User::class, 'pengirim_id');
     }
 
+    /**
+     * Relasi 'user' untuk kompatibilitas dengan WaService.
+     * Mengembalikan user yang saat ini memegang berkas (posisi sekarang).
+     * Jika WaService meminta {user.name}, ini akan mengambil nama petugas saat ini.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'posisi_sekarang_user_id');
+    }
+
     public function penerimaKuasa()
     {
         return $this->belongsTo(PenerimaKuasa::class, 'penerima_kuasa_id');
