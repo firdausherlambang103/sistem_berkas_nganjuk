@@ -31,13 +31,16 @@ class WaService
             return ['status' => false, 'message' => 'Template tidak ditemukan'];
         }
 
+        // Load Relasi
         $berkas = $this->prepareBerkasData($dataBerkas);
 
         if (!$berkas) {
             return $this->send($targetPhone, $template->isi_pesan, null, $userId, $template->id);
         }
 
+        // Parse Placeholder
         $message = $this->parseTemplate($template->isi_pesan, $berkas);
+        
         return $this->send($targetPhone, $message, $berkas->id, $userId, $template->id);
     }
 
@@ -70,11 +73,11 @@ class WaService
 
         if (!$id) return null;
 
-        // [PENTING] Masukkan nama relasi baru (dataDesa, dataKecamatan)
+        // [PENTING] Load relasi baru (dataDesa, dataKecamatan)
         $potentialRelations = [
             'jenisPermohonan', 'jenis_permohonan',
-            'dataDesa', 'desa', // Cek nama baru & lama
-            'dataKecamatan', 'kecamatan',
+            'dataDesa', // <-- Ambil dari relasi baru
+            'dataKecamatan', // <-- Ambil dari relasi baru
             'user', 'petugas', 
             'petugasUkur', 'petugas_ukur',
             'penerimaKuasa', 'penerima_kuasa',
@@ -97,53 +100,39 @@ class WaService
         $placeholders = WaPlaceholder::all();
         
         foreach ($placeholders as $p) {
-            $key = $p->placeholder;         
-            $fieldRaw = trim($p->deskripsi); 
+            $key = $p->placeholder; // contoh: {nama_desa}
+            $fieldRaw = trim($p->deskripsi); // contoh: desa.nama_desa
             
             $value = '-'; 
 
-            if (!str_contains($fieldRaw, '.')) {
-                // Akses kolom biasa
-                $value = $data->$fieldRaw ?? null;
-            } else {
-                // Akses Relasi
+            // Jika placeholder merujuk ke relasi (ada titiknya)
+            if (str_contains($fieldRaw, '.')) {
                 $parts = explode('.', $fieldRaw, 2);
-                $relNameRaw = $parts[0]; // misal: desa
-                $colName    = $parts[1]; // misal: nama_desa
+                $relName = $parts[0]; // 'desa'
+                $colName = $parts[1]; // 'nama_desa'
 
-                $relationObject = null;
+                // [SOLUSI PENYELAMAT] 
+                // Jika database meminta 'desa', kita PAKSA alihkan ke 'dataDesa'
+                // Ini mencegah sistem mengambil kolom angka 'desa'
+                if ($relName === 'desa') $relName = 'dataDesa';
+                if ($relName === 'kecamatan') $relName = 'dataKecamatan';
 
-                // Cek berbagai kemungkinan nama relasi
-                // Kita tambahkan prefix 'data' otomatis jika 'desa' gagal
-                $possibleNames = [
-                    $relNameRaw, 
-                    'data' . Str::studly($relNameRaw), // desa -> dataDesa
-                    Str::camel($relNameRaw), 
-                    Str::snake($relNameRaw)
-                ];
-
-                foreach ($possibleNames as $name) {
-                    if ($data->relationLoaded($name)) {
-                        $relationObject = $data->getRelation($name);
-                        break; 
-                    }
-                    // Cek properti HANYA jika itu Object Model (bukan integer ID)
-                    $temp = $data->$name ?? null;
-                    if ($temp && $temp instanceof \Illuminate\Database\Eloquent\Model) {
-                        $relationObject = $temp;
-                        break;
-                    }
+                // Ambil data dari relasi
+                if ($data->$relName) {
+                    $value = $data->$relName->$colName ?? null;
                 }
-
-                if ($relationObject) {
-                    $value = $relationObject->$colName ?? null;
-                }
+            } 
+            // Jika placeholder kolom biasa (tidak ada titik)
+            else {
+                $value = $data->$fieldRaw ?? null;
             }
 
+            // Format Tanggal
             if ($value instanceof Carbon || $value instanceof \DateTime) {
                 $value = Carbon::parse($value)->format('d-m-Y H:i');
             }
 
+            // Cleanup
             if (is_null($value) || is_array($value) || is_object($value) || $value === '') {
                 $value = '-'; 
             }

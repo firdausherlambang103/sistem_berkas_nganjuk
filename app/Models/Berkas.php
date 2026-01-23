@@ -11,11 +11,9 @@ class Berkas extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nomer_berkas', 'tahun', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
-        'kecamatan', 'desa', // <-- INI NAMA KOLOM (JANGAN DIUBAH)
-        'nomer_wa', 'catatan', 'posisi_sekarang_user_id', 'status',
-        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses',
-        'penerima_kuasa_id', 'status_buku_tanah', 'petugas_ukur_id'
+        'nomer_berkas','tahun', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
+        'kecamatan', 'desa', 'nomer_wa', 'catatan', 'posisi_sekarang_user_id', 'status',
+        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses','penerima_kuasa_id','status_buku_tanah', 'petugas_ukur_id'
     ];
 
     protected $casts = [
@@ -24,16 +22,16 @@ class Berkas extends Model
     ];
 
     // ===================================================================
-    // RELASI (DIPERBAIKI: Menggunakan awalan 'data' untuk hindari crash)
+    // RELASI (WAJIB BEDA NAMA DENGAN KOLOM DB AGAR TIDAK CRASH)
     // ===================================================================
 
-    // [UBAH] Dari 'desa' menjadi 'dataDesa'
+    // [FIX] Nama relasi diganti jadi 'dataDesa' karena kolom DB bernama 'desa'
     public function dataDesa()
     {
         return $this->belongsTo(Desa::class, 'desa');
     }
 
-    // [UBAH] Dari 'kecamatan' menjadi 'dataKecamatan'
+    // [FIX] Nama relasi diganti jadi 'dataKecamatan' karena kolom DB bernama 'kecamatan'
     public function dataKecamatan()
     {
         return $this->belongsTo(Kecamatan::class, 'kecamatan');
@@ -79,7 +77,10 @@ class Berkas extends Model
         return $this->hasMany(WaLog::class, 'berkas_id');
     }
 
-    // ... (ACCESSORS TETAP SAMA SEPERTI SEBELUMNYA) ...
+    // ===================================================================
+    // ACCESSORS
+    // ===================================================================
+
     public function getLamaProsesFormattedAttribute(): string
     {
         if (is_null($this->waktu_mulai_proses)) return '-';
