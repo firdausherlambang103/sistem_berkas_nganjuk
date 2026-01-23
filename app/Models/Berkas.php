@@ -11,9 +11,11 @@ class Berkas extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nomer_berkas','tahun', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
-        'kecamatan', 'desa', 'nomer_wa', 'catatan', 'posisi_sekarang_user_id', 'status',
-        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses','penerima_kuasa_id','status_buku_tanah',
+        'nomer_berkas', 'tahun', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
+        'kecamatan', 'desa', // <-- INI NAMA KOLOM (JANGAN DIUBAH)
+        'nomer_wa', 'catatan', 'posisi_sekarang_user_id', 'status',
+        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses',
+        'penerima_kuasa_id', 'status_buku_tanah', 'petugas_ukur_id'
     ];
 
     protected $casts = [
@@ -22,12 +24,31 @@ class Berkas extends Model
     ];
 
     // ===================================================================
-    // RELASI
+    // RELASI (DIPERBAIKI: Menggunakan awalan 'data' untuk hindari crash)
     // ===================================================================
+
+    // [UBAH] Dari 'desa' menjadi 'dataDesa'
+    public function dataDesa()
+    {
+        return $this->belongsTo(Desa::class, 'desa');
+    }
+
+    // [UBAH] Dari 'kecamatan' menjadi 'dataKecamatan'
+    public function dataKecamatan()
+    {
+        return $this->belongsTo(Kecamatan::class, 'kecamatan');
+    }
+
+    public function petugasUkur()
+    {
+        return $this->belongsTo(PetugasUkur::class, 'petugas_ukur_id');
+    }
+
     public function peminjamanBukuTanah()
     {
         return $this->hasOne(PeminjamanBukuTanah::class, 'berkas_id');
     }
+    
     public function jenisPermohonan()
     {
         return $this->belongsTo(JenisPermohonan::class, 'jenis_permohonan_id');
@@ -53,38 +74,19 @@ class Berkas extends Model
         return $this->belongsTo(PenerimaKuasa::class, 'penerima_kuasa_id');
     }
 
-    /**
-     * [BARU] Relasi untuk mengambil Log Pengiriman WhatsApp.
-     * Penting untuk menghitung badge jumlah pesan terkirim.
-     */
     public function waLogs()
     {
         return $this->hasMany(WaLog::class, 'berkas_id');
     }
 
-    // ===================================================================
-    // ACCESSORS
-    // ===================================================================
-
-    /**
-     * Accessor untuk menghitung lama proses dalam format yang mudah dibaca.
-     */
+    // ... (ACCESSORS TETAP SAMA SEPERTI SEBELUMNYA) ...
     public function getLamaProsesFormattedAttribute(): string
     {
-        if (is_null($this->waktu_mulai_proses)) {
-            return '-';
-        }
-
-        $waktuMulai = $this->waktu_mulai_proses;
+        if (is_null($this->waktu_mulai_proses)) return '-';
         $waktuAkhir = $this->waktu_selesai_proses ?? Carbon::now();
-
-        return $waktuMulai->diffForHumans($waktuAkhir, true);
+        return $this->waktu_mulai_proses->diffForHumans($waktuAkhir, true);
     }
 
-    /**
-     * Accessor: Menghitung tanggal jatuh tempo.
-     * Jatuh tempo dihitung dari 'waktu_mulai_proses' ditambah timeline dari jenis permohonan.
-     */
     public function getJatuhTempoAttribute()
     {
         if ($this->waktu_mulai_proses && $this->jenisPermohonan) {
@@ -93,23 +95,13 @@ class Berkas extends Model
         return null;
     }
 
-    /**
-     * Accessor: Menghitung sisa waktu sebelum jatuh tempo.
-     */
     public function getSisaWaktuAttribute(): string
     {
         $jatuhTempo = $this->getJatuhTempoAttribute();
-
-        if (is_null($jatuhTempo) || $this->status !== 'Diproses') {
-            return '-';
-        }
-
+        if (is_null($jatuhTempo) || $this->status !== 'Diproses') return '-';
         $now = Carbon::now();
-        
-        if ($now->greaterThan($jatuhTempo)) {
-            return 'Lewat ' . $jatuhTempo->diffForHumans($now, true);
-        }
-
-        return 'Sisa ' . $now->diffForHumans($jatuhTempo, true);
+        return $now->greaterThan($jatuhTempo) 
+            ? 'Lewat ' . $jatuhTempo->diffForHumans($now, true) 
+            : 'Sisa ' . $now->diffForHumans($jatuhTempo, true);
     }
 }

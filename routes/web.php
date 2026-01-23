@@ -19,6 +19,33 @@ use App\Http\Controllers\SensusWakafController;
 use App\Models\WaTemplate;
 use App\Models\WaLog;
 use App\Http\Controllers\PeminjamanBukuTanahController;
+use App\Models\Berkas;
+use App\Services\WaService;
+
+// =========================================================================
+// ROUTE DEBUGGING (HAPUS NANTI SETELAH SELESAI)
+// =========================================================================
+Route::get('/debug-wa', function () {
+    // Ambil 1 berkas terakhir
+    $berkas = Berkas::latest()->first();
+    
+    if (!$berkas) return 'Tabel Berkas Kosong';
+
+    // Load relasi menggunakan nama BARU
+    $berkas->load(['dataDesa', 'dataKecamatan', 'jenisPermohonan']);
+
+    return [
+        'ID Berkas' => $berkas->id,
+        'Nama Pemohon' => $berkas->nama_pemohon,
+        'Desa ID (Kolom)' => $berkas->desa, // Ini aman (angka)
+        
+        // GUNAKAN NAMA RELASI BARU
+        'Relasi Desa' => $berkas->dataDesa ? $berkas->dataDesa->nama_desa : 'RELASI NULL', 
+        'Relasi Kecamatan' => $berkas->dataKecamatan ? $berkas->dataKecamatan->nama_kecamatan : 'RELASI NULL',
+        
+        'Cek WaService' => (new WaService())->sendByTemplate('test_template', '08123456789', $berkas)
+    ];
+});
 
 Route::get('/', function () {
     return view('welcome');
@@ -82,7 +109,7 @@ Route::middleware('auth')->group(function () {
                 
                 return [
                     'id' => $tpl->id,
-                    'nama' => $tpl->nama,           // Kolom DB baru
+                    'nama' => $tpl->nama,            // Kolom DB baru
                     'judul' => $tpl->nama,          // Alias untuk frontend lama
                     'template' => $tpl->template,   // Kolom DB baru
                     'pesan' => $tpl->template,      // Alias untuk frontend lama
