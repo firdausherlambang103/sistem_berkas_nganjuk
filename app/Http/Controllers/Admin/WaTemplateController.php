@@ -25,15 +25,15 @@ class WaTemplateController extends Controller
     {
         // 1. Validasi Input Form
         $request->validate([
-            'nama_template' => 'required|unique:wa_templates,nama', // Cek unique di kolom 'nama'
+            'nama_template' => 'required|unique:wa_templates,nama', // Pastikan cek unique di kolom 'nama'
             'isi_pesan' => 'required',
         ]);
 
-        // 2. Simpan ke Database (Mapping Input -> Kolom DB)
+        // 2. Simpan ke Database
         WaTemplate::create([
             'nama' => $request->nama_template,
-            'template' => $request->isi_pesan,
-            'status' => 'aktif', // Default status
+            'template' => $request->isi_pesan, // Mapping input 'isi_pesan' ke kolom 'template'
+            'status' => 'aktif',
         ]);
 
         return redirect()->route('admin.wa-templates.index')
@@ -58,7 +58,6 @@ class WaTemplateController extends Controller
         $waTemplate->update([
             'nama' => $request->nama_template,
             'template' => $request->isi_pesan,
-            // 'status' => $request->status ?? $waTemplate->status, // Jika ingin ubah status di edit
         ]);
 
         return redirect()->route('admin.wa-templates.index')

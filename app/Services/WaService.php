@@ -28,23 +28,26 @@ class WaService
      */
     public function sendByTemplate($templateName, $targetPhone, $dataBerkas = [], $userId = null)
     {
-        $template = WaTemplate::where('nama_template', $templateName)->first();
+        // [FIX] Gunakan kolom 'nama' bukan 'nama_template'
+        $template = WaTemplate::where('nama', $templateName)->first();
         
         if (!$template) {
-            Log::error("WA Error: Template '$templateName' tidak ditemukan.");
+            Log::error("WA Error: Template '$templateName' tidak ditemukan di database.");
             return ['status' => false, 'message' => 'Template tidak ditemukan'];
         }
 
         // 1. Siapkan Data Berkas & Load Relasi
         $berkas = $this->prepareBerkasData($dataBerkas);
 
+        // [FIX] Gunakan kolom 'template' bukan 'isi_pesan'
+        $isiPesan = $template->template;
+
         if (!$berkas) {
-            // Jika data berkas tidak ada, kirim pesan apa adanya (raw message)
-            return $this->send($targetPhone, $template->isi_pesan, null, $userId, $template->id);
+            return $this->send($targetPhone, $isiPesan, null, $userId, $template->id);
         }
 
         // 2. Parse Placeholder (Ganti {nama} dengan data asli)
-        $message = $this->parseTemplate($template->isi_pesan, $berkas);
+        $message = $this->parseTemplate($isiPesan, $berkas);
         
         return $this->send($targetPhone, $message, $berkas->id, $userId, $template->id);
     }
@@ -57,8 +60,9 @@ class WaService
         try {
             $number = $this->formatNumber($number);
             
-            // Uncomment baris ini jika ingin melihat isi pesan di log sebelum dikirim
-            // Log::info("Sending WA to $number", ['message' => $message]);
+            if (empty($number)) {
+                return ['status' => false, 'message' => 'Nomor tujuan kosong'];
+            }
 
             $response = Http::timeout(15)->post("{$this->baseUrl}/send-message", [
                 'number' => $number,
@@ -81,7 +85,7 @@ class WaService
     }
 
     /**
-     * Memuat relasi yang diperlukan agar placeholder (misal: {desa.nama_desa}) bisa terbaca.
+     * Memuat relasi yang diperlukan agar placeholder bisa terbaca.
      */
     protected function prepareBerkasData($data)
     {
@@ -92,33 +96,29 @@ class WaService
 
         if (!$id) return null;
 
-        // [PENTING] Load semua relasi yang mungkin dipakai di placeholder
         $relations = [
             'jenisPermohonan', 
-            'dataDesa',       // Relasi ke Model Desa
-            'dataKecamatan',  // Relasi ke Model Kecamatan
+            'dataDesa',       
+            'dataKecamatan',  
             'petugasUkur', 
             'penerimaKuasa', 
             'posisiSekarang', 
             'pengirim',
-            'user'            // Relasi ke User pembuat/pemegang saat ini
+            'user'            
         ];
 
         try {
             return Berkas::with($relations)->find($id);
         } catch (\Exception $e) {
-            // Fallback jika salah satu relasi error, kembalikan data dasar saja
             return Berkas::find($id);
         }
     }
 
     /**
      * Fungsi parsing Placeholder.
-     * Menggunakan tabel WaPlaceholder sebagai kamus data.
      */
     protected function parseTemplate($message, $data)
     {
-        // 1. Ambil semua definisi placeholder dari Database
         $placeholders = WaPlaceholder::all();
 
         if ($placeholders->isEmpty()) {
@@ -126,59 +126,51 @@ class WaService
         }
 
         foreach ($placeholders as $p) {
-            $search = $p->placeholder; // Contoh: {tahun} atau {nama_desa}
-            $path = trim($p->deskripsi); // Contoh: tahun atau dataDesa.nama_desa
+            $search = $p->placeholder; 
+            $path = trim($p->deskripsi); 
 
-            // [LANGKAH 1] Normalisasi Path Relasi (Mapping Alias)
-            if ($data instanceof Berkas) {
-                // Ubah 'desa.' menjadi 'dataDesa.' agar menunjuk ke Relasi Object
-                if (Str::startsWith($path, 'desa.')) {
-                    $path = Str::replaceFirst('desa.', 'dataDesa.', $path);
-                }
-                // Ubah 'kecamatan.' menjadi 'dataKecamatan.'
-                if (Str::startsWith($path, 'kecamatan.')) {
-                    $path = Str::replaceFirst('kecamatan.', 'dataKecamatan.', $path);
-                }
-            }
+            // [FIX LOGIKA] Mapping Relasi vs Kolom String
+            // Jika path meminta relasi (misal: desa.nama_desa) tapi data berkas menyimpan string di kolom 'desa'
+            // Maka kita paksa ambil nilai kolom string tersebut.
+            
+            $value = null;
 
-            // [LANGKAH 2] Ambil value menggunakan data_get (support dot notation untuk relasi)
-            $value = data_get($data, $path);
+            // 1. Coba ambil menggunakan data_get standard (support dot notation)
+            // Ubah alias dulu jika diperlukan
+            $lookupPath = $path;
+            if (Str::startsWith($lookupPath, 'desa.')) $lookupPath = Str::replaceFirst('desa.', 'dataDesa.', $lookupPath);
+            if (Str::startsWith($lookupPath, 'kecamatan.')) $lookupPath = Str::replaceFirst('kecamatan.', 'dataKecamatan.', $lookupPath);
+            
+            $value = data_get($data, $lookupPath);
 
-            // [LANGKAH 3] SOLUSI FALLBACK CERDAS
-            // Jika pengambilan via path/relasi gagal (null), cek apakah ada kolom string langsung di tabel berkas
-            if ((is_null($value) || $value === '') && $data instanceof Berkas) {
-                
-                // Kasus Khusus: Jika path mengandung kata 'desa' tapi relasi null
-                if (Str::contains($path, 'es') && !empty($data->desa) && is_string($data->desa)) {
+            // 2. [FALLBACK ROBUST] Jika hasil null, dan path berkaitan dengan 'desa' atau 'kecamatan'
+            // Kita cek apakah ada data string langsung di tabel berkas
+            if (empty($value) && $data instanceof Berkas) {
+                if (Str::contains(strtolower($path), 'desa') && !empty($data->desa)) {
                     $value = $data->desa;
                 }
-                
-                // Kasus Khusus: Jika path mengandung kata 'kecamatan' tapi relasi null
-                if (Str::contains($path, 'ecamatan') && !empty($data->kecamatan) && is_string($data->kecamatan)) {
+                elseif (Str::contains(strtolower($path), 'kecamatan') && !empty($data->kecamatan)) {
                     $value = $data->kecamatan;
                 }
-
-                // Kasus Umum: Cek apakah path adalah nama kolom langsung (tanpa titik)
-                // Contoh: path = 'tahun', cek apakah $data->tahun ada isinya
-                if (!str_contains($path, '.') && isset($data->$path)) {
+                // Cek direct property (misal: 'nama_pemohon')
+                elseif (isset($data->$path)) {
                     $value = $data->$path;
                 }
             }
 
-            // [LANGKAH 4] Format Tanggal
+            // 3. Format Tanggal
             if ($value instanceof \DateTime || $value instanceof Carbon) {
                 $value = Carbon::parse($value)->format('d-m-Y H:i');
             }
 
-            // [LANGKAH 5] Cleanup & Casting ke String (PENTING untuk Integer)
+            // 4. Cleanup
             if (is_array($value) || is_object($value)) {
                 $value = '-'; 
             }
-            if (is_null($value) || $value === '') {
-                $value = '-'; 
+            if (is_null($value)) {
+                $value = ''; // Jangan tampilkan '-' jika kosong, lebih baik string kosong atau '-' sesuai selera
             }
 
-            // Paksa value menjadi string agar fungsi str_replace tidak gagal pada tipe data Integer (seperti tahun)
             $message = str_replace($search, (string)$value, $message);
         }
 
@@ -188,20 +180,10 @@ class WaService
     protected function formatNumber($number)
     {
         $number = preg_replace('/[^0-9]/', '', $number);
-        
         if (empty($number)) return '';
-
-        if (substr($number, 0, 1) == '0') {
-            $number = '62' . substr($number, 1);
-        }
-        if (substr($number, 0, 2) != '62') {
-            $number = '62' . $number;
-        }
-        
-        if (!str_ends_with($number, '@c.us')) {
-            $number .= '@c.us';
-        }
-        
+        if (substr($number, 0, 1) == '0') $number = '62' . substr($number, 1);
+        if (substr($number, 0, 2) != '62') $number = '62' . $number;
+        if (!str_ends_with($number, '@c.us')) $number .= '@c.us';
         return $number;
     }
 

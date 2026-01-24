@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\WaPlaceholder;
-use App\Models\Berkas; // Import Model Berkas untuk pengecekan
+use App\Models\Berkas; 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema; // Untuk cek kolom database
-use Illuminate\Support\Str; // Untuk manipulasi string
+use Illuminate\Support\Facades\Schema; 
+use Illuminate\Support\Str; 
 
 class WaPlaceholderController extends Controller
 {
@@ -29,7 +29,7 @@ class WaPlaceholderController extends Controller
             'deskripsi' => 'required', 
         ]);
 
-        // [BARU] Cek validitas deskripsi sebelum simpan
+        // [BARU] Cek validitas deskripsi dengan logika yang lebih longgar (support fallback)
         $errorMsg = $this->checkValidDeskripsi($request->deskripsi);
         if ($errorMsg) {
             return back()->withInput()->withErrors(['deskripsi' => $errorMsg]);
@@ -74,7 +74,8 @@ class WaPlaceholderController extends Controller
 
     /**
      * Fungsi Validasi Kustom
-     * Mengecek apakah field/relasi yang diinput user benar-benar ada di Model Berkas.
+     * Mengecek apakah field/relasi yang diinput user valid di Model Berkas.
+     * Diperbarui agar mendukung kolom string biasa (fallback system).
      */
     protected function checkValidDeskripsi($path)
     {
@@ -85,26 +86,37 @@ class WaPlaceholderController extends Controller
         $first = $parts[0]; // Bagian pertama (relasi atau kolom)
 
         // 1. Handle Alias (Sesuai logika WaService agar tidak dianggap error)
-        // Karena di WaService Anda mungkin melakukan replace manual
-        if ($first === 'desa') $first = 'dataDesa'; // Alias ke relasi dataDesa
-        if ($first === 'kecamatan') $first = 'dataKecamatan'; // Alias ke relasi dataKecamatan
+        if ($first === 'desa') $first = 'dataDesa'; 
+        if ($first === 'kecamatan') $first = 'dataKecamatan'; 
 
-        // 2. Cek Relasi (Jika input mengandung titik, misal: desa.nama_desa)
-        if (count($parts) > 1) {
-            // Cek apakah method relasi ada di model Berkas (contoh: public function dataDesa())
-            if (!method_exists($berkas, $first)) {
-                return "Relasi '$first' tidak ditemukan di Model Berkas. Pastikan nama relasi benar (contoh: gunakan 'dataDesa' bukan 'desa' jika tidak ada alias).";
-            }
-            return null; // Lolos validasi relasi (kita asumsikan properti child-nya benar)
+        // 2. Cek Kolom Database Biasa (Prioritas Tinggi untuk Fallback)
+        // Jika user memasukkan 'desa' (string) atau 'nama_pemohon', validasi ini akan meloloskannya.
+        if (Schema::hasColumn($berkas->getTable(), $parts[0])) {
+            return null; // Valid, ini kolom database
         }
 
-        // 3. Cek Kolom Biasa (Jika input tidak ada titik, misal: nama_pemohon)
-        // Cek apakah ada di $fillable, kolom database, atau Accessor (get...Attribute)
+        // 3. Cek Relasi (Jika input mengandung titik, misal: desa.nama_desa)
+        if (count($parts) > 1) {
+            // Cek apakah method relasi ada di model Berkas (contoh: public function dataDesa())
+            if (method_exists($berkas, $first)) {
+                return null; // Relasi ditemukan
+            }
+            
+            // [TOLERANSI] Jika relasi tidak ketemu (misal user tulis 'desa.nama'), 
+            // tapi kolom 'desa' ada di database sebagai string, kita loloskan.
+            // Karena WaService punya logika fallback: jika relasi null, ambil string kolom 'desa'.
+            if (($parts[0] == 'desa' || $parts[0] == 'kecamatan') && Schema::hasColumn($berkas->getTable(), $parts[0])) {
+                return null;
+            }
+
+            return "Relasi '$first' tidak ditemukan di Model Berkas. Pastikan nama relasi benar (contoh: gunakan 'dataDesa' bukan 'desa' jika tidak ada alias).";
+        }
+
+        // 4. Cek Accessor atau Fillable (jika bukan kolom DB murni)
         $isFillable = in_array($first, $berkas->getFillable());
-        $isColumn = Schema::hasColumn($berkas->getTable(), $first);
         $isAccessor = method_exists($berkas, 'get'.Str::studly($first).'Attribute');
 
-        if ($isFillable || $isColumn || $isAccessor) {
+        if ($isFillable || $isAccessor) {
             return null; // Lolos validasi
         }
 
