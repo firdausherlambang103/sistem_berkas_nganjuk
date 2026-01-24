@@ -22,11 +22,6 @@ use App\Http\Controllers\PeminjamanBukuTanahController;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
 */
 
 Route::get('/', function () {
@@ -43,7 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/jatuh-tempo', [DashboardController::class, 'showJatuhTempo'])->name('dashboard.jatuh-tempo');
     Route::get('/dashboard/ditutup', [DashboardController::class, 'showDitutup'])->name('dashboard.ditutup');
     
-    // --- SENSUS WAKAF (PETA) ---
+    // --- SENSUS WAKAF ---
     Route::get('/sensus-wakaf', [SensusWakafController::class, 'index'])->name('sensus-wakaf.index');
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
 
@@ -67,7 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('berkas')->name('berkas.')->controller(BerkasController::class)->group(function() {
         Route::get('/baru', 'create')->name('create')->middleware('can:create-berkas');
         Route::post('/', 'store')->name('store')->middleware('can:create-berkas');
-        Route::post('/kirim', 'kirim')->name('kirim'); // Bulk Kirim
+        Route::post('/kirim', 'kirim')->name('kirim');
         
         Route::get('/{berkas}/edit', 'edit')->name('edit'); 
         Route::put('/{berkas}', 'update')->name('update'); 
@@ -105,19 +100,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // =================================================================
-    //  WHATSAPP INTEGRATION (DIPERBARUI)
+    //  WHATSAPP INTEGRATION (FIXED)
     // =================================================================
     
-    // 1. AJAX Routes (Untuk Modal di Ruang Kerja & Preview Pesan)
-    // Route ini menggantikan logika closure '/api/wa-templates' yang lama
+    // AJAX Routes
     Route::get('/ajax/wa-templates', [WaTemplateController::class, 'getJsonList'])->name('ajax.wa-templates');
     Route::post('/ajax/wa-preview', [WaTemplateController::class, 'previewMessage'])->name('ajax.wa-preview');
 
-    // 2. Action Mengirim Pesan
+    // Sending Action
     Route::post('/whatsapp/send', [WhatsappWebController::class, 'sendMessage'])->name('whatsapp.send');
 });
 
 // --- ROUTE ADMIN ---
+// PERBAIKAN: Menggunakan middleware role:Admin,Administrator untuk keamanan
 Route::middleware(['auth', 'role:Admin,Administrator'])->prefix('admin')->name('admin.')->group(function () {
     
     // User & Approval
@@ -125,7 +120,7 @@ Route::middleware(['auth', 'role:Admin,Administrator'])->prefix('admin')->name('
     Route::patch('/users/{user}/approve', [AdminUserController::class, 'approve'])->name('users.approve');
     Route::resource('users', AdminUserController::class)->except(['index', 'show']);
 
-    // Manajemen Data Master (Desa, Jabatan, dll)
+    // Manajemen Data Master
     Route::controller(ManajemenController::class)->group(function() {
         // Penerima Kuasa
         Route::get('/penerima-kuasa', 'kuasaIndex')->name('kuasa.index');
@@ -174,7 +169,7 @@ Route::middleware(['auth', 'role:Admin,Administrator'])->prefix('admin')->name('
         Route::post('/setting-area-kerja', 'settingAreaKerjaUpdate')->name('setting-area-kerja.update');
     });
 
-    // --- WHATSAPP MANAGEMENT (Admin Panel) ---
+    // --- WHATSAPP MANAGEMENT ---
     Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
     Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
     Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout');
@@ -183,7 +178,7 @@ Route::middleware(['auth', 'role:Admin,Administrator'])->prefix('admin')->name('
     Route::resource('wa-templates', WaTemplateController::class);
     Route::resource('wa-placeholders', WaPlaceholderController::class);
 
-    // --- PERBAIKAN BERKAS (Tool Admin) ---
+    // --- PERBAIKAN BERKAS ---
     Route::get('/perbaikan-berkas', [PerbaikanBerkasController::class, 'index'])->name('perbaikan.index');
     Route::patch('/perbaikan-berkas/{id}', [PerbaikanBerkasController::class, 'update'])->name('perbaikan.update');
 
