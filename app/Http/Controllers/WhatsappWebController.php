@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\WaService;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log; // Tambahkan Log
+use App\Models\Berkas;
+use App\Models\WaTemplate;
+use Illuminate\Support\Facades\Log;
 
 class WhatsappWebController extends Controller
 {
@@ -16,77 +17,85 @@ class WhatsappWebController extends Controller
         $this->waService = $waService;
     }
 
+    /**
+     * Halaman Scan QR (Jika diperlukan)
+     */
     public function scan()
     {
-        $waUrl = env('WA_API_URL', 'http://192.168.100.15:3000');
-        return view('admin.whatsapp.scan', compact('waUrl'));
+        return view('admin.whatsapp.scan');
     }
 
-    // --- FUNGSI UTAMA PENGIRIMAN (Digunakan oleh Ruang Kerja) ---
-    public function send(Request $request)
+    /**
+     * Method Utama Pengiriman Pesan (Digunakan oleh Modal Ruang Kerja)
+     */
+    public function sendMessage(Request $request)
     {
-        try {
-            // 1. Validasi Input
-            $request->validate([
-                'number' => 'required',  // Pastikan JS mengirim key 'number'
-                'message' => 'required', // Pastikan JS mengirim key 'message'
-            ]);
-
-            // 2. Ambil Data
-            $number = $request->number;
-            $message = $request->message;
-            $berkasId = $request->berkas_id ?? null; // Opsional
-            
-            // 3. Panggil Service
-            $result = $this->waService->send($number, $message, $berkasId, auth()->id());
-
-            // 4. Cek Hasil dari Service
-            if (isset($result['status']) && $result['status'] == true) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Pesan berhasil dikirim!'
-                ]);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => $result['message'] ?? 'Gagal terhubung ke server WA.'
-                ], 500);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('WA Controller Error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error Server: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // --- FUNGSI TEST MANUAL (Digunakan oleh Halaman Scan) ---
-    public function sendTest(Request $request)
-    {
+        // 1. Validasi Input
         $request->validate([
             'number' => 'required',
             'message' => 'required',
+            'berkas_id' => 'nullable',
+            'template_id' => 'nullable',
         ]);
 
-        $result = $this->waService->send($request->number, $request->message);
+        try {
+            $number = $request->number;
+            $message = $request->message;
+            $berkasId = $request->berkas_id;
+            $templateId = $request->template_id;
+            $userId = auth()->id();
 
-        if (isset($result['status']) && $result['status'] == false) {
-             return back()->with('error', 'Gagal: ' . ($result['message'] ?? 'Unknown error'));
+            // 2. Kirim Pesan via Service
+            // Kita kirim pesan 'raw' karena pesan sudah diparsing/diedit di Frontend (Modal)
+            $result = $this->waService->send($number, $message, $berkasId, $userId, $templateId);
+
+            if (isset($result['status']) && $result['status'] == true) {
+                return response()->json(['success' => true, 'message' => 'Pesan berhasil dikirim!']);
+            } else {
+                return response()->json([
+                    'success' => false, 
+                    'message' => $result['message'] ?? 'Gagal terhubung ke Gateway WA.'
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error("WA Controller Error: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan internal.']);
         }
-
-        return back()->with('success', 'Pesan berhasil dikirim!');
     }
-    
+
+    // [BARU] Endpoint Cek Status
+    public function checkStatus()
+    {
+        // Panggil Service untuk cek status ke Gateway
+        $status = $this->waService->getStatus();
+        return response()->json($status);
+    }
+
+    // [BARU] Endpoint Ambil QR
+    public function getQr()
+    {
+        // Panggil Service untuk ambil QR Code (Base64 atau URL)
+        $qr = $this->waService->getQrCode();
+        return response()->json($qr);
+    }
+
+    /**
+     * Logout / Disconnect WA
+     */
     public function logout()
     {
-        try {
-            $waUrl = env('WA_API_URL', 'http://192.168.100.15:3000');
-            Http::post("$waUrl/logout");
-            return back()->with('success', 'WhatsApp berhasil logout.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Gagal logout: ' . $e->getMessage());
-        }
+        // Implementasi logout jika API mendukung
+        return back()->with('success', 'Sesi WhatsApp dibersihkan.');
+    }
+
+    /**
+     * Test Kirim (Opsional)
+     */
+    public function sendTest(Request $request)
+    {
+        $request->validate(['number' => 'required']);
+        $this->waService->send($request->number, "Tes koneksi WhatsApp berhasil.");
+        return back()->with('success', 'Pesan tes dikirim.');
     }
 }

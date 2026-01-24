@@ -28,9 +28,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// GROUP ROUTE UTAMA (Hanya user login & verifikasi email)
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    // --- DASHBOARD ---
+    // --- DASHBOARD & UTAMA ---
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/total', [DashboardController::class, 'showTotal'])->name('dashboard.total');
     Route::get('/dashboard/diproses', [DashboardController::class, 'showDiproses'])->name('dashboard.diproses');
@@ -38,7 +39,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/jatuh-tempo', [DashboardController::class, 'showJatuhTempo'])->name('dashboard.jatuh-tempo');
     Route::get('/dashboard/ditutup', [DashboardController::class, 'showDitutup'])->name('dashboard.ditutup');
     
-    // --- SENSUS WAKAF ---
+    Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
+
+    // --- SENSUS WAKAF (PETA) ---
     Route::get('/sensus-wakaf', [SensusWakafController::class, 'index'])->name('sensus-wakaf.index');
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
 
@@ -54,15 +57,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // --- RUANG KERJA ---
-    Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
+    // --- MANAJEMEN BERKAS (Semua User Login) ---
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
-
-    // --- MANAJEMEN BERKAS ---
+    
     Route::prefix('berkas')->name('berkas.')->controller(BerkasController::class)->group(function() {
         Route::get('/baru', 'create')->name('create')->middleware('can:create-berkas');
         Route::post('/', 'store')->name('store')->middleware('can:create-berkas');
-        Route::post('/kirim', 'kirim')->name('kirim');
+        Route::post('/kirim', 'kirim')->name('kirim'); // Bulk Action
         
         Route::get('/{berkas}/edit', 'edit')->name('edit'); 
         Route::put('/{berkas}', 'update')->name('update'); 
@@ -99,21 +100,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/generate', 'generate')->name('generate');
     });
 
-    // =================================================================
-    //  WHATSAPP INTEGRATION (FIXED)
-    // =================================================================
-    
-    // AJAX Routes
+    // --- WHATSAPP INTEGRATION (Umum / User Biasa) ---
+    // API untuk Modal di Ruang Kerja
     Route::get('/ajax/wa-templates', [WaTemplateController::class, 'getJsonList'])->name('ajax.wa-templates');
     Route::post('/ajax/wa-preview', [WaTemplateController::class, 'previewMessage'])->name('ajax.wa-preview');
-
-    // Sending Action
+    // Action Mengirim Pesan
     Route::post('/whatsapp/send', [WhatsappWebController::class, 'sendMessage'])->name('whatsapp.send');
 });
 
-// --- ROUTE ADMIN ---
-// PERBAIKAN: Menggunakan middleware role:Admin,Administrator untuk keamanan
-Route::middleware(['auth', 'role:Admin,Administrator'])->prefix('admin')->name('admin.')->group(function () {
+// =================================================================
+//  ROUTE KHUSUS ADMIN
+// =================================================================
+// Middleware 'admin' wajib terdaftar di Kernel.php
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     
     // User & Approval
     Route::get('/users-approval', [AdminUserController::class, 'index'])->name('users.index');
@@ -169,16 +168,25 @@ Route::middleware(['auth', 'role:Admin,Administrator'])->prefix('admin')->name('
         Route::post('/setting-area-kerja', 'settingAreaKerjaUpdate')->name('setting-area-kerja.update');
     });
 
-    // --- WHATSAPP MANAGEMENT ---
-    Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
-    Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
-    Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout');
-    Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test');
+    // --- WHATSAPP MANAGEMENT (Admin Panel) ---
+    // --- WHATSAPP INTEGRATION (Admin Panel) ---
+        Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
+        
+        // Halaman Scan Utama
+        Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
+        
+        // API Internal untuk Scan Page (AJAX)
+        Route::get('/whatsapp/check-status', [WhatsappWebController::class, 'checkStatus'])->name('whatsapp.check-status');
+        Route::get('/whatsapp/get-qr', [WhatsappWebController::class, 'getQr'])->name('whatsapp.get-qr');
+        
+        // Actions
+        Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout');
+        Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test');
 
-    Route::resource('wa-templates', WaTemplateController::class);
-    Route::resource('wa-placeholders', WaPlaceholderController::class);
+        Route::resource('wa-templates', WaTemplateController::class);
+        Route::resource('wa-placeholders', WaPlaceholderController::class);
 
-    // --- PERBAIKAN BERKAS ---
+    // --- PERBAIKAN BERKAS (Tool Admin) ---
     Route::get('/perbaikan-berkas', [PerbaikanBerkasController::class, 'index'])->name('perbaikan.index');
     Route::patch('/perbaikan-berkas/{id}', [PerbaikanBerkasController::class, 'update'])->name('perbaikan.update');
 

@@ -19,41 +19,15 @@ class WaService
 
     public function __construct()
     {
-        $this->baseUrl = env('WA_API_URL', 'http://192.168.100.15:3000');
+        // Pastikan Anda sudah mengatur WA_API_URL di file .env
+        // Jika belum, default ke localhost port 3000
+        $this->baseUrl = env('WA_API_URL', 'http://localhost:3000');
         $this->apiKey = env('WA_API_KEY', '');
     }
 
     /**
-     * Kirim pesan berdasarkan nama template.
-     */
-    public function sendByTemplate($templateName, $targetPhone, $dataBerkas = [], $userId = null)
-    {
-        // [FIX] Gunakan nama kolom yang benar: 'nama' (bukan nama_template)
-        $template = WaTemplate::where('nama', $templateName)->first();
-        
-        if (!$template) {
-            Log::error("WA Error: Template '$templateName' tidak ditemukan di database.");
-            return ['status' => false, 'message' => 'Template tidak ditemukan'];
-        }
-
-        // 1. Siapkan Data Berkas & Load Relasi
-        $berkas = $this->prepareBerkasData($dataBerkas);
-
-        // [FIX] Gunakan nama kolom yang benar: 'template' (bukan isi_pesan)
-        $isiPesanRaw = $template->template;
-
-        if (!$berkas) {
-            return $this->send($targetPhone, $isiPesanRaw, null, $userId, $template->id);
-        }
-
-        // 2. Parse Placeholder (Ganti {nama} dengan data asli)
-        $message = $this->parseTemplate($isiPesanRaw, $berkas);
-        
-        return $this->send($targetPhone, $message, $berkas->id, $userId, $template->id);
-    }
-
-    /**
-     * Kirim pesan langsung (raw message).
+     * Kirim pesan langsung (Raw Message).
+     * Method inilah yang dipanggil oleh WhatsappWebController.
      */
     public function send($number, $message, $berkasId = null, $userId = null, $templateId = null)
     {
@@ -61,11 +35,10 @@ class WaService
             $number = $this->formatNumber($number);
             
             if (empty($number)) {
-                return ['status' => false, 'message' => 'Nomor tujuan kosong'];
+                return ['status' => false, 'message' => 'Nomor tujuan tidak valid/kosong'];
             }
 
-            // Log::info("Sending WA to $number", ['message' => $message]);
-
+            // Kirim Request ke WA Gateway (Node.js / Vendor Lain)
             $response = Http::timeout(15)->post("{$this->baseUrl}/send-message", [
                 'number' => $number,
                 'message' => $message,
@@ -73,111 +46,106 @@ class WaService
             ]);
             
             $responseData = $response->json();
-            $status = ($response->successful() && isset($responseData['status']) && $responseData['status']) ? 'success' : 'failed';
             
-            $this->logMessage($number, $message, $status, $responseData['message'] ?? $response->body(), $berkasId, $userId, $templateId);
+            // Cek status respon dari gateway
+            // Sesuaikan key 'status' ini dengan respon asli gateway Anda
+            $status = ($response->successful() && isset($responseData['status']) && $responseData['status']) ? 'Sukses' : 'Gagal';
+            $keterangan = $responseData['message'] ?? $response->body();
+
+            // Simpan Log
+            $this->logMessage($number, $message, $status, $keterangan, $berkasId, $userId, $templateId);
             
-            return $responseData;
+            return [
+                'status' => $status === 'Sukses',
+                'message' => $keterangan
+            ];
 
         } catch (Exception $e) {
             Log::error("WA Exception to {$number}: " . $e->getMessage());
-            $this->logMessage($number, $message, 'failed', "Koneksi Error: " . $e->getMessage(), $berkasId, $userId, $templateId);
+            $this->logMessage($number, $message, 'Gagal', "Koneksi Error: " . $e->getMessage(), $berkasId, $userId, $templateId);
             return ['status' => false, 'message' => 'Gagal koneksi ke Server WA'];
         }
     }
 
     /**
-     * Memuat relasi agar placeholder relasi (seperti {posisi_sekarang}) bisa terbaca.
+     * Kirim pesan berdasarkan Template (Untuk penggunaan internal / otomatis)
      */
-    protected function prepareBerkasData($data)
+    public function sendByTemplate($templateName, $targetPhone, $dataBerkas = [], $userId = null)
     {
-        $id = null;
-        if ($data instanceof Berkas) $id = $data->id;
-        elseif (is_array($data)) $id = $data['id'] ?? ($data['berkas_id'] ?? null);
-        elseif (is_numeric($data)) $id = $data;
-
-        if (!$id) return null;
-
-        $relations = [
-            'jenisPermohonan', 
-            'dataDesa',       
-            'dataKecamatan',  
-            'petugasUkur', 
-            'penerimaKuasa', 
-            'posisiSekarang', 
-            'pengirim',
-            'user'            
-        ];
-
-        try {
-            return Berkas::with($relations)->find($id);
-        } catch (\Exception $e) {
-            return Berkas::find($id);
+        // [PENTING] Gunakan kolom 'nama' (bukan nama_template)
+        $template = WaTemplate::where('nama', $templateName)->first();
+        
+        if (!$template) {
+            Log::error("WA Error: Template '$templateName' tidak ditemukan.");
+            return ['status' => false, 'message' => 'Template tidak ditemukan'];
         }
+
+        // Siapkan Data
+        $berkas = $this->prepareBerkasData($dataBerkas);
+        
+        // [PENTING] Gunakan kolom 'template' (bukan isi_pesan)
+        $isiPesan = $template->template;
+
+        // Parse Placeholder
+        $message = $berkas ? $this->parseTemplate($isiPesan, $berkas) : $isiPesan;
+        
+        return $this->send($targetPhone, $message, $berkas ? $berkas->id : null, $userId, $template->id);
     }
 
-    /**
-     * Fungsi parsing Placeholder dengan Fallback Logic.
-     */
+    // --- Helper Methods ---
+
     protected function parseTemplate($message, $data)
     {
         $placeholders = WaPlaceholder::all();
 
-        if ($placeholders->isEmpty()) {
-            return $message;
-        }
+        if ($placeholders->isEmpty()) return $message;
 
         foreach ($placeholders as $p) {
             $search = $p->placeholder; 
             $path = trim($p->deskripsi); 
 
-            // 1. Normalisasi Path (Mapping Alias 'desa' ke 'dataDesa')
+            // 1. Normalisasi Path (Mapping Alias)
             if ($data instanceof Berkas) {
                 if (Str::startsWith($path, 'desa.')) $path = Str::replaceFirst('desa.', 'dataDesa.', $path);
                 if (Str::startsWith($path, 'kecamatan.')) $path = Str::replaceFirst('kecamatan.', 'dataKecamatan.', $path);
             }
 
-            // 2. Coba ambil data via Relasi/Path
+            // 2. Ambil Data
             $value = data_get($data, $path);
 
-            // 3. [FALLBACK PENTING] 
-            // Jika data via relasi kosong (misal karena kolom desa hanya string 'Sukorejo', bukan ID relasi),
-            // maka kita ambil langsung string dari kolom tersebut.
+            // 3. Smart Fallback (Jika relasi null, ambil string langsung)
             if ((is_null($value) || $value === '') && $data instanceof Berkas) {
-                
-                // Jika path mengandung 'desa' dan di data berkas ada kolom 'desa'
                 if (Str::contains(strtolower($path), 'desa') && !empty($data->desa)) {
-                    $value = $data->desa; // Ambil string langsung
-                }
-                
-                // Jika path mengandung 'kecamatan'
-                elseif (Str::contains(strtolower($path), 'kecamatan') && !empty($data->kecamatan)) {
-                    $value = $data->kecamatan; // Ambil string langsung
-                }
-
-                // Cek properti langsung (misal: 'nama_pemohon')
-                elseif (!str_contains($path, '.') && isset($data->$path)) {
+                    $value = $data->desa; 
+                } elseif (Str::contains(strtolower($path), 'kecamatan') && !empty($data->kecamatan)) {
+                    $value = $data->kecamatan;
+                } elseif (!str_contains($path, '.') && isset($data->$path)) {
                     $value = $data->$path;
                 }
             }
 
             // 4. Format Tanggal
             if ($value instanceof \DateTime || $value instanceof Carbon) {
-                $value = Carbon::parse($value)->format('d-m-Y H:i');
+                $value = Carbon::parse($value)->format('d-m-Y');
             }
 
-            // 5. Cleanup
-            if (is_array($value) || is_object($value)) {
-                $value = '-'; 
-            }
-            if (is_null($value)) { // Jangan biarkan null, ubah ke string kosong
-                $value = ''; 
-            }
-
-            $message = str_replace($search, (string)$value, $message);
+            // 5. Replace
+            $message = str_replace($search, (string)($value ?? ''), $message);
         }
 
         return $message;
+    }
+
+    protected function prepareBerkasData($data)
+    {
+        $id = null;
+        if ($data instanceof Berkas) $id = $data->id;
+        elseif (is_numeric($data)) $id = $data;
+
+        if (!$id) return null;
+
+        // Load relasi penting
+        return Berkas::with(['jenisPermohonan', 'dataDesa', 'dataKecamatan', 'posisiSekarang', 'penerimaKuasa'])->find($id);
     }
 
     protected function formatNumber($number)
@@ -201,5 +169,56 @@ class WaService
             'user_id' => $userId ?? auth()->id(),
             'template_id' => $templateId
         ]);
+    }
+
+    // ... method send() dan sendByTemplate() yang sudah ada ...
+
+    /**
+     * Cek Status Koneksi ke WA Gateway
+     */
+    public function getStatus()
+    {
+        try {
+            // Sesuaikan endpoint ini dengan dokumentasi WA Gateway Anda
+            // Contoh umum: GET /status atau /session/status
+            $response = Http::timeout(5)->get("{$this->baseUrl}/status"); 
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                // Asumsi respon gateway: { status: 'CONNECTED' } atau { connected: true }
+                $isConnected = isset($data['status']) && strtoupper($data['status']) === 'CONNECTED';
+                
+                return ['connected' => $isConnected, 'raw' => $data];
+            }
+        } catch (Exception $e) {
+            // Silent fail
+        }
+        return ['connected' => false];
+    }
+
+    /**
+     * Ambil QR Code dari Gateway
+     */
+    public function getQrCode()
+    {
+        try {
+            // Endpoint umum: GET /qr atau /auth/qr
+            // Pastikan gateway mengembalikan JSON { qr: "data:image/png;base64,..." }
+            $response = Http::timeout(5)->get("{$this->baseUrl}/qr"); 
+            
+            if ($response->successful()) {
+                return $response->json(); // Harusnya return ['qr_code' => 'base64string...']
+            }
+        } catch (Exception $e) {
+            // Silent fail
+        }
+        return ['message' => 'Gagal mengambil QR. Pastikan server WA nyala.'];
+    }
+
+    public function logout()
+    {
+        try {
+            Http::timeout(5)->post("{$this->baseUrl}/logout");
+        } catch (Exception $e) { }
     }
 }
