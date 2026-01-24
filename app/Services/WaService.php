@@ -23,6 +23,9 @@ class WaService
         $this->apiKey = env('WA_API_KEY', '');
     }
 
+    /**
+     * Kirim pesan berdasarkan nama template.
+     */
     public function sendByTemplate($templateName, $targetPhone, $dataBerkas = [], $userId = null)
     {
         $template = WaTemplate::where('nama_template', $templateName)->first();
@@ -36,7 +39,7 @@ class WaService
         $berkas = $this->prepareBerkasData($dataBerkas);
 
         if (!$berkas) {
-            // Kirim pesan mentah jika data berkas gagal dimuat
+            // Jika data berkas tidak ada, kirim pesan apa adanya (raw message)
             return $this->send($targetPhone, $template->isi_pesan, null, $userId, $template->id);
         }
 
@@ -46,12 +49,15 @@ class WaService
         return $this->send($targetPhone, $message, $berkas->id, $userId, $template->id);
     }
 
+    /**
+     * Kirim pesan langsung (raw message).
+     */
     public function send($number, $message, $berkasId = null, $userId = null, $templateId = null)
     {
         try {
             $number = $this->formatNumber($number);
             
-            // Log payload untuk debugging
+            // Uncomment baris ini jika ingin melihat isi pesan di log sebelum dikirim
             // Log::info("Sending WA to $number", ['message' => $message]);
 
             $response = Http::timeout(15)->post("{$this->baseUrl}/send-message", [
@@ -89,26 +95,26 @@ class WaService
         // [PENTING] Load semua relasi yang mungkin dipakai di placeholder
         $relations = [
             'jenisPermohonan', 
-            'dataDesa',       // Relasi ke Model Desa (pastikan nama fungsi di Berkas.php adalah dataDesa)
-            'dataKecamatan',  // Relasi ke Model Kecamatan (pastikan nama fungsi di Berkas.php adalah dataKecamatan)
+            'dataDesa',       // Relasi ke Model Desa
+            'dataKecamatan',  // Relasi ke Model Kecamatan
             'petugasUkur', 
             'penerimaKuasa', 
             'posisiSekarang', 
             'pengirim',
-            'user'            // Pemohon/User pembuat
+            'user'            // Relasi ke User pembuat/pemegang saat ini
         ];
 
-        // Gunakan try-catch untuk menghindari error jika relasi tidak ditemukan di model
         try {
             return Berkas::with($relations)->find($id);
         } catch (\Exception $e) {
-            Log::warning("WaService: Gagal load relasi. Menggunakan data berkas dasar. Error: " . $e->getMessage());
+            // Fallback jika salah satu relasi error, kembalikan data dasar saja
             return Berkas::find($id);
         }
     }
 
     /**
-     * Fungsi parsing yang menggunakan Tabel WaPlaceholder sebagai kamus data.
+     * Fungsi parsing Placeholder.
+     * Menggunakan tabel WaPlaceholder sebagai kamus data.
      */
     protected function parseTemplate($message, $data)
     {
@@ -120,13 +126,12 @@ class WaService
         }
 
         foreach ($placeholders as $p) {
-            $search = $p->placeholder; // Contoh: {nama_desa}
-            $path = trim($p->deskripsi); // Contoh: desa.nama_desa atau dataDesa.nama_desa
+            $search = $p->placeholder; // Contoh: {tahun} atau {nama_desa}
+            $path = trim($p->deskripsi); // Contoh: tahun atau dataDesa.nama_desa
 
-            // [FIX CRITICAL] Normalisasi Path Relasi
-            // Jika di database tertulis 'desa.nama_desa' tapi di model relasinya 'dataDesa'
+            // [LANGKAH 1] Normalisasi Path Relasi (Mapping Alias)
             if ($data instanceof Berkas) {
-                // Ubah 'desa.' menjadi 'dataDesa.' agar menunjuk ke Relasi, bukan kolom string 'desa'
+                // Ubah 'desa.' menjadi 'dataDesa.' agar menunjuk ke Relasi Object
                 if (Str::startsWith($path, 'desa.')) {
                     $path = Str::replaceFirst('desa.', 'dataDesa.', $path);
                 }
@@ -136,27 +141,36 @@ class WaService
                 }
             }
 
-            // 2. Ambil value menggunakan data_get (support dot notation)
+            // [LANGKAH 2] Ambil value menggunakan data_get (support dot notation untuk relasi)
             $value = data_get($data, $path);
 
-            // 3. Fallback: Jika data_get gagal (null), coba ambil langsung dari kolom biasa
-            // Misal path 'nama_desa' (tanpa titik), coba cek apakah ada kolom 'nama_desa' atau 'desa'
-            if (is_null($value) && !str_contains($path, '.')) {
-                // Cek kolom 'desa' biasa jika 'nama_desa' null
-                if ($path === 'nama_desa' && isset($data->desa)) {
+            // [LANGKAH 3] SOLUSI FALLBACK CERDAS
+            // Jika pengambilan via path/relasi gagal (null), cek apakah ada kolom string langsung di tabel berkas
+            if ((is_null($value) || $value === '') && $data instanceof Berkas) {
+                
+                // Kasus Khusus: Jika path mengandung kata 'desa' tapi relasi null
+                if (Str::contains($path, 'es') && !empty($data->desa) && is_string($data->desa)) {
                     $value = $data->desa;
                 }
-                if ($path === 'nama_kecamatan' && isset($data->kecamatan)) {
+                
+                // Kasus Khusus: Jika path mengandung kata 'kecamatan' tapi relasi null
+                if (Str::contains($path, 'ecamatan') && !empty($data->kecamatan) && is_string($data->kecamatan)) {
                     $value = $data->kecamatan;
+                }
+
+                // Kasus Umum: Cek apakah path adalah nama kolom langsung (tanpa titik)
+                // Contoh: path = 'tahun', cek apakah $data->tahun ada isinya
+                if (!str_contains($path, '.') && isset($data->$path)) {
+                    $value = $data->$path;
                 }
             }
 
-            // 4. Format Tanggal
+            // [LANGKAH 4] Format Tanggal
             if ($value instanceof \DateTime || $value instanceof Carbon) {
                 $value = Carbon::parse($value)->format('d-m-Y H:i');
             }
 
-            // 5. Cleanup Value
+            // [LANGKAH 5] Cleanup & Casting ke String (PENTING untuk Integer)
             if (is_array($value) || is_object($value)) {
                 $value = '-'; 
             }
@@ -164,7 +178,7 @@ class WaService
                 $value = '-'; 
             }
 
-            // 6. Replace di pesan
+            // Paksa value menjadi string agar fungsi str_replace tidak gagal pada tipe data Integer (seperti tahun)
             $message = str_replace($search, (string)$value, $message);
         }
 
