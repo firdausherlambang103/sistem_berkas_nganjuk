@@ -381,6 +381,9 @@
     
     @push('scripts')
     <script>
+        // TOKEN CSRF untuk request AJAX
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
         function handleAksiDenganCatatan(form, aksi) {
             event.preventDefault(); 
             const pesan = aksi === 'pending' ? 'Masukkan alasan menunda berkas:' : 'Masukkan catatan untuk menutup berkas:';
@@ -429,36 +432,39 @@
             }
         });
 
-        // --- LOGIKA WA TEMPLATE & SENDING ---
-        let currentWaData = { id: null, phone: '', nama: '', berkas: '', status: '' };
+        // ==========================================
+        // LOGIKA MODAL WHATSAPP (FIXED)
+        // ==========================================
+        let currentWaData = { id: null, phone: '', nama: '' };
         let templatesData = [];
 
-        function openWaModal(id, phone, nama, berkas, status, count = 0) {
-            // Bersihkan nomor HP
+        function openWaModal(id, phone, nama, nomer_berkas, status, count = 0) {
+            // 1. Bersihkan Format Nomor HP
             let cleanPhone = String(phone).replace(/[^0-9]/g, '');
             if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
-
-            currentWaData = { id: id, phone: cleanPhone, nama: nama, berkas: berkas, status: status };
             
-            // Set UI Modal
+            currentWaData = { id: id, phone: cleanPhone, nama: nama };
+
+            // 2. Set Tampilan Awal Modal
             document.getElementById('wa-modal-name').innerText = nama;
             document.getElementById('wa-modal-phone').innerText = cleanPhone || 'Nomor Kosong';
             document.getElementById('wa-modal-count').innerText = count;
             
             const select = document.getElementById('waTemplateSelect');
-            select.innerHTML = '<option value="">Sedang memuat...</option>';
-            document.getElementById('waMessagePreview').value = ""; // Reset Preview
-            
-            // Reset Tombol
+            const previewArea = document.getElementById('waMessagePreview');
             const btnKirim = document.getElementById('btnKirimWA');
+
+            select.innerHTML = '<option value="">Sedang memuat...</option>';
+            previewArea.value = ""; 
             btnKirim.disabled = false;
             btnKirim.innerHTML = '<i class="fa-regular fa-paper-plane mr-2"></i> Kirim Pesan';
 
-            // Tampilkan Modal
+            // 3. Tampilkan Modal
             document.getElementById('waModal').classList.remove('hidden');
 
-            // Fetch Template dari API
-            fetch("{{ url('/api/wa-templates') }}/" + id)
+            // 4. Fetch Template dari Route Baru (ajax.wa-templates)
+            // Menggunakan route baru yang mengembalikan list semua template aktif
+            fetch("{{ route('ajax.wa-templates') }}")
                 .then(res => res.json())
                 .then(data => {
                     templatesData = data; 
@@ -469,14 +475,14 @@
                         return;
                     }
                     
-                    data.forEach((tpl, index) => {
-                        let labelUsage = tpl.usage_count > 0 ? ` (✅ ${tpl.usage_count}x)` : '';
-                        let tplName = tpl.nama || tpl.nama_template || tpl.judul || 'Template Tanpa Nama';
-                        select.innerHTML += `<option value="${index}">${tplName}${labelUsage}</option>`;
+                    data.forEach((tpl) => {
+                        // Support kolom baru 'nama' atau fallback 'nama_template'
+                        let tplName = tpl.nama || tpl.nama_template || 'Template Tanpa Nama';
+                        select.innerHTML += `<option value="${tpl.id}">${tplName}</option>`;
                     });
                 })
                 .catch(err => {
-                    console.error(err);
+                    console.error("Error loading templates:", err);
                     select.innerHTML = '<option value="">Gagal memuat template</option>';
                 });
         }
@@ -485,34 +491,54 @@
             document.getElementById('waModal').classList.add('hidden');
         }
 
+        // Fungsi Update Preview dengan Request ke Backend agar Placeholder akurat
         function updatePreview() {
-            const index = document.getElementById('waTemplateSelect').value;
+            const templateId = document.getElementById('waTemplateSelect').value;
             const previewArea = document.getElementById('waMessagePreview');
 
-            if (index === "") {
+            if (!templateId) {
                 previewArea.value = "";
                 return;
             }
 
-            let tpl = templatesData[index];
-            let rawMessage = tpl.template || tpl.isi_pesan || tpl.pesan || '';
+            previewArea.value = "Sedang membuat pratinjau...";
+            previewArea.disabled = true;
 
-            // Replace Placeholder dengan Data Asli
-            let finalMessage = rawMessage
-                .replace(/\[NAMA_PEMOHON\]/gi, currentWaData.nama)
-                .replace(/\[NOMOR_BERKAS\]/gi, currentWaData.berkas)
-                .replace(/\[STATUS\]/gi, currentWaData.status)
-                .replace(/{nama_pemohon}/gi, currentWaData.nama)
-                .replace(/{nomer_berkas}/gi, currentWaData.berkas);
-
-            previewArea.value = finalMessage;
+            // Panggil Backend untuk parsing placeholder ({nama_desa}, {tahun}, dll)
+            // Route ini memproses data berkas asli di server
+            fetch("{{ route('ajax.wa-preview') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": csrfToken
+                },
+                body: JSON.stringify({
+                    template_id: templateId,
+                    berkas_id: currentWaData.id
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.message) {
+                    previewArea.value = data.message;
+                } else {
+                    previewArea.value = "Gagal memuat pratinjau.";
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                previewArea.value = "Error koneksi saat pratinjau.";
+            })
+            .finally(() => {
+                previewArea.disabled = false;
+            });
         }
 
         function sendWhatsapp() {
-            const index = document.getElementById('waTemplateSelect').value;
+            const templateId = document.getElementById('waTemplateSelect').value;
             const finalMessage = document.getElementById('waMessagePreview').value;
 
-            if (index === "" && !finalMessage) {
+            if (!templateId && !finalMessage) {
                 alert('Silakan pilih template atau tulis pesan.');
                 return;
             }
@@ -527,31 +553,29 @@
             btnKirim.disabled = true;
             btnKirim.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim...';
 
-            const templateId = index !== "" ? templatesData[index].id : null;
-
-            // KIRIM KE CONTROLLER
+            // KIRIM KE CONTROLLER WHATSAPP
             fetch("{{ route('whatsapp.send') }}", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                    "X-CSRF-TOKEN": csrfToken,
                     "Accept": "application/json"
                 },
                 body: JSON.stringify({
                     berkas_id: currentWaData.id,
-                    template_id: templateId,
+                    template_id: templateId, // Kirim ID template
                     number: currentWaData.phone,
-                    message: finalMessage 
+                    message: finalMessage // Kirim pesan hasil edit user (sudah diparsing)
                 })
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    alert('✅ ' + data.message);
+                if (data.success || data.status === 'success' || data.status === true) {
+                    alert('✅ Pesan Terkirim!');
                     closeWaModal();
                     location.reload(); 
                 } else {
-                    alert('❌ Gagal: ' + data.message);
+                    alert('❌ Gagal: ' + (data.message || 'Terjadi kesalahan'));
                     btnKirim.disabled = false;
                     btnKirim.innerHTML = originalText;
                 }

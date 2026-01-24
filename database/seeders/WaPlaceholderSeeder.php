@@ -10,14 +10,14 @@ class WaPlaceholderSeeder extends Seeder
 {
     public function run()
     {
-        // Kosongkan tabel dulu agar bersih
+        // Bersihkan tabel sebelum insert
         DB::table('wa_placeholders')->truncate();
 
         $placeholders = [
-            // DATA LANGSUNG DARI TABEL BERKAS
+            // --- DATA UTAMA BERKAS ---
             [
                 'placeholder' => '{nama_pemohon}',
-                'deskripsi'   => 'nama_pemohon', 
+                'deskripsi'   => 'nama_pemohon', // Kolom langsung
             ],
             [
                 'placeholder' => '{nomer_berkas}',
@@ -31,27 +31,35 @@ class WaPlaceholderSeeder extends Seeder
                 'placeholder' => '{status_berkas}',
                 'deskripsi'   => 'status',
             ],
-
-            // DATA DARI RELASI (PASTIKAN NAMA RELASI DI MODEL BERKAS SUDAH DIBUAT)
             [
-                'placeholder' => '{jenis_permohonan}',
-                'deskripsi'   => 'jenisPermohonan.nama_jenis', // Relasi: jenisPermohonan, Kolom: nama_jenis
+                'placeholder' => '{nomer_hak}',
+                'deskripsi'   => 'nomer_hak',
             ],
+
+            // --- DATA RELASI / WILAYAH (Support Fallback) ---
+            // Sistem akan mencoba mencari relasi 'dataDesa->nama_desa'.
+            // Jika gagal (karena kolom desa hanya string), sistem otomatis mengambil string tersebut.
             [
                 'placeholder' => '{nama_desa}',
-                'deskripsi'   => 'desa.nama_desa', // Relasi: desa, Kolom: nama_desa
+                'deskripsi'   => 'desa.nama_desa', 
             ],
             [
                 'placeholder' => '{nama_kecamatan}',
-                'deskripsi'   => 'kecamatan.nama_kecamatan', // Relasi: kecamatan, Kolom: nama_kecamatan
+                'deskripsi'   => 'kecamatan.nama_kecamatan', 
+            ],
+            
+            // --- DATA PROSES ---
+            [
+                'placeholder' => '{jenis_permohonan}',
+                'deskripsi'   => 'jenisPermohonan.nama_jenis', // Relasi
             ],
             [
                 'placeholder' => '{posisi_sekarang}',
-                'deskripsi'   => 'posisiSekarang.name', // Relasi: posisiSekarang (User), Kolom: name
+                'deskripsi'   => 'posisiSekarang.name', // Nama petugas saat ini
             ],
             [
-                'placeholder' => '{petugas_ukur}',
-                'deskripsi'   => 'petugasUkur.nama_petugas', // Sesuaikan dengan kolom di tabel petugas_ukur
+                'placeholder' => '{tgl_masuk}',
+                'deskripsi'   => 'waktu_mulai_proses', // Akan otomatis diformat d-m-Y
             ],
         ];
 

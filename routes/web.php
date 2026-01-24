@@ -10,48 +10,30 @@ use App\Http\Controllers\Admin\ManajemenController;
 use App\Http\Controllers\Admin\WaTemplateController;
 use App\Http\Controllers\Admin\WaPlaceholderController;
 use App\Http\Controllers\Admin\WaLogController;
-use App\Http\Controllers\Admin\PerbaikanBerkasController; // <-- TAMBAHAN BARU
+use App\Http\Controllers\Admin\PerbaikanBerkasController;
 use App\Http\Controllers\WhatsappWebController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
 use App\Http\Controllers\SensusWakafController;
-use App\Models\WaTemplate;
-use App\Models\WaLog;
 use App\Http\Controllers\PeminjamanBukuTanahController;
-use App\Models\Berkas;
-use App\Services\WaService;
 
-// =========================================================================
-// ROUTE DEBUGGING (HAPUS NANTI SETELAH SELESAI)
-// =========================================================================
-Route::get('/debug-wa', function () {
-    // Ambil 1 berkas terakhir
-    $berkas = Berkas::latest()->first();
-    
-    if (!$berkas) return 'Tabel Berkas Kosong';
-
-    // Load relasi menggunakan nama BARU
-    $berkas->load(['dataDesa', 'dataKecamatan', 'jenisPermohonan']);
-
-    return [
-        'ID Berkas' => $berkas->id,
-        'Nama Pemohon' => $berkas->nama_pemohon,
-        'Desa ID (Kolom)' => $berkas->desa, // Ini aman (angka)
-        
-        // GUNAKAN NAMA RELASI BARU
-        'Relasi Desa' => $berkas->dataDesa ? $berkas->dataDesa->nama_desa : 'RELASI NULL', 
-        'Relasi Kecamatan' => $berkas->dataKecamatan ? $berkas->dataKecamatan->nama_kecamatan : 'RELASI NULL',
-        
-        'Cek WaService' => (new WaService())->sendByTemplate('test_template', '08123456789', $berkas)
-    ];
-});
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register web routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "web" middleware group. Make something great!
+|
+*/
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     
     // --- DASHBOARD ---
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -81,57 +63,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
 
-    // 1. Route Ajax (Untuk Auto Fill)
-    Route::get('/ajax/cek-berkas-bt', [PeminjamanBukuTanahController::class, 'cekBerkas'])->name('ajax.cek-berkas-bt');
-
-    // 2. Route Riwayat (WAJIB DI ATAS RESOURCE)
-    Route::get('peminjaman-bt/riwayat', [PeminjamanBukuTanahController::class, 'riwayat'])->name('peminjaman-bt.riwayat');
-
-    // 3. Route Resource (Index, Create, Store, Edit, Update, Destroy)
-    Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
-    Route::post('/peminjaman-bt/proses/{berkasId}', [PeminjamanBukuTanahController::class, 'prosesOtomatis'])->name('peminjaman-bt.proses-otomatis');
-    
-    // --- FITUR WHATSAPP (API & SEND) - PERBAIKAN ---
-    Route::get('/api/wa-templates/{berkas_id?}', function ($berkas_id = null) {
-        try {
-            // Ambil semua data (tanpa filter status dulu untuk memastikan data keluar)
-            $templates = WaTemplate::all();
-            
-            // Mapping agar frontend menerima field yang konsisten
-            $formattedData = $templates->map(function ($tpl) use ($berkas_id) {
-                $usageCount = 0;
-                if ($berkas_id) {
-                    $usageCount = WaLog::where('berkas_id', $berkas_id)
-                                       ->where('template_id', $tpl->id)
-                                       ->where('status', 'Sukses')
-                                       ->count();
-                }
-                
-                return [
-                    'id' => $tpl->id,
-                    'nama' => $tpl->nama,            // Kolom DB baru
-                    'judul' => $tpl->nama,          // Alias untuk frontend lama
-                    'template' => $tpl->template,   // Kolom DB baru
-                    'pesan' => $tpl->template,      // Alias untuk frontend lama
-                    'isi_pesan' => $tpl->template, // Alias lagi
-                    'usage_count' => $usageCount
-                ];
-            });
-
-            return response()->json($formattedData);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    })->name('api.wa-templates');
-
-    // Route untuk mengirim pesan
-    Route::post('/whatsapp/send', [WhatsappWebController::class, 'send'])->name('whatsapp.send');
-
-    // --- BERKAS ---
+    // --- MANAJEMEN BERKAS ---
     Route::prefix('berkas')->name('berkas.')->controller(BerkasController::class)->group(function() {
         Route::get('/baru', 'create')->name('create')->middleware('can:create-berkas');
         Route::post('/', 'store')->name('store')->middleware('can:create-berkas');
-        Route::post('/kirim', 'kirim')->name('kirim');
+        Route::post('/kirim', 'kirim')->name('kirim'); // Bulk Kirim
         
         Route::get('/{berkas}/edit', 'edit')->name('edit'); 
         Route::put('/{berkas}', 'update')->name('update'); 
@@ -143,10 +79,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/{berkas}/tutup', 'tutup')->name('tutup');
         Route::post('/{berkas}/pending', 'pending')->name('pending');
         Route::post('/{berkas}/aktifkan', 'aktifkan')->name('aktifkan');
-        
         Route::delete('/{berkas}', 'destroy')->name('destroy')->middleware('can:manage-berkas');
         Route::get('/{berkas}', 'show')->name('show');
     });
+
+    // --- PEMINJAMAN BUKU TANAH ---
+    Route::get('/ajax/cek-berkas-bt', [PeminjamanBukuTanahController::class, 'cekBerkas'])->name('ajax.cek-berkas-bt');
+    Route::get('peminjaman-bt/riwayat', [PeminjamanBukuTanahController::class, 'riwayat'])->name('peminjaman-bt.riwayat');
+    Route::resource('peminjaman-bt', PeminjamanBukuTanahController::class);
+    Route::post('/peminjaman-bt/proses/{berkasId}', [PeminjamanBukuTanahController::class, 'prosesOtomatis'])->name('peminjaman-bt.proses-otomatis');
 
     // --- PENJADWALAN UKUR ---
     Route::prefix('penjadwalan-ukur')->name('jadwal-ukur.')->controller(JadwalUkurController::class)->group(function () {
@@ -157,73 +98,92 @@ Route::middleware('auth')->group(function () {
         Route::post('/simpan-jadwal', 'simpanJadwal')->name('simpan-jadwal');
     });
 
-     // --- SURAT TUGAS ---
+    // --- SURAT TUGAS ---
     Route::prefix('surat-tugas')->name('surat-tugas.')->controller(SuratTugasController::class)->group(function () {
         Route::get('/create', 'create')->name('create');
         Route::post('/generate', 'generate')->name('generate');
     });
+
+    // =================================================================
+    //  WHATSAPP INTEGRATION (DIPERBARUI)
+    // =================================================================
+    
+    // 1. AJAX Routes (Untuk Modal di Ruang Kerja & Preview Pesan)
+    // Route ini menggantikan logika closure '/api/wa-templates' yang lama
+    Route::get('/ajax/wa-templates', [WaTemplateController::class, 'getJsonList'])->name('ajax.wa-templates');
+    Route::post('/ajax/wa-preview', [WaTemplateController::class, 'previewMessage'])->name('ajax.wa-preview');
+
+    // 2. Action Mengirim Pesan
+    Route::post('/whatsapp/send', [WhatsappWebController::class, 'sendMessage'])->name('whatsapp.send');
 });
 
 // --- ROUTE ADMIN ---
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:Admin,Administrator'])->prefix('admin')->name('admin.')->group(function () {
     
-    // User & Master Data
+    // User & Approval
     Route::get('/users-approval', [AdminUserController::class, 'index'])->name('users.index');
     Route::patch('/users/{user}/approve', [AdminUserController::class, 'approve'])->name('users.approve');
-    Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
-    Route::patch('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
-    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+    Route::resource('users', AdminUserController::class)->except(['index', 'show']);
 
-    Route::get('/penerima-kuasa', [ManajemenController::class, 'kuasaIndex'])->name('kuasa.index');
-    Route::post('/penerima-kuasa', [ManajemenController::class, 'kuasaStore'])->name('kuasa.store');
-    Route::patch('/penerima-kuasa/{kuasa}', [ManajemenController::class, 'kuasaUpdate'])->name('kuasa.update');
-    Route::delete('/penerima-kuasa/{kuasa}', [ManajemenController::class, 'kuasaDestroy'])->name('kuasa.destroy');
+    // Manajemen Data Master (Desa, Jabatan, dll)
+    Route::controller(ManajemenController::class)->group(function() {
+        // Penerima Kuasa
+        Route::get('/penerima-kuasa', 'kuasaIndex')->name('kuasa.index');
+        Route::post('/penerima-kuasa', 'kuasaStore')->name('kuasa.store');
+        Route::patch('/penerima-kuasa/{kuasa}', 'kuasaUpdate')->name('kuasa.update');
+        Route::delete('/penerima-kuasa/{kuasa}', 'kuasaDestroy')->name('kuasa.destroy');
 
-    Route::get('/jabatan', [ManajemenController::class, 'jabatanIndex'])->name('jabatan.index');
-    Route::post('/jabatan', [ManajemenController::class, 'jabatanStore'])->name('jabatan.store');
-    Route::get('/jabatan/{jabatan}/edit', [ManajemenController::class, 'jabatanEdit'])->name('jabatan.edit');
-    Route::patch('/jabatan/{jabatan}', [ManajemenController::class, 'jabatanUpdate'])->name('jabatan.update');
-    Route::delete('/jabatan/{jabatan}', [ManajemenController::class, 'jabatanDestroy'])->name('jabatan.destroy');
+        // Jabatan
+        Route::get('/jabatan', 'jabatanIndex')->name('jabatan.index');
+        Route::post('/jabatan', 'jabatanStore')->name('jabatan.store');
+        Route::get('/jabatan/{jabatan}/edit', 'jabatanEdit')->name('jabatan.edit');
+        Route::patch('/jabatan/{jabatan}', 'jabatanUpdate')->name('jabatan.update');
+        Route::delete('/jabatan/{jabatan}', 'jabatanDestroy')->name('jabatan.destroy');
 
-    Route::get('/kecamatan', [ManajemenController::class, 'kecamatanIndex'])->name('kecamatan.index');
-    Route::post('/kecamatan', [ManajemenController::class, 'kecamatanStore'])->name('kecamatan.store');
-    Route::get('/kecamatan/{kecamatan}/edit', [ManajemenController::class, 'kecamatanEdit'])->name('kecamatan.edit');
-    Route::patch('/kecamatan/{kecamatan}', [ManajemenController::class, 'kecamatanUpdate'])->name('kecamatan.update');
-    Route::delete('/kecamatan/{kecamatan}', [ManajemenController::class, 'kecamatanDestroy'])->name('kecamatan.destroy');
-    
-    Route::get('/desa', [ManajemenController::class, 'desaIndex'])->name('desa.index');
-    Route::post('/desa', [ManajemenController::class, 'desaStore'])->name('desa.store');
-    Route::get('/desa/{desa}/edit', [ManajemenController::class, 'desaEdit'])->name('desa.edit');
-    Route::patch('/desa/{desa}', [ManajemenController::class, 'desaUpdate'])->name('desa.update');
-    Route::delete('/desa/{desa}', [ManajemenController::class, 'desaDestroy'])->name('desa.destroy');
+        // Kecamatan
+        Route::get('/kecamatan', 'kecamatanIndex')->name('kecamatan.index');
+        Route::post('/kecamatan', 'kecamatanStore')->name('kecamatan.store');
+        Route::get('/kecamatan/{kecamatan}/edit', 'kecamatanEdit')->name('kecamatan.edit');
+        Route::patch('/kecamatan/{kecamatan}', 'kecamatanUpdate')->name('kecamatan.update');
+        Route::delete('/kecamatan/{kecamatan}', 'kecamatanDestroy')->name('kecamatan.destroy');
+        
+        // Desa
+        Route::get('/desa', 'desaIndex')->name('desa.index');
+        Route::post('/desa', 'desaStore')->name('desa.store');
+        Route::get('/desa/{desa}/edit', 'desaEdit')->name('desa.edit');
+        Route::patch('/desa/{desa}', 'desaUpdate')->name('desa.update');
+        Route::delete('/desa/{desa}', 'desaDestroy')->name('desa.destroy');
 
-    Route::get('/jenis-permohonan', [ManajemenController::class, 'permohonanIndex'])->name('permohonan.index');
-    Route::post('/jenis-permohonan', [ManajemenController::class, 'permohonanStore'])->name('permohonan.store');
-    Route::get('/jenis-permohonan/{jenisPermohonan}/edit', [ManajemenController::class, 'permohonanEdit'])->name('permohonan.edit');
-    Route::patch('/jenis-permohonan/{jenisPermohonan}', [ManajemenController::class, 'permohonanUpdate'])->name('permohonan.update');
-    Route::delete('/jenis-permohonan/{jenisPermohonan}', [ManajemenController::class, 'permohonanDestroy'])->name('permohonan.destroy');
+        // Jenis Permohonan
+        Route::get('/jenis-permohonan', 'permohonanIndex')->name('permohonan.index');
+        Route::post('/jenis-permohonan', 'permohonanStore')->name('permohonan.store');
+        Route::get('/jenis-permohonan/{jenisPermohonan}/edit', 'permohonanEdit')->name('permohonan.edit');
+        Route::patch('/jenis-permohonan/{jenisPermohonan}', 'permohonanUpdate')->name('permohonan.update');
+        Route::delete('/jenis-permohonan/{jenisPermohonan}', 'permohonanDestroy')->name('permohonan.destroy');
 
-    Route::get('/petugas-ukur', [ManajemenController::class, 'petugasUkurIndex'])->name('petugas-ukur.index');
-    Route::get('/petugas-ukur/create', [ManajemenController::class, 'petugasUkurCreate'])->name('petugas-ukur.create');
-    Route::post('/petugas-ukur', [ManajemenController::class, 'petugasUkurStore'])->name('petugas-ukur.store');
-    Route::get('/petugas-ukur/{petugasUkur}/edit', [ManajemenController::class, 'petugasUkurEdit'])->name('petugas-ukur.edit');
-    Route::patch('/petugas-ukur/{petugasUkur}', [ManajemenController::class, 'petugasUkurUpdate'])->name('petugas-ukur.update');
-    Route::delete('/petugas-ukur/{petugasUkur}', [ManajemenController::class, 'petugasUkurDestroy'])->name('petugas-ukur.destroy');
-    
-    Route::get('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaIndex'])->name('setting-area-kerja.index');
-    Route::post('/setting-area-kerja', [ManajemenController::class, 'settingAreaKerjaUpdate'])->name('setting-area-kerja.update');
+        // Petugas Ukur
+        Route::get('/petugas-ukur', 'petugasUkurIndex')->name('petugas-ukur.index');
+        Route::get('/petugas-ukur/create', 'petugasUkurCreate')->name('petugas-ukur.create');
+        Route::post('/petugas-ukur', 'petugasUkurStore')->name('petugas-ukur.store');
+        Route::get('/petugas-ukur/{petugasUkur}/edit', 'petugasUkurEdit')->name('petugas-ukur.edit');
+        Route::patch('/petugas-ukur/{petugasUkur}', 'petugasUkurUpdate')->name('petugas-ukur.update');
+        Route::delete('/petugas-ukur/{petugasUkur}', 'petugasUkurDestroy')->name('petugas-ukur.destroy');
+        
+        // Setting Area Kerja
+        Route::get('/setting-area-kerja', 'settingAreaKerjaIndex')->name('setting-area-kerja.index');
+        Route::post('/setting-area-kerja', 'settingAreaKerjaUpdate')->name('setting-area-kerja.update');
+    });
 
-    // --- WHATSAPP MANAGEMENT ---
+    // --- WHATSAPP MANAGEMENT (Admin Panel) ---
     Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
     Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
-    Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test');
     Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout');
+    Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test');
 
     Route::resource('wa-templates', WaTemplateController::class);
     Route::resource('wa-placeholders', WaPlaceholderController::class);
 
-    // --- [NEW] PERBAIKAN BERKAS (POSISI) ---
-    // Menu ini digunakan admin untuk memperbaiki/memindah posisi berkas secara paksa
+    // --- PERBAIKAN BERKAS (Tool Admin) ---
     Route::get('/perbaikan-berkas', [PerbaikanBerkasController::class, 'index'])->name('perbaikan.index');
     Route::patch('/perbaikan-berkas/{id}', [PerbaikanBerkasController::class, 'update'])->name('perbaikan.update');
 
