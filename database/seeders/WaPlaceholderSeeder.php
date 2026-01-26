@@ -8,16 +8,21 @@ use Illuminate\Support\Facades\DB;
 
 class WaPlaceholderSeeder extends Seeder
 {
-    public function run()
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
     {
-        // Bersihkan tabel sebelum insert
-        DB::table('wa_placeholders')->truncate();
+        // 1. Bersihkan tabel sebelum mengisi data baru (agar tidak duplikat)
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        WaPlaceholder::truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $placeholders = [
-            // --- DATA UTAMA BERKAS ---
+            // --- IDENTITAS PEMOHON & BERKAS ---
             [
                 'placeholder' => '{nama_pemohon}',
-                'deskripsi'   => 'nama_pemohon', // Kolom langsung
+                'deskripsi'   => 'nama_pemohon', // Kolom langsung di tabel berkas
             ],
             [
                 'placeholder' => '{nomer_berkas}',
@@ -29,16 +34,15 @@ class WaPlaceholderSeeder extends Seeder
             ],
             [
                 'placeholder' => '{status_berkas}',
-                'deskripsi'   => 'status',
+                'deskripsi'   => 'status', // Status pengerjaan (Baru, Ukur, Selesai, dll)
             ],
             [
-                'placeholder' => '{nomer_hak}',
-                'deskripsi'   => 'nomer_hak',
+                'placeholder' => '{tgl_masuk}',
+                'deskripsi'   => 'waktu_mulai_proses', // Akan diformat tanggal otomatis oleh WaService
             ],
 
-            // --- DATA RELASI / WILAYAH (Support Fallback) ---
-            // Sistem akan mencoba mencari relasi 'dataDesa->nama_desa'.
-            // Jika gagal (karena kolom desa hanya string), sistem otomatis mengambil string tersebut.
+            // --- DATA WILAYAH (Smart Fallback) ---
+            // WaService akan mencari relasi dulu, jika null akan ambil string dari kolom desa/kecamatan
             [
                 'placeholder' => '{nama_desa}',
                 'deskripsi'   => 'desa.nama_desa', 
@@ -47,24 +51,49 @@ class WaPlaceholderSeeder extends Seeder
                 'placeholder' => '{nama_kecamatan}',
                 'deskripsi'   => 'kecamatan.nama_kecamatan', 
             ],
-            
-            // --- DATA PROSES ---
+
+            // --- DATA HAK TANAH ---
+            [
+                'placeholder' => '{nomer_hak}',
+                'deskripsi'   => 'nomer_hak',
+            ],
+            [
+                'placeholder' => '{jenis_hak}',
+                'deskripsi'   => 'jenis_alas_hak', // Contoh: Hak Milik, HGB
+            ],
+            [
+                'placeholder' => '{luas_tanah}',
+                'deskripsi'   => 'luas_tanah',
+            ],
+
+            // --- RELASI KEGIATAN & PETUGAS ---
             [
                 'placeholder' => '{jenis_permohonan}',
-                'deskripsi'   => 'jenisPermohonan.nama_jenis', // Relasi
+                'deskripsi'   => 'jenisPermohonan.nama_permohonan', // Mengambil nama kegiatan
             ],
             [
                 'placeholder' => '{posisi_sekarang}',
-                'deskripsi'   => 'posisiSekarang.name', // Nama petugas saat ini
+                'deskripsi'   => 'posisiSekarang.name', // Nama User/Petugas yang sedang memegang berkas
             ],
             [
-                'placeholder' => '{tgl_masuk}',
-                'deskripsi'   => 'waktu_mulai_proses', // Akan otomatis diformat d-m-Y
+                'placeholder' => '{petugas_ukur}',
+                'deskripsi'   => 'petugasUkur.nama', // Nama Petugas Ukur (jika ada)
+            ],
+            [
+                'placeholder' => '{nama_kuasa}',
+                'deskripsi'   => 'penerimaKuasa.nama_kuasa', // Nama Penerima Kuasa (jika ada)
+            ],
+            
+            // --- INFO TAMBAHAN ---
+            [
+                'placeholder' => '{keterangan}',
+                'deskripsi'   => 'keterangan', // Catatan tambahan pada berkas
             ],
         ];
 
-        foreach ($placeholders as $p) {
-            WaPlaceholder::create($p);
+        // Loop insert data
+        foreach ($placeholders as $data) {
+            WaPlaceholder::create($data);
         }
     }
 }

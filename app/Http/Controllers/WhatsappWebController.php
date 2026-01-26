@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\WaService;
-use App\Models\Berkas;
-use App\Models\WaTemplate;
 use Illuminate\Support\Facades\Log;
 
 class WhatsappWebController extends Controller
@@ -17,85 +15,60 @@ class WhatsappWebController extends Controller
         $this->waService = $waService;
     }
 
-    /**
-     * Halaman Scan QR (Jika diperlukan)
-     */
     public function scan()
     {
         return view('admin.whatsapp.scan');
     }
 
-    /**
-     * Method Utama Pengiriman Pesan (Digunakan oleh Modal Ruang Kerja)
-     */
-    public function sendMessage(Request $request)
-    {
-        // 1. Validasi Input
-        $request->validate([
-            'number' => 'required',
-            'message' => 'required',
-            'berkas_id' => 'nullable',
-            'template_id' => 'nullable',
-        ]);
-
-        try {
-            $number = $request->number;
-            $message = $request->message;
-            $berkasId = $request->berkas_id;
-            $templateId = $request->template_id;
-            $userId = auth()->id();
-
-            // 2. Kirim Pesan via Service
-            // Kita kirim pesan 'raw' karena pesan sudah diparsing/diedit di Frontend (Modal)
-            $result = $this->waService->send($number, $message, $berkasId, $userId, $templateId);
-
-            if (isset($result['status']) && $result['status'] == true) {
-                return response()->json(['success' => true, 'message' => 'Pesan berhasil dikirim!']);
-            } else {
-                return response()->json([
-                    'success' => false, 
-                    'message' => $result['message'] ?? 'Gagal terhubung ke Gateway WA.'
-                ]);
-            }
-
-        } catch (\Exception $e) {
-            Log::error("WA Controller Error: " . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan internal.']);
-        }
-    }
-
-    // [BARU] Endpoint Cek Status
+    // [METHOD BARU] Cek Status Koneksi
     public function checkStatus()
     {
-        // Panggil Service untuk cek status ke Gateway
+        // Pastikan WaService memiliki method getStatus()
         $status = $this->waService->getStatus();
         return response()->json($status);
     }
 
-    // [BARU] Endpoint Ambil QR
+    // [METHOD BARU] Ambil QR Code
     public function getQr()
     {
-        // Panggil Service untuk ambil QR Code (Base64 atau URL)
+        // Pastikan WaService memiliki method getQrCode()
         $qr = $this->waService->getQrCode();
         return response()->json($qr);
     }
 
-    /**
-     * Logout / Disconnect WA
-     */
-    public function logout()
+    public function sendMessage(Request $request)
     {
-        // Implementasi logout jika API mendukung
-        return back()->with('success', 'Sesi WhatsApp dibersihkan.');
+        $request->validate([
+            'number' => 'required',
+            'message' => 'required',
+        ]);
+
+        // Kirim pesan
+        $result = $this->waService->send(
+            $request->number, 
+            $request->message, 
+            $request->berkas_id ?? null, 
+            auth()->id(), 
+            $request->template_id ?? null
+        );
+
+        if (isset($result['status']) && $result['status'] == true) {
+            return response()->json(['success' => true, 'message' => 'Pesan berhasil dikirim!']);
+        } else {
+            return response()->json(['success' => false, 'message' => $result['message'] ?? 'Gagal kirim.']);
+        }
     }
 
-    /**
-     * Test Kirim (Opsional)
-     */
+    public function logout()
+    {
+        $this->waService->logout();
+        return back()->with('success', 'Logout command sent.');
+    }
+
     public function sendTest(Request $request)
     {
         $request->validate(['number' => 'required']);
-        $this->waService->send($request->number, "Tes koneksi WhatsApp berhasil.");
+        $this->waService->send($request->number, "Tes koneksi WhatsApp dari Sistem Berkas.");
         return back()->with('success', 'Pesan tes dikirim.');
     }
 }
