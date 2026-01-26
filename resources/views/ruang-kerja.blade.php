@@ -135,6 +135,7 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse ($berkasDiMeja as $berkas)
                                     <tr class="hover:bg-gray-50 transition">
+                                        {{-- CHECKBOX PER BARIS --}}
                                         <td class="px-4 py-4"><input type="checkbox" name="berkas_id[]" value="{{ $berkas->id }}" class="berkas-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></td>
                                         
                                         {{-- 1. Info Berkas --}}
@@ -188,7 +189,6 @@
                                                 @else
                                                     <span class="px-2 py-1 text-[10px] font-bold text-gray-700 bg-gray-200 rounded-full">{{ $statusPinjam }}</span>
                                                 @endif
-                                            {{-- [UPDATE LOGIKA STATUS BT] --}}
                                             @elseif($berkas->status_buku_tanah == 'Sertipikat Analog')
                                                 <span class="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200 animate-pulse">Perlu BT</span>
                                             @elseif($berkas->status_buku_tanah == 'Sertipikat Elektronik')
@@ -202,10 +202,10 @@
                                         <td class="px-4 py-4 text-center">
                                             <div class="relative inline-block group">
                                                 <button type="button" 
-                                                        onclick="openWaModal('{{ $berkas->id }}', '{{ $berkas->nomer_wa }}', '{{ $berkas->nama_pemohon }}', '{{ $berkas->nomer_berkas }}', '{{ $berkas->status }}', {{ $berkas->waLogs->count() }})"
-                                                        class="w-10 h-10 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-500 hover:text-white transition shadow-sm border border-green-200"
-                                                        title="Kirim WhatsApp">
-                                                    <i class="fa-brands fa-whatsapp text-xl"></i>
+                                                    onclick="openWaModal('{{ $berkas->id }}', '{{ $berkas->nomer_wa }}', '{{ $berkas->nama_pemohon }}', '{{ $berkas->nomer_berkas }}', '{{ $berkas->status }}', {{ $berkas->waLogs->count() }})"
+                                                    class="w-10 h-10 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-500 hover:text-white transition shadow-sm border border-green-200"
+                                                    title="Kirim WhatsApp">
+                                                <i class="fa-brands fa-whatsapp text-xl"></i>
                                                 </button>
                                                 
                                                 @if($berkas->waLogs && $berkas->waLogs->count() > 0)
@@ -383,6 +383,119 @@
     <script>
         // TOKEN CSRF untuk request AJAX
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const STORAGE_KEY = 'selected_berkas_ids';
+
+        // ==========================================
+        // 1. LOGIKA PERSISTENSI CHECKBOX (FIX)
+        // ==========================================
+        
+        // Helper: Ambil IDs dari session storage
+        function getStoredIds() {
+            const stored = sessionStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        // Helper: Simpan IDs ke session storage
+        function saveStoredIds(ids) {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+            updateSelectAllStatus(); // Update status "Select All" di header
+        }
+
+        // Helper: Update status "Select All" berdasarkan checkbox yg terlihat
+        function updateSelectAllStatus() {
+            const allVisible = Array.from(document.querySelectorAll('.berkas-checkbox'));
+            const selectAll = document.getElementById('select-all-checkbox');
+            
+            if(allVisible.length === 0 || !selectAll) return;
+
+            // Cek apakah semua yg terlihat itu checked?
+            const allChecked = allVisible.every(cb => cb.checked);
+            // Cek apakah ada yg checked (tapi tidak semua)?
+            const someChecked = allVisible.some(cb => cb.checked);
+            
+            selectAll.checked = allChecked;
+            selectAll.indeterminate = someChecked && !allChecked;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            // --- A. Restore State saat Load ---
+            let storedIds = getStoredIds();
+            const berkasCheckboxes = document.querySelectorAll('.berkas-checkbox');
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+
+            berkasCheckboxes.forEach(cb => {
+                // Jika ID ada di storage, centang
+                if (storedIds.includes(cb.value)) {
+                    cb.checked = true;
+                }
+            });
+            updateSelectAllStatus();
+
+            // --- B. Listener Checkbox Satuan ---
+            berkasCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    storedIds = getStoredIds(); // Refresh data terbaru
+                    if (this.checked) {
+                        if (!storedIds.includes(this.value)) storedIds.push(this.value);
+                    } else {
+                        storedIds = storedIds.filter(id => id !== this.value);
+                    }
+                    saveStoredIds(storedIds);
+                });
+            });
+
+            // --- C. Listener Select All ---
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function () {
+                    storedIds = getStoredIds();
+                    berkasCheckboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                        if (this.checked) {
+                            if (!storedIds.includes(checkbox.value)) storedIds.push(checkbox.value);
+                        } else {
+                            storedIds = storedIds.filter(id => id !== checkbox.value);
+                        }
+                    });
+                    saveStoredIds(storedIds);
+                });
+            }
+
+            // --- D. Handle Form Kirim (Bulk) ---
+            const bulkKirimForm = document.getElementById('bulk-kirim-form');
+            const berkasIdsInput = document.getElementById('berkas-ids-input');
+            
+            if (bulkKirimForm) {
+                bulkKirimForm.addEventListener('submit', function (e) {
+                    // Ambil ID dari storage (bukan hanya yg terlihat di DOM)
+                    const finalIds = getStoredIds();
+
+                    if (finalIds.length === 0) {
+                        e.preventDefault();
+                        alert('Silakan pilih setidaknya satu berkas untuk dikirim.');
+                        return;
+                    }
+                    if (document.getElementById('tujuan-user-id-select').value === '') {
+                        e.preventDefault();
+                        alert('Silakan pilih tujuan pengiriman.');
+                        return;
+                    }
+                    
+                    // Masukkan ke hidden input
+                    berkasIdsInput.value = finalIds.join(',');
+                });
+            }
+
+            // --- E. Hapus Storage jika Sukses ---
+            @if(session('success'))
+                sessionStorage.removeItem(STORAGE_KEY);
+            @endif
+        });
+
+
+        // ==========================================
+        // 2. FUNGSI UTILITAS LAIN
+        // ==========================================
 
         function handleAksiDenganCatatan(form, aksi) {
             event.preventDefault(); 
@@ -403,49 +516,18 @@
             form.submit(); 
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const selectAllCheckbox = document.getElementById('select-all-checkbox');
-            const berkasCheckboxes = document.querySelectorAll('.berkas-checkbox');
-            const bulkKirimForm = document.getElementById('bulk-kirim-form');
-            const berkasIdsInput = document.getElementById('berkas-ids-input');
-            if (selectAllCheckbox) {
-                selectAllCheckbox.addEventListener('click', function () {
-                    berkasCheckboxes.forEach(checkbox => { checkbox.checked = this.checked; });
-                });
-            }
-            if (bulkKirimForm) {
-                bulkKirimForm.addEventListener('submit', function (e) {
-                    const selectedIds = [];
-                    berkasCheckboxes.forEach(checkbox => { if (checkbox.checked) { selectedIds.push(checkbox.value); } });
-                    if (selectedIds.length === 0) {
-                        e.preventDefault();
-                        alert('Silakan pilih setidaknya satu berkas untuk dikirim.');
-                        return;
-                    }
-                    if (document.getElementById('tujuan-user-id-select').value === '') {
-                        e.preventDefault();
-                        alert('Silakan pilih tujuan pengiriman.');
-                        return;
-                    }
-                    berkasIdsInput.value = selectedIds.join(',');
-                });
-            }
-        });
-
         // ==========================================
-        // LOGIKA MODAL WHATSAPP (FIXED)
+        // 3. LOGIKA MODAL WHATSAPP
         // ==========================================
         let currentWaData = { id: null, phone: '', nama: '' };
         let templatesData = [];
 
         function openWaModal(id, phone, nama, nomer_berkas, status, count = 0) {
-            // 1. Bersihkan Format Nomor HP
             let cleanPhone = String(phone).replace(/[^0-9]/g, '');
             if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
             
             currentWaData = { id: id, phone: cleanPhone, nama: nama };
 
-            // 2. Set Tampilan Awal Modal
             document.getElementById('wa-modal-name').innerText = nama;
             document.getElementById('wa-modal-phone').innerText = cleanPhone || 'Nomor Kosong';
             document.getElementById('wa-modal-count').innerText = count;
@@ -459,11 +541,8 @@
             btnKirim.disabled = false;
             btnKirim.innerHTML = '<i class="fa-regular fa-paper-plane mr-2"></i> Kirim Pesan';
 
-            // 3. Tampilkan Modal
             document.getElementById('waModal').classList.remove('hidden');
 
-            // 4. Fetch Template dari Route Baru (ajax.wa-templates)
-            // Menggunakan route baru yang mengembalikan list semua template aktif
             fetch("{{ route('ajax.wa-templates') }}")
                 .then(res => res.json())
                 .then(data => {
@@ -476,7 +555,6 @@
                     }
                     
                     data.forEach((tpl) => {
-                        // Support kolom baru 'nama' atau fallback 'nama_template'
                         let tplName = tpl.nama || tpl.nama_template || 'Template Tanpa Nama';
                         select.innerHTML += `<option value="${tpl.id}">${tplName}</option>`;
                     });
@@ -491,7 +569,6 @@
             document.getElementById('waModal').classList.add('hidden');
         }
 
-        // Fungsi Update Preview dengan Request ke Backend agar Placeholder akurat
         function updatePreview() {
             const templateId = document.getElementById('waTemplateSelect').value;
             const previewArea = document.getElementById('waMessagePreview');
@@ -504,8 +581,6 @@
             previewArea.value = "Sedang membuat pratinjau...";
             previewArea.disabled = true;
 
-            // Panggil Backend untuk parsing placeholder ({nama_desa}, {tahun}, dll)
-            // Route ini memproses data berkas asli di server
             fetch("{{ route('ajax.wa-preview') }}", {
                 method: "POST",
                 headers: {
@@ -553,7 +628,6 @@
             btnKirim.disabled = true;
             btnKirim.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim...';
 
-            // KIRIM KE CONTROLLER WHATSAPP
             fetch("{{ route('whatsapp.send') }}", {
                 method: "POST",
                 headers: {
@@ -563,9 +637,9 @@
                 },
                 body: JSON.stringify({
                     berkas_id: currentWaData.id,
-                    template_id: templateId, // Kirim ID template
+                    template_id: templateId, 
                     number: currentWaData.phone,
-                    message: finalMessage // Kirim pesan hasil edit user (sudah diparsing)
+                    message: finalMessage 
                 })
             })
             .then(response => response.json())

@@ -22,16 +22,14 @@ class Berkas extends Model
     ];
 
     // ===================================================================
-    // RELASI (WAJIB BEDA NAMA DENGAN KOLOM DB AGAR TIDAK CRASH)
+    // RELASI
     // ===================================================================
 
-    // [FIX] Nama relasi diganti jadi 'dataDesa' karena kolom DB bernama 'desa'
     public function dataDesa()
     {
         return $this->belongsTo(Desa::class, 'desa');
     }
 
-    // [FIX] Nama relasi diganti jadi 'dataKecamatan' karena kolom DB bernama 'kecamatan'
     public function dataKecamatan()
     {
         return $this->belongsTo(Kecamatan::class, 'kecamatan');
@@ -69,8 +67,6 @@ class Berkas extends Model
 
     /**
      * Relasi 'user' untuk kompatibilitas dengan WaService.
-     * Mengembalikan user yang saat ini memegang berkas (posisi sekarang).
-     * Jika WaService meminta {user.name}, ini akan mengambil nama petugas saat ini.
      */
     public function user()
     {
@@ -88,13 +84,32 @@ class Berkas extends Model
     }
 
     // ===================================================================
-    // ACCESSORS
+    // ACCESSORS (MODIFIKASI PERBAIKAN TIMER)
     // ===================================================================
 
+    /**
+     * Menghitung lama proses.
+     * [FIX] Berhenti menghitung jika status sudah Selesai/Ditutup.
+     */
     public function getLamaProsesFormattedAttribute(): string
     {
+        // Jika belum mulai, return strip
         if (is_null($this->waktu_mulai_proses)) return '-';
-        $waktuAkhir = $this->waktu_selesai_proses ?? Carbon::now();
+
+        // Tentukan waktu akhir perhitungan
+        if ($this->waktu_selesai_proses) {
+            // Jika ada waktu selesai, gunakan itu (STOP TIMER)
+            $waktuAkhir = $this->waktu_selesai_proses;
+        } elseif (in_array($this->status, ['Selesai', 'Ditutup'])) {
+            // Jika status Selesai tapi kolom waktu_selesai_proses kosong (data lama),
+            // gunakan updated_at sebagai fallback agar timer berhenti.
+            $waktuAkhir = $this->updated_at;
+        } else {
+            // Jika masih diproses, gunakan waktu sekarang (TIMER JALAN)
+            $waktuAkhir = Carbon::now();
+        }
+
+        // Return format human readable (contoh: "3 hari", "2 jam")
         return $this->waktu_mulai_proses->diffForHumans($waktuAkhir, true);
     }
 
@@ -106,11 +121,24 @@ class Berkas extends Model
         return null;
     }
 
+    /**
+     * Menghitung sisa waktu / keterlambatan.
+     * [FIX] Return 'Selesai' jika berkas sudah rampung.
+     */
     public function getSisaWaktuAttribute(): string
     {
+        // Jika berkas sudah selesai/ditutup, tidak perlu hitung sisa waktu
+        if (in_array($this->status, ['Selesai', 'Ditutup'])) {
+            return 'Selesai'; 
+        }
+
         $jatuhTempo = $this->getJatuhTempoAttribute();
-        if (is_null($jatuhTempo) || $this->status !== 'Diproses') return '-';
+        
+        // Jika belum ada jatuh tempo atau status bukan Diproses/Pending
+        if (is_null($jatuhTempo)) return '-';
+
         $now = Carbon::now();
+        
         return $now->greaterThan($jatuhTempo) 
             ? 'Lewat ' . $jatuhTempo->diffForHumans($now, true) 
             : 'Sisa ' . $now->diffForHumans($jatuhTempo, true);

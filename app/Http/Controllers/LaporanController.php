@@ -44,19 +44,19 @@ class LaporanController extends Controller
                         });
                     },
 
-                    // 3. [BARU] Berkas Sedang Diproses (Status: Diproses)
+                    // 3. Berkas Sedang Diproses (Status: Diproses)
                     'berkasDiTangan as berkas_proses' => function ($q) use ($tahun) {
                         $q->where('status', 'Diproses')
                           ->where('tahun', $tahun);
                     },
 
-                    // 4. [BARU] Berkas Pending/Ditunda (Status: Pending)
+                    // 4. Berkas Pending/Ditunda (Status: Pending)
                     'berkasDiTangan as berkas_pending' => function ($q) use ($tahun) {
                         $q->where('status', 'Pending')
                           ->where('tahun', $tahun);
                     },
 
-                    // 5. [BARU] Berkas Jatuh Tempo
+                    // 5. Berkas Jatuh Tempo
                     // Logic: Status aktif (Diproses/Pending) DAN Waktu Sekarang > (Waktu Mulai + Timeline)
                     'berkasDiTangan as berkas_jatuh_tempo' => function ($q) use ($tahun) {
                         $q->whereIn('status', ['Diproses', 'Pending'])
@@ -141,7 +141,7 @@ class LaporanController extends Controller
                               ->where('status', '!=', 'Ditutup');
                         });
                     },
-                    // 3. Sisa Berkas (Masih pakai 'Sisa' untuk monitor global, atau bisa dipecah jika perlu)
+                    // 3. Sisa Berkas (Hanya yang statusnya aktif)
                     'berkasDiTangan as sisa_berkas' => function ($q) use ($tahun) {
                         $q->whereIn('status', ['Diproses', 'Pending'])
                           ->where('tahun', $tahun);
@@ -178,55 +178,60 @@ class LaporanController extends Controller
     {
         $tahun = $request->input('tahun', date('Y'));
 
-        // 1. Ambil Berkas yang Sedang Diproses (Di Tangan User)
-        $daftarBerkas = $user->berkasDiTangan()
+        // 1. Ambil SEMUA Berkas yang ada di Tangan User saat ini
+        $allBerkasDiTangan = $user->berkasDiTangan()
             ->where('tahun', $tahun)
             ->with('jenisPermohonan')
             ->latest()
             ->get();
 
-        // 2. Ambil Riwayat Berkas yang Sudah Selesai (Dikirim oleh User)
-        $berkasKeluar = $user->riwayatDikirim()
+        // 2. [FIX] PISAHKAN: Daftar Berkas Aktif (Hanya Diproses/Pending)
+        // Ini untuk tabel "Sedang Dikerjakan". Filter ini memastikan status 'Selesai' tidak masuk sini.
+        $daftarBerkas = $allBerkasDiTangan->filter(function ($item) {
+            return !in_array($item->status, ['Selesai', 'Ditutup']);
+        });
+
+        // 3. [FIX] PISAHKAN: Berkas Selesai tapi masih dipegang user
+        // Kasus: Petugas Penyerahan sudah klik 'Selesai', tapi belum dikirim ke Arsip/Pemohon.
+        // Data ini akan digabung ke tabel Riwayat.
+        $berkasSelesaiDiTangan = $allBerkasDiTangan->filter(function ($item) {
+            return in_array($item->status, ['Selesai', 'Ditutup']);
+        });
+
+        // 4. Ambil Riwayat Berkas yang SUDAH DIKIRIM (History Murni)
+        $riwayatDikirim = $user->riwayatDikirim()
             ->whereHas('berkas', function ($q) use ($tahun) {
-                $q->where('tahun', $tahun)
-                  ->where('status', '!=', 'Ditutup');
+                $q->where('tahun', $tahun);
             })
             ->with(['berkas.jenisPermohonan', 'keUser.jabatan'])
             ->latest()
             ->get();
 
-        // 3. Hitung Statistik Pelengkap
+        // 5. Hitung Statistik Pelengkap
         $totalMasuk = $user->riwayatDiterima()
             ->whereHas('berkas', function ($q) use ($tahun) {
-                $q->where('tahun', $tahun)
-                  ->where('status', '!=', 'Ditutup');
+                $q->where('tahun', $tahun);
             })->count();
             
-        $totalKeluar = $berkasKeluar->count();
+        // Total Keluar = Riwayat Kirim + Berkas Selesai yang masih dipegang
+        $totalKeluar = $riwayatDikirim->count() + $berkasSelesaiDiTangan->count();
         $sisaBerkas = $daftarBerkas->count();
 
-        // 4. Hitung Persentase Penyelesaian
+        // 6. Hitung Persentase Penyelesaian
         $totalBebanKerja = $totalKeluar + $sisaBerkas;
         $persentasePenyelesaian = $totalBebanKerja > 0 
             ? round(($totalKeluar / $totalBebanKerja) * 100, 1) 
             : 0;
 
-        // 5. Logika Durasi
-        foreach ($daftarBerkas as $berkas) {
-            $riwayatPembayaran = $berkas->riwayat()
-                ->whereHas('dariUser.jabatan', function ($query) {
-                    $query->where('nama_jabatan', 'Petugas Loket Pembayaran');
-                })
-                ->orderBy('waktu_kirim', 'asc')
-                ->first();
-            
-            $berkas->waktu_mulai_argo = $riwayatPembayaran ? $riwayatPembayaran->waktu_kirim : $berkas->created_at;
-        }
+        // [FIX] HAPUS LOGIKA MANUAL DURASI (Loop foreach dihapus)
+        // Biarkan View menggunakan Accessor Model ($berkas->lama_proses_formatted)
+        // agar konsisten dengan status Selesai.
 
         return view('laporan.show_berkas_by_user', [
             'petugas' => $user,
-            'daftarBerkas' => $daftarBerkas,
-            'berkasKeluar' => $berkasKeluar,
+            'daftarBerkas' => $daftarBerkas, // Hanya yang benar-benar aktif
+            'berkasSelesaiDiTangan' => $berkasSelesaiDiTangan, // Selesai tapi belum pindah
+            'berkasKeluar' => $riwayatDikirim, // Sudah pindah tangan
             'totalMasuk' => $totalMasuk,
             'totalKeluar' => $totalKeluar,
             'sisaBerkas' => $sisaBerkas,

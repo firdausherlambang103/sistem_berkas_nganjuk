@@ -36,22 +36,24 @@
                         <p class="text-xs text-gray-400 mt-2 font-medium">Penyelesaian: {{ $persentasePenyelesaian }}%</p>
                     </div>
 
-                    {{-- Perhitungan Statistik Real-time (Blade Logic) --}}
+                    {{-- Perhitungan Statistik Real-time --}}
                     @php
-                        // Filter manual collection untuk mendapatkan angka pecahan
+                        // Filter manual collection
                         $jmlProses = $daftarBerkas->where('status', 'Diproses')->count();
                         $jmlPending = $daftarBerkas->where('status', 'Pending')->count();
                         
-                        // Hitung Jatuh Tempo (Logic: Tanggal Mulai + Timeline < Sekarang)
+                        // Hitung Jatuh Tempo (HANYA DARI BERKAS AKTIF)
+                        // Karena Controller sudah memfilter status 'Selesai', kita cukup cek now() vs deadline
                         $jmlJatuhTempo = $daftarBerkas->filter(function ($item) {
                             if (!$item->jenisPermohonan) return false;
                             
                             $timeline = $item->jenisPermohonan->waktu_timeline_hari;
+                            // Gunakan waktu_mulai_proses, jika null pakai created_at
                             $mulai = $item->waktu_mulai_proses ? \Carbon\Carbon::parse($item->waktu_mulai_proses) : $item->created_at;
                             $deadline = $mulai->copy()->addDays($timeline);
                             
-                            // Hanya hitung jika statusnya aktif (Diproses/Pending) dan sudah lewat deadline
-                            return in_array($item->status, ['Diproses', 'Pending']) && now()->greaterThan($deadline);
+                            // Cek apakah sekarang sudah melewati deadline
+                            return now()->greaterThan($deadline);
                         })->count();
                     @endphp
 
@@ -93,14 +95,14 @@
                         <div class="bg-green-50 rounded-xl p-4 border border-green-100 flex flex-col justify-between">
                             <div class="text-green-600 text-xs font-bold uppercase tracking-wide">Selesai</div>
                             <div class="text-3xl font-black text-green-800 mt-2">{{ $totalKeluar }}</div>
-                            <div class="text-[10px] text-green-500 mt-1">Berkas dikirim</div>
+                            <div class="text-[10px] text-green-500 mt-1">Berkas diselesaikan</div>
                         </div>
 
                     </div>
                 </div>
             </div>
 
-            {{-- 2. TABEL: SEDANG DIKERJAKAN --}}
+            {{-- 2. TABEL: SEDANG DIKERJAKAN (Murni Aktif) --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
                     <h3 class="font-bold text-indigo-900 flex items-center gap-2">
@@ -116,21 +118,23 @@
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Berkas</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Jenis & Hak</th>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Timeline</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Timeline / Durasi</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($daftarBerkas as $berkas)
                                 @php
-                                    // Logic Timeline Per Baris
+                                    // 1. Ambil Timeline & Waktu Mulai
                                     $timeline = $berkas->jenisPermohonan->waktu_timeline_hari ?? 0;
                                     $waktuMulai = $berkas->waktu_mulai_proses ? \Carbon\Carbon::parse($berkas->waktu_mulai_proses) : $berkas->created_at;
                                     $deadline = $waktuMulai->copy()->addDays($timeline);
-                                    $sisaHari = now()->diffInDays($deadline, false); // False = bisa negatif
+                                    
+                                    // 2. Karena ini tabel aktif, pembanding selalu NOW()
+                                    $sisaHari = now()->diffInDays($deadline, false); 
                                     $isJatuhTempo = $sisaHari < 0;
                                     
-                                    // Row Class untuk warning
+                                    // Styling Baris
                                     $rowClass = $isJatuhTempo ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50';
                                 @endphp
 
@@ -152,7 +156,7 @@
                                     {{-- Kolom 2: Jenis Hak --}}
                                     <td class="px-6 py-4">
                                         <span class="block text-sm text-gray-700 font-medium">
-                                            {{ optional($berkas->jenisPermohonan)->nama_jenis_permohonan ?? '-' }}
+                                            {{ optional($berkas->jenisPermohonan)->nama_permohonan ?? '-' }}
                                         </span>
                                         <span class="inline-block mt-1 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded border border-gray-200 font-mono">
                                             {{ $berkas->nomer_hak }}
@@ -178,25 +182,22 @@
 
                                     {{-- Kolom 4: Timeline / Sisa Waktu --}}
                                     <td class="px-6 py-4 text-center">
-                                        @if($isJatuhTempo)
-                                            <div class="flex flex-col items-center">
+                                        <div class="flex flex-col items-center">
+                                            @if($isJatuhTempo)
                                                 <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded border border-red-200">
                                                     Terlambat {{ abs(intval($sisaHari)) }} Hari
                                                 </span>
-                                                <span class="text-[10px] text-red-400 mt-1">
-                                                    Target: {{ $deadline->format('d/m/Y') }}
-                                                </span>
-                                            </div>
-                                        @else
-                                            <div class="flex flex-col items-center">
+                                            @else
                                                 <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded border border-green-200">
                                                     Sisa {{ intval($sisaHari) }} Hari
                                                 </span>
-                                                <span class="text-[10px] text-gray-400 mt-1">
-                                                    Target: {{ $deadline->format('d/m/Y') }}
-                                                </span>
-                                            </div>
-                                        @endif
+                                            @endif
+                                            
+                                            {{-- Tampilkan Durasi Berjalan --}}
+                                            <span class="text-[10px] text-gray-500 font-mono mt-1">
+                                                Berjalan: {{ $berkas->lama_proses_formatted }}
+                                            </span>
+                                        </div>
                                     </td>
 
                                     {{-- Kolom 5: Aksi --}}
@@ -221,12 +222,13 @@
                 </div>
             </div>
 
-            {{-- 3. TABEL: RIWAYAT SELESAI (Collapsible / Terpisah) --}}
+            {{-- 3. TABEL: RIWAYAT SELESAI (Menggabungkan 'Dikirim' + 'Selesai di Tempat') --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" x-data="{ open: false }">
                 <div class="bg-green-50 px-6 py-4 border-b border-green-100 flex justify-between items-center cursor-pointer hover:bg-green-100 transition-colors" @click="open = !open">
                     <h3 class="font-bold text-green-900 flex items-center gap-2">
                         <i class="fa-solid fa-check-circle"></i> Riwayat Pekerjaan Selesai
-                        <span class="bg-white text-green-600 text-xs py-0.5 px-2.5 rounded-full shadow-sm ml-2">{{ $berkasKeluar->count() }}</span>
+                        {{-- Hitung Total Selesai: (History + Di Tempat) --}}
+                        <span class="bg-white text-green-600 text-xs py-0.5 px-2.5 rounded-full shadow-sm ml-2">{{ $berkasKeluar->count() + $berkasSelesaiDiTangan->count() }}</span>
                     </h3>
                     <i class="fa-solid fa-chevron-down text-green-600 transition-transform duration-300" :class="{'rotate-180': open}"></i>
                 </div>
@@ -238,12 +240,35 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">No. Berkas</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pemohon & Hak</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Dikirim Ke</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status / Dikirim Ke</th>
                                     <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Tanggal Selesai</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse($berkasKeluar as $histori)
+                                
+                                {{-- A. Tampilkan Berkas Selesai yang masih di tangan --}}
+                                @foreach($berkasSelesaiDiTangan as $bs)
+                                    <tr class="hover:bg-green-50/50 transition-colors border-l-4 border-green-400">
+                                        <td class="px-6 py-3 whitespace-nowrap text-sm font-bold text-gray-700">
+                                            {{ $bs->nomer_berkas }}
+                                        </td>
+                                        <td class="px-6 py-3">
+                                            <div class="text-sm text-gray-900">{{ $bs->nama_pemohon }}</div>
+                                            <div class="text-xs text-gray-500">{{ $bs->nomer_hak }}</div>
+                                        </td>
+                                        <td class="px-6 py-3">
+                                            <span class="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded">
+                                                <i class="fa-solid fa-check mr-1"></i> Selesai (Menunggu Diserahkan)
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-3 text-right whitespace-nowrap text-sm text-gray-500">
+                                            {{ $bs->updated_at->format('d/m/Y H:i') }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+
+                                {{-- B. Tampilkan Riwayat Kiriman (History Normal) --}}
+                                @foreach($berkasKeluar as $histori)
                                     <tr class="hover:bg-gray-50 transition-colors">
                                         <td class="px-6 py-3 whitespace-nowrap text-sm font-bold text-gray-700">
                                             {{ $histori->berkas->nomer_berkas ?? '-' }}
@@ -255,20 +280,22 @@
                                         <td class="px-6 py-3">
                                             <span class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
                                                 <i class="fa-solid fa-paper-plane mr-1"></i>
-                                                {{ optional($histori->keUser)->name ?? 'Selesai' }}
+                                                {{ optional($histori->keUser)->name ?? 'Dikirim' }}
                                             </span>
                                         </td>
                                         <td class="px-6 py-3 text-right whitespace-nowrap text-sm text-gray-500">
                                             {{ $histori->created_at->format('d/m/Y H:i') }}
                                         </td>
                                     </tr>
-                                @empty
+                                @endforeach
+
+                                @if($berkasSelesaiDiTangan->isEmpty() && $berkasKeluar->isEmpty())
                                     <tr>
                                         <td colspan="4" class="px-6 py-8 text-center text-gray-500 italic">
                                             Belum ada riwayat pekerjaan selesai tahun ini.
                                         </td>
                                     </tr>
-                                @endforelse
+                                @endif
                             </tbody>
                         </table>
                     </div>

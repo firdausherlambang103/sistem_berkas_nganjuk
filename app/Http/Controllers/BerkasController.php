@@ -89,7 +89,9 @@ class BerkasController extends Controller
                     'status' => 'Diproses',
                     'status_pengiriman' => 'Diterima',
                     'pengirim_id' => $currentUser->id, // Pengirim awal adalah pembuat
-                    'waktu_mulai_proses' => now(),
+                    
+                    // [UPDATED] Waktu proses belum dimulai saat pembuatan awal
+                    'waktu_mulai_proses' => null, 
                 ]);
 
                 // 3. Catat Riwayat Pembuatan
@@ -237,6 +239,14 @@ class BerkasController extends Controller
             DB::transaction(function () use ($request) {
                 $berkasIds = explode(',', $request->berkas_ids);
                 $pengirim = Auth::user();
+                
+                // [UPDATED] Ambil jabatan pengirim untuk logika timer
+                $jabatanPengirim = optional($pengirim->jabatan)->nama_jabatan;
+                $jabatanPemicuTimer = [
+                    'Petugas Loket Pembayaran', 
+                    'Petugas Loket Alih Media'
+                ];
+
                 $berkasDikirimCount = 0;
 
                 foreach ($berkasIds as $id) {
@@ -251,6 +261,12 @@ class BerkasController extends Controller
                     $berkas->status_pengiriman = 'Dikirim';
                     $berkas->pengirim_id = $pengirim->id;
                     $berkas->penerima_id = $request->tujuan_user_id;
+                    
+                    // [UPDATED] Logika Mulai Proses: Timer berjalan saat dikirim oleh loket pembayaran/alih media
+                    if (in_array($jabatanPengirim, $jabatanPemicuTimer) && is_null($berkas->waktu_mulai_proses)) {
+                        $berkas->waktu_mulai_proses = now();
+                    }
+
                     $berkas->save();
 
                     // Catat Riwayat
@@ -407,9 +423,13 @@ class BerkasController extends Controller
         }
 
         $berkas->status = 'Diproses';
-        if (is_null($berkas->waktu_mulai_proses)) {
-            $berkas->waktu_mulai_proses = now();
-        }
+        
+        // [UPDATED] Menghapus auto-set waktu_mulai_proses di sini 
+        // agar tetap mengikuti aturan "setelah loket pembayaran".
+        // if (is_null($berkas->waktu_mulai_proses)) {
+        //    $berkas->waktu_mulai_proses = now();
+        // }
+        
         $berkas->save();
 
         RiwayatBerkas::create([
