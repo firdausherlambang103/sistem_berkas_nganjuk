@@ -22,25 +22,24 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-         $this->registerPolicies();
-
-        // --- TAMBAHKAN KODE DI BAWAH INI ---
+        $this->registerPolicies();
 
         /**
          * Mendefinisikan Gate 'create-berkas'.
-         * Gate ini akan mengembalikan true HANYA JIKA jabatan user adalah 'Loket'.
+         * Gate ini mengizinkan: Admin, Petugas Loket, ATAU user yang diberi akses 'buat_berkas' oleh admin.
          */
         Gate::define('create-berkas', function (User $user) {
-            // Kita gunakan optional() untuk mencegah error jika user belum punya jabatan
-            return str_starts_with(optional($user->jabatan)->nama_jabatan ?? '', 'Petugas Loket');
+            return (optional($user->jabatan)->is_admin) || 
+                   str_starts_with(optional($user->jabatan)->nama_jabatan ?? '', 'Petugas Loket') || 
+                   $user->hasMenuAccess('buat_berkas');
         });
 
         /**
          * GATE BARU: Gate untuk user yang boleh mengelola (edit/hapus) berkas.
-         * Hanya user dengan jabatan 'Administrator' yang diizinkan.
+         * Hanya user dengan jabatan Admin / 'Administrator' yang diizinkan.
          */
         Gate::define('manage-berkas', function (User $user) {
-            return optional($user->jabatan)->nama_jabatan === 'Administrator';
+            return optional($user->jabatan)->is_admin || optional($user->jabatan)->nama_jabatan === 'Administrator';
         });
     }
 }

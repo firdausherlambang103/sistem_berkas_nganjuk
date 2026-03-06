@@ -11,7 +11,6 @@
     <div class="py-12">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                {{-- TAMBAHKAN KODE INI UNTUK MENAMPILKAN PESAN ERROR/SUKSES --}}
                 @if (session('success'))
                     <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative m-6 mb-0" role="alert">
                         <strong class="font-bold">Berhasil!</strong>
@@ -31,7 +30,6 @@
                         
                         {{-- ================= KOLOM KIRI (DATA BERKAS) ================= --}}
                         <div class="space-y-6">
-                        {{-- BARIS BARU: TAHUN & NOMER BERKAS --}}
                             <div class="grid grid-cols-3 gap-4">
                                 {{-- Input Tahun --}}
                                 <div class="col-span-1">
@@ -40,10 +38,19 @@
                                     <x-input-error :messages="$errors->get('tahun')" class="mt-2" />
                                 </div>
 
-                                {{-- Input Nomer Berkas --}}
+                                {{-- [DIUBAH] Input Nomer Berkas --}}
                                 <div class="col-span-2">
-                                    <x-input-label for="nomer_berkas" value="Nomer Berkas" />
-                                    <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="mt-1 block w-full" :value="old('nomer_berkas')" required autofocus />
+                                    <x-input-label for="nomer_berkas" value="Nomer Berkas (Kode)" />
+                                    @php
+                                        // Jika error validasi gagal, pakai isian lama. 
+                                        // Jika tidak error & ini mitra, pakai kode generated. 
+                                        // Jika bukan mitra, kosongkan.
+                                        $defaultNomer = old('nomer_berkas') ?? ($isMitra ? $generatedCode : '');
+                                    @endphp
+                                    <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="mt-1 block w-full {{ $isMitra ? 'bg-indigo-50 font-mono font-bold text-indigo-700 tracking-widest' : '' }}" :value="$defaultNomer" required autofocus />
+                                    @if($isMitra)
+                                        <p class="text-[10px] text-gray-500 mt-1">*Kode acak di-generate otomatis untuk Anda. Bisa diubah jika perlu.</p>
+                                    @endif
                                     <x-input-error :messages="$errors->get('nomer_berkas')" class="mt-2" />
                                 </div>
                             </div>
@@ -99,7 +106,6 @@
                         {{-- ================= KOLOM KANAN (LOKASI & KONTAK) ================= --}}
                         <div class="space-y-6">
                             
-                            {{-- [MODIFIKASI] Input Status Buku Tanah --}}
                             <div>
                                 <x-input-label for="status_buku_tanah" value="Status Sertipikat / Buku Tanah" />
                                 <select id="status_buku_tanah" name="status_buku_tanah" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
@@ -112,7 +118,6 @@
                                 <p class="text-xs text-gray-500 mt-1">*Pilih "Sertipikat Analog" jika memerlukan peminjaman buku tanah di arsip.</p>
                             </div>
 
-                            {{-- Input Kecamatan --}}
                             <div>
                                 <x-input-label for="kecamatan" value="Kecamatan" />
                                 <select id="kecamatan" name="kecamatan" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
@@ -126,7 +131,6 @@
                                 <x-input-error :messages="$errors->get('kecamatan')" class="mt-2" />
                             </div>
 
-                            {{-- Input Desa --}}
                             <div>
                                 <x-input-label for="desa" value="Desa" />
                                 <select id="desa" name="desa" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required disabled>
@@ -135,69 +139,77 @@
                                 <x-input-error :messages="$errors->get('desa')" class="mt-2" />
                             </div>
 
-                            {{-- Input Nomer WA --}}
+                            {{-- [DIUBAH] Input Nomer WA --}}
                             <div>
                                 <x-input-label for="nomer_wa" value="Nomer WhatsApp (Kontak yang bisa dihubungi)" />
-                                <x-text-input id="nomer_wa" name="nomer_wa" type="text" class="mt-1 block w-full bg-gray-50" :value="old('nomer_wa')" placeholder="Otomatis terisi jika pilih kuasa..." />
+                                @php
+                                    $defaultWa = old('nomer_wa') ?? ($isMitra ? $user->nomer_wa : '');
+                                @endphp
+                                <x-text-input id="nomer_wa" name="nomer_wa" type="text" class="mt-1 block w-full bg-gray-50" :value="$defaultWa" placeholder="Otomatis terisi jika pilih kuasa..." />
                                 <x-input-error :messages="$errors->get('nomer_wa')" class="mt-2" />
                             </div>
 
-                            {{-- ================= BAGIAN PENERIMA KUASA (QUICK ADD) ================= --}}
-                            <div class="pt-4 border-t border-gray-200 mt-4" x-data="{ showQuickAdd: false }">
-                                <div class="flex justify-between items-center mb-2">
-                                    <x-input-label for="penerima_kuasa_id" value="Penerima Kuasa (Opsional)" />
-                                    
-                                    {{-- Tombol Toggle Quick Add --}}
-                                    <button type="button" @click="showQuickAdd = !showQuickAdd" class="text-xs text-indigo-600 hover:text-indigo-900 font-bold focus:outline-none">
-                                        <i class="fa-solid fa-plus-circle"></i> Tambah Kuasa Baru
-                                    </button>
-                                </div>
-
-                                {{-- FORM QUICK ADD (AJAX) --}}
-                                <div x-show="showQuickAdd" x-transition class="mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm" style="display: none;">
-                                    <h4 class="text-sm font-bold text-indigo-800 mb-2">Entri Kuasa Baru (Cepat)</h4>
-                                    <div class="grid grid-cols-1 gap-3 mb-3">
+                            {{-- ================= BAGIAN PENERIMA KUASA ================= --}}
+                            <div class="pt-4 border-t border-gray-200 mt-4">
+                                @if($isMitra)
+                                    {{-- JIKA MITRA: Tampilkan text statis, jangan kirim ID kuasa karena mereka belum tentu ada di tabel penerima_kuasas --}}
+                                    <x-input-label value="Penerima Kuasa / Pengaju" />
+                                    <div class="mt-1 p-3 bg-gray-100 border border-gray-300 rounded-md shadow-sm flex items-center">
+                                        <i class="fa-solid fa-user-tie text-gray-500 mr-3"></i>
                                         <div>
-                                            <input type="text" id="new_kode_kuasa" class="block w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Kode (Mis: K-005)">
-                                        </div>
-                                        <div>
-                                            <input type="text" id="new_nama_kuasa" class="block w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Nama Lengkap Kuasa">
-                                        </div>
-                                        <div>
-                                            <input type="text" id="new_nomer_wa" class="block w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="No. WA (08xxx)">
+                                            <p class="font-bold text-gray-800 text-sm">{{ $user->name }}</p>
+                                            <p class="text-xs text-gray-500">Otomatis didaftarkan atas nama Anda sebagai {{ $user->jabatan->nama_jabatan }}.</p>
                                         </div>
                                     </div>
-                                    <div class="flex justify-end gap-2">
-                                        <button type="button" @click="showQuickAdd = false" class="text-xs text-gray-500 hover:text-gray-700 font-medium">Batal</button>
-                                        <button type="button" id="btn-simpan-kuasa" class="bg-indigo-600 text-white text-xs px-3 py-2 rounded-md hover:bg-indigo-700 font-bold shadow-sm transition ease-in-out duration-150">Simpan & Pilih</button>
-                                    </div>
-                                    <p id="quick-add-error" class="text-xs text-red-600 mt-2 font-bold hidden"></p>
-                                </div>
+                                    {{-- Opsional: Kirim null untuk penerima_kuasa_id, karena kita bisa identifikasi mitra dari user_id pembuat --}}
+                                    <input type="hidden" name="penerima_kuasa_id" value=""> 
 
-                                {{-- DROPDOWN SELECT KUASA --}}
-                                <select id="penerima_kuasa_id" name="penerima_kuasa_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                                    <option value="" data-wa="">-- Tanpa Kuasa (Pemohon Langsung) --</option>
-                                    @if(isset($penerimaKuasas))
-                                        @foreach ($penerimaKuasas as $kuasa)
-                                            <option value="{{ $kuasa->id }}" 
-                                                    data-wa="{{ $kuasa->nomer_wa }}" 
-                                                    {{ old('penerima_kuasa_id') == $kuasa->id ? 'selected' : '' }}>
-                                                {{ $kuasa->nama_kuasa }} ({{ $kuasa->kode_kuasa }})
-                                            </option>
-                                        @endforeach
-                                    @endif
-                                </select>
-                                <x-input-error :messages="$errors->get('penerima_kuasa_id')" class="mt-2" />
+                                @else
+                                    {{-- JIKA BUKAN MITRA: Tampilkan dropdown normal + AJAX --}}
+                                    <div x-data="{ showQuickAdd: false }">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <x-input-label for="penerima_kuasa_id" value="Penerima Kuasa (Opsional)" />
+                                            <button type="button" @click="showQuickAdd = !showQuickAdd" class="text-xs text-indigo-600 hover:text-indigo-900 font-bold focus:outline-none">
+                                                <i class="fa-solid fa-plus-circle"></i> Tambah Kuasa Baru
+                                            </button>
+                                        </div>
+
+                                        {{-- FORM QUICK ADD --}}
+                                        <div x-show="showQuickAdd" x-transition class="mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm" style="display: none;">
+                                            <h4 class="text-sm font-bold text-indigo-800 mb-2">Entri Kuasa Baru (Cepat)</h4>
+                                            <div class="grid grid-cols-1 gap-3 mb-3">
+                                                <div><input type="text" id="new_kode_kuasa" class="block w-full text-sm border-gray-300 rounded-md" placeholder="Kode (Mis: K-005)"></div>
+                                                <div><input type="text" id="new_nama_kuasa" class="block w-full text-sm border-gray-300 rounded-md" placeholder="Nama Lengkap Kuasa"></div>
+                                                <div><input type="text" id="new_nomer_wa" class="block w-full text-sm border-gray-300 rounded-md" placeholder="No. WA (08xxx)"></div>
+                                            </div>
+                                            <div class="flex justify-end gap-2">
+                                                <button type="button" @click="showQuickAdd = false" class="text-xs text-gray-500 font-medium">Batal</button>
+                                                <button type="button" id="btn-simpan-kuasa" class="bg-indigo-600 text-white text-xs px-3 py-2 rounded-md font-bold">Simpan & Pilih</button>
+                                            </div>
+                                            <p id="quick-add-error" class="text-xs text-red-600 mt-2 font-bold hidden"></p>
+                                        </div>
+
+                                        <select id="penerima_kuasa_id" name="penerima_kuasa_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                            <option value="" data-wa="">-- Tanpa Kuasa (Pemohon Langsung) --</option>
+                                            @if(isset($penerimaKuasas))
+                                                @foreach ($penerimaKuasas as $kuasa)
+                                                    <option value="{{ $kuasa->id }}" data-wa="{{ $kuasa->nomer_wa }}" {{ old('penerima_kuasa_id') == $kuasa->id ? 'selected' : '' }}>
+                                                        {{ $kuasa->nama_kuasa }} ({{ $kuasa->kode_kuasa }})
+                                                    </option>
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                        <x-input-error :messages="$errors->get('penerima_kuasa_id')" class="mt-2" />
+                                    </div>
+                                @endif
                             </div>
-                            {{-- ================= END BAGIAN KUASA ================= --}}
-
                         </div>
                     </div>
                     
                     {{-- Input Catatan --}}
                     <div class="mt-6">
-                        <x-input-label for="catatan" value="Catatan (Opsional)" />
-                        <textarea id="catatan" name="catatan" rows="4" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">{{ old('catatan') }}</textarea>
+                        <x-input-label for="catatan" value="Catatan Tambahan (Opsional)" />
+                        <textarea id="catatan" name="catatan" rows="3" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">{{ old('catatan') }}</textarea>
                         <x-input-error :messages="$errors->get('catatan')" class="mt-2" />
                     </div>
 
@@ -215,9 +227,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
-            // ==========================================
             // 1. LOGIKA WILAYAH (KECAMATAN -> DESA)
-            // ==========================================
             const kecamatanSelect = document.getElementById('kecamatan');
             const desaSelect = document.getElementById('desa');
             const oldDesa = "{{ old('desa') }}";
@@ -228,7 +238,6 @@
                     desaSelect.disabled = true;
                     return;
                 }
-                
                 const kecamatanId = selectedOption.dataset.id;
                 desaSelect.innerHTML = '<option value="" disabled selected>Memuat...</option>';
                 desaSelect.disabled = true;
@@ -264,110 +273,76 @@
                 loadDesa(selectedOption);
             }
 
-            // ==========================================
-            // 2. LOGIKA AUTO-FILL NOMER WA KUASA
-            // ==========================================
+            // 2. LOGIKA AUTO-FILL WA (Hanya berjalan jika dropdown kuasa ada - Bukan Mitra)
             const selectKuasa = document.getElementById('penerima_kuasa_id');
             const inputWa = document.getElementById('nomer_wa');
-
-            selectKuasa.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const waNumber = selectedOption.getAttribute('data-wa');
-                
-                if (waNumber) {
-                    inputWa.value = waNumber;
-                    // Efek visual highlight
-                    inputWa.classList.add('bg-yellow-100');
-                    setTimeout(() => inputWa.classList.remove('bg-yellow-100'), 800);
-                } else {
-                    // Jika pilih "Tanpa Kuasa", jangan hapus input WA jika user sudah mengetik manual sebelumnya
-                    // Kecuali jika input WA sama dengan nilai lama dari kuasa sebelumnya.
-                    // Untuk amannya, kita biarkan saja atau kosongkan sesuai preferensi. 
-                    // Di sini kita kosongkan jika inputnya readonly/kosong.
-                }
-            });
-
-            // ==========================================
-            // 3. LOGIKA QUICK ADD KUASA (AJAX)
-            // ==========================================
-            const btnSimpan = document.getElementById('btn-simpan-kuasa');
-            const errorMsg = document.getElementById('quick-add-error');
-
-            btnSimpan.addEventListener('click', function() {
-                const kode = document.getElementById('new_kode_kuasa').value;
-                const nama = document.getElementById('new_nama_kuasa').value;
-                const wa = document.getElementById('new_nomer_wa').value;
-
-                errorMsg.classList.add('hidden');
-                errorMsg.innerText = '';
-
-                // Validasi Client Side
-                if(!kode || !nama || !wa) {
-                    errorMsg.innerText = 'Semua kolom (Kode, Nama, WA) wajib diisi!';
-                    errorMsg.classList.remove('hidden');
-                    return;
-                }
-
-                // UI Loading State
-                const originalText = btnSimpan.innerText;
-                btnSimpan.disabled = true;
-                btnSimpan.innerText = 'Menyimpan...';
-
-                // AJAX Request
-                fetch("{{ route('berkas.store-kuasa-ajax') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        kode_kuasa_baru: kode,
-                        nama_kuasa_baru: nama,
-                        nomer_wa_baru: wa
-                    })
-                })
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.message || 'Terjadi kesalahan validasi.');
+            if(selectKuasa) {
+                selectKuasa.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const waNumber = selectedOption.getAttribute('data-wa');
+                    if (waNumber) {
+                        inputWa.value = waNumber;
+                        inputWa.classList.add('bg-yellow-100');
+                        setTimeout(() => inputWa.classList.remove('bg-yellow-100'), 800);
                     }
-                    return data;
-                })
-                .then(result => {
-                    if (result.success) {
-                        // 1. Tambahkan Option baru ke Select
-                        const newOption = new Option(`${result.data.nama_kuasa} (${result.data.kode_kuasa})`, result.data.id);
-                        newOption.setAttribute('data-wa', result.data.nomer_wa);
-                        selectKuasa.add(newOption, undefined);
-                        
-                        // 2. Pilih Option tersebut
-                        selectKuasa.value = result.data.id;
-
-                        // 3. Trigger change agar WA terisi otomatis
-                        selectKuasa.dispatchEvent(new Event('change'));
-
-                        // 4. Reset Form
-                        document.getElementById('new_kode_kuasa').value = '';
-                        document.getElementById('new_nama_kuasa').value = '';
-                        document.getElementById('new_nomer_wa').value = '';
-
-                        // 5. Beritahu user & Tutup Form (Optional: klik tombol toggle lagi via JS)
-                        alert('Penerima Kuasa berhasil ditambahkan dan dipilih!');
-                        // Opsional: Sembunyikan form
-                        // document.querySelector('[x-data]').__x.$data.showQuickAdd = false; // Cara akses Alpine dari luar agak tricky, biarkan user menutup manual atau gunakan alert.
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    errorMsg.innerText = error.message;
-                    errorMsg.classList.remove('hidden');
-                })
-                .finally(() => {
-                    btnSimpan.disabled = false;
-                    btnSimpan.innerText = originalText;
                 });
-            });
+
+                // 3. LOGIKA QUICK ADD (AJAX)
+                const btnSimpan = document.getElementById('btn-simpan-kuasa');
+                if(btnSimpan){
+                    btnSimpan.addEventListener('click', function() {
+                        const kode = document.getElementById('new_kode_kuasa').value;
+                        const nama = document.getElementById('new_nama_kuasa').value;
+                        const wa = document.getElementById('new_nomer_wa').value;
+                        const errorMsg = document.getElementById('quick-add-error');
+
+                        errorMsg.classList.add('hidden');
+                        
+                        if(!kode || !nama || !wa) {
+                            errorMsg.innerText = 'Semua kolom wajib diisi!';
+                            errorMsg.classList.remove('hidden');
+                            return;
+                        }
+
+                        const originalText = btnSimpan.innerText;
+                        btnSimpan.disabled = true;
+                        btnSimpan.innerText = 'Menyimpan...';
+
+                        fetch("{{ route('berkas.store-kuasa-ajax') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ kode_kuasa_baru: kode, nama_kuasa_baru: nama, nomer_wa_baru: wa })
+                        })
+                        .then(async response => {
+                            const data = await response.json();
+                            if (!response.ok) throw new Error(data.message || 'Terjadi kesalahan.');
+                            return data;
+                        })
+                        .then(result => {
+                            if (result.success) {
+                                const newOption = new Option(`${result.data.nama_kuasa} (${result.data.kode_kuasa})`, result.data.id);
+                                newOption.setAttribute('data-wa', result.data.nomer_wa);
+                                selectKuasa.add(newOption, undefined);
+                                selectKuasa.value = result.data.id;
+                                selectKuasa.dispatchEvent(new Event('change'));
+                                alert('Kuasa ditambahkan!');
+                            }
+                        })
+                        .catch(error => {
+                            errorMsg.innerText = error.message;
+                            errorMsg.classList.remove('hidden');
+                        })
+                        .finally(() => {
+                            btnSimpan.disabled = false;
+                            btnSimpan.innerText = originalText;
+                        });
+                    });
+                }
+            }
         });
     </script>
     @endpush

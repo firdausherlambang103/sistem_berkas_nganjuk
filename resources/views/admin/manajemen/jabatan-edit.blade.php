@@ -18,17 +18,27 @@
                         <x-text-input id="nama_jabatan" name="nama_jabatan" type="text" class="mt-1 block w-full" :value="old('nama_jabatan', $jabatan->nama_jabatan)" required autofocus />
                         <x-input-error :messages="$errors->get('nama_jabatan')" class="mt-2" />
                     </div>
-                    <div class="mb-4">
+                    
+                    <div class="mb-4 mt-4">
                         <x-input-label for="urutan" value="Nomor Urut Tampilan" />
                         <x-text-input id="urutan" name="urutan" type="number" class="mt-1 block w-full" :value="old('urutan', $jabatan->urutan)" required />
                         <x-input-error :messages="$errors->get('urutan')" class="mt-2" />
                     </div>
-                    {{-- Opsi untuk mengubah status admin --}}
-                    <div class="block mt-4">
-                        <label for="is_admin" class="inline-flex items-center">
-                            <input id="is_admin" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="is_admin" value="1" {{ old('is_admin', $jabatan->is_admin) ? 'checked' : '' }}>
-                            <span class="ms-2 text-sm text-gray-600">{{ __('Jadikan sebagai Administrator?') }}</span>
-                        </label>
+                    
+                    <div class="space-y-4 mt-6 p-4 border rounded-md bg-gray-50">
+                        <div class="block">
+                            <label for="is_admin" class="inline-flex items-center cursor-pointer select-none">
+                                <input id="is_admin" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="is_admin" value="1" {{ old('is_admin', $jabatan->is_admin) ? 'checked' : '' }}>
+                                <span class="ms-3 text-sm font-medium text-gray-700">{{ __('Jadikan sebagai Administrator?') }}</span>
+                            </label>
+                        </div>
+
+                        <div class="block">
+                            <label for="is_mitra" class="inline-flex items-center cursor-pointer select-none">
+                                <input id="is_mitra" type="checkbox" class="rounded border-gray-300 text-green-600 shadow-sm focus:ring-green-500" name="is_mitra" value="1" {{ old('is_mitra', $jabatan->is_mitra) ? 'checked' : '' }}>
+                                <span class="ms-3 text-sm font-medium text-gray-700">{{ __('Jadikan sebagai Jabatan Khusus Mitra (PPAT/Freelance)?') }}</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-end mt-6">
@@ -44,4 +54,3 @@
         </div>
     </div>
 </x-app-layout>
-

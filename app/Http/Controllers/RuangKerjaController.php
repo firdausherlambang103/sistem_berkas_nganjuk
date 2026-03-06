@@ -16,7 +16,8 @@ class RuangKerjaController extends Controller
      */
     public function index(Request $request): View
     {
-        $currentUserId = Auth::id();
+        $currentUser = Auth::user();
+        $currentUserId = $currentUser->id;
 
         // Mengambil input pencarian untuk setiap tabel dari request
         $searchMasuk = $request->input('search_masuk');
@@ -80,8 +81,37 @@ class RuangKerjaController extends Controller
             }
         }
         
-        // Daftar User untuk opsi pengiriman (Kirim Ke...)
-        $daftarUserTujuan = User::where('id', '!=', $currentUserId)->orderBy('name')->get();
+        // --- 4. Query untuk Daftar User Tujuan (Dropdown 'Kirim Ke...') ---
+        $daftarUserTujuanQuery = User::where('id', '!=', $currentUserId)
+            ->where('is_approved', true) // Pastikan hanya user aktif yang muncul
+            ->with('jabatan');
+
+        // Cek apakah user yang login saat ini adalah Mitra (PPAT / Freelance)
+        $isMitra = $currentUser->jabatan && ($currentUser->jabatan->is_mitra || in_array($currentUser->jabatan->nama_jabatan, ['PPAT', 'Freelance']));
+
+        if ($isMitra) {
+            // [ATURAN KHUSUS MITRA]
+            // Jika Mitra, HANYA BISA mengirim berkas ke user dengan Jabatan tertentu
+            // Silakan sesuaikan array nama_jabatan di bawah ini sesuai SOP Kantor Anda
+            $daftarUserTujuanQuery->whereHas('jabatan', function ($query) {
+                $query->whereIn('nama_jabatan', [
+                    'Petugas Loket Entri', 
+                    'Loket Pelayanan Penyerahan'
+                ]);
+            });
+        } else {
+            // [ATURAN PEGAWAI INTERNAL]
+            // (Opsional) Mencegah pegawai internal mengirim berkas ke akun Mitra, 
+            // buka komentar (uncomment) blok di bawah ini jika diperlukan:
+            /*
+            $daftarUserTujuanQuery->whereHas('jabatan', function ($query) {
+                $query->where('is_mitra', false);
+            });
+            */
+        }
+
+        // Ambil data tujuan pengiriman
+        $daftarUserTujuan = $daftarUserTujuanQuery->orderBy('name')->get();
 
         return view('ruang-kerja', [
             'berkasMenunggu' => $berkasMenungguQuery->latest('updated_at')->get(),

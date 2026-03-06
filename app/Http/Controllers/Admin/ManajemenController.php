@@ -20,15 +20,27 @@ class ManajemenController extends Controller
 
     public function jabatanIndex()
     {
-    // Urutkan berdasarkan urutan terkecil (1, 2, 3...)
+        // Urutkan berdasarkan urutan terkecil (1, 2, 3...)
         $jabatans = Jabatan::orderBy('urutan', 'asc')->orderBy('nama_jabatan')->get();
         return view('admin.manajemen.jabatan', compact('jabatans'));
     }
 
     public function jabatanStore(Request $request)
     {
-        $request->validate(['nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan', 'is_admin' => 'nullable|boolean', 'urutan' => 'nullable|integer']);
-        Jabatan::create(['nama_jabatan' => $request->nama_jabatan, 'is_admin' => $request->has('is_admin'), 'urutan' => $request->urutan ?? 99]);
+        $request->validate([
+            'nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan', 
+            'is_admin' => 'nullable|boolean', 
+            'is_mitra' => 'nullable|boolean',
+            'urutan' => 'nullable|integer'
+        ]);
+        
+        Jabatan::create([
+            'nama_jabatan' => $request->nama_jabatan, 
+            'is_admin' => $request->has('is_admin'), 
+            'is_mitra' => $request->has('is_mitra'),
+            'urutan' => $request->urutan ?? 99
+        ]);
+        
         return redirect()->route('admin.jabatan.index')->with('success', 'Jabatan baru berhasil ditambahkan.');
     }
 
@@ -39,11 +51,19 @@ class ManajemenController extends Controller
 
     public function jabatanUpdate(Request $request, Jabatan $jabatan)
     {
-        $request->validate(['nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan,' . $jabatan->id, 'is_admin' => 'nullable|boolean', 'urutan' => 'nullable|integer']);
+        $request->validate([
+            'nama_jabatan' => 'required|string|unique:jabatans,nama_jabatan,' . $jabatan->id, 
+            'is_admin' => 'nullable|boolean', 
+            'is_mitra' => 'nullable|boolean',
+            'urutan' => 'nullable|integer'
+        ]);
+        
         $jabatan->nama_jabatan = $request->nama_jabatan;
         $jabatan->is_admin = $request->has('is_admin');
+        $jabatan->is_mitra = $request->has('is_mitra');
         $jabatan->urutan = $request->urutan ?? 99;
         $jabatan->save();
+        
         return redirect()->route('admin.jabatan.index')->with('success', 'Jabatan berhasil diperbarui.');
     }
 
@@ -186,13 +206,11 @@ class ManajemenController extends Controller
 
     public function petugasUkurStore(Request $request): RedirectResponse
     {
-        // Validasi diubah: 'area_kerja' tidak lagi divalidasi di sini
         $request->validate([
             'user_id' => 'required|exists:users,id|unique:petugas_ukur,user_id',
             'keahlian' => 'required|string|max:255',
         ]);
         
-        // HANYA simpan data yang ada di tabel petugas_ukur
         PetugasUkur::create([
             'user_id' => $request->user_id,
             'keahlian' => $request->keahlian,
@@ -208,12 +226,10 @@ class ManajemenController extends Controller
 
     public function petugasUkurUpdate(Request $request, PetugasUkur $petugasUkur): RedirectResponse
     {
-        // Validasi diubah: 'area_kerja' tidak lagi divalidasi di sini
         $request->validate([
             'keahlian' => 'required|string|max:255',
         ]);
         
-        // HANYA update data yang ada di tabel petugas_ukur
         $petugasUkur->update([
             'keahlian' => $request->keahlian,
         ]);
@@ -227,7 +243,6 @@ class ManajemenController extends Controller
         return redirect()->route('admin.petugas-ukur.index')->with('success', 'Petugas ukur berhasil dihapus.');
     }
     
-    // ... (sisa method tidak berubah) ...
     public function settingAreaKerjaIndex(): View
     {
         $semuaPetugas = PetugasUkur::with('user.jabatan', 'areaKerja')->orderBy('id')->get();
@@ -294,4 +309,3 @@ class ManajemenController extends Controller
         }
     }
 }
-

@@ -26,10 +26,21 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
 
-        return redirect()->intended(RouteServiceProvider::HOME);
+        $user = Auth::user();
+
+        // [BARU] Logika Redirect Khusus
+        if ($user->jabatan) {
+            if ($user->jabatan->nama_jabatan === 'PPAT') {
+                return redirect()->route('ppat.dashboard'); // Pastikan route ini ada
+            } elseif ($user->jabatan->nama_jabatan === 'Freelance') {
+                return redirect()->route('freelance.dashboard'); // Pastikan route ini ada
+            }
+        }
+
+        // Default redirect
+        return redirect()->intended(RouteServiceProvider::HOME); // Biasanya /dashboard
     }
 
     /**

@@ -22,9 +22,11 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'nomer_wa',
         'password',
         'jabatan_id',
         'is_approved',
+        'akses_menu', // [BARU] Tambahkan ini agar bisa disimpan ke database
     ];
 
     /**
@@ -46,7 +48,21 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_approved' => 'boolean',
+        'akses_menu' => 'array', // [BARU] Ubah otomatis dari JSON ke Array PHP
     ];
+
+    // [BARU] Fungsi untuk mengecek hak akses menu/fitur dari checkbox Admin
+    public function hasMenuAccess($menu)
+    {
+        // Admin selalu punya akses penuh
+        if ($this->jabatan && $this->jabatan->is_admin) {
+            return true;
+        }
+
+        // Cek apakah menu ada di dalam array akses_menu user
+        $akses = $this->akses_menu ?? [];
+        return in_array($menu, $akses);
+    }
 
     public function isOnline()
     {
@@ -79,9 +95,6 @@ class User extends Authenticatable
 
     /**
      * Relasi: Berkas yang sedang dipegang user saat ini.
-     * Digunakan di LaporanController untuk menghitung 'sisa_berkas'.
-     * KOREKSI: Kolom foreign key adalah 'posisi_sekarang_user_id', BUKAN 'user_id'.
-     * MODIFIKASI: Filter agar berkas yang 'Ditutup' tidak muncul.
      */
     public function berkasDiTangan()
     {
@@ -91,7 +104,6 @@ class User extends Authenticatable
 
     /**
      * Relasi: Riwayat berkas yang pernah DITERIMA user.
-     * Digunakan di LaporanController untuk menghitung 'total_masuk'.
      */
     public function riwayatDiterima()
     {
@@ -100,7 +112,6 @@ class User extends Authenticatable
 
     /**
      * Relasi: Riwayat berkas yang pernah DIKIRIM user.
-     * Digunakan di LaporanController untuk menghitung 'total_keluar'.
      */
     public function riwayatDikirim()
     {

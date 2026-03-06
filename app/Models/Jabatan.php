@@ -17,6 +17,7 @@ class Jabatan extends Model
     protected $fillable = [
         'nama_jabatan',
         'is_admin',
+        'is_mitra',
         'urutan',
     ];
 

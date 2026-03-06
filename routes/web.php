@@ -18,6 +18,10 @@ use App\Http\Controllers\SuratTugasController;
 use App\Http\Controllers\SensusWakafController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
 
+// Import Controller Khusus Mitra
+use App\Http\Controllers\Mitra\AuthController as MitraAuthController;
+use App\Http\Controllers\Mitra\PageController as MitraPageController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -28,7 +32,33 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// GROUP ROUTE UTAMA (Hanya user login & verifikasi email)
+// =================================================================
+//  ROUTE KHUSUS MITRA (PPAT & FREELANCE)
+// =================================================================
+Route::prefix('mitra')->name('mitra.')->group(function () {
+    
+    // Route Guest (Belum Login)
+    Route::middleware('guest')->group(function () {
+        Route::get('/login', [MitraAuthController::class, 'showLogin'])->name('login');
+        Route::post('/login', [MitraAuthController::class, 'storeLogin']);
+        
+        Route::get('/register', [MitraAuthController::class, 'showRegister'])->name('register');
+        Route::post('/register', [MitraAuthController::class, 'storeRegister']);
+    });
+
+    // Route Auth (Sudah Login)
+    Route::middleware(['auth', 'verified'])->group(function () {
+        // Dashboard Khusus Mitra
+        Route::get('/dashboard', [MitraPageController::class, 'dashboard'])->name('dashboard');
+        
+        // Ruang Kerja Mitra (Diarahkan ke RuangKerjaController bawaan agar saling terintegrasi)
+        Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
+    });
+});
+
+// =================================================================
+// GROUP ROUTE UTAMA INTERNAL (Hanya user login & verifikasi email)
+// =================================================================
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // --- DASHBOARD & UTAMA ---
@@ -39,6 +69,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/jatuh-tempo', [DashboardController::class, 'showJatuhTempo'])->name('dashboard.jatuh-tempo');
     Route::get('/dashboard/ditutup', [DashboardController::class, 'showDitutup'])->name('dashboard.ditutup');
     
+    // Ruang Kerja Internal
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
 
     // --- SENSUS WAKAF (PETA) ---
@@ -169,22 +200,21 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     });
 
     // --- WHATSAPP MANAGEMENT (Admin Panel) ---
-    // --- WHATSAPP INTEGRATION (Admin Panel) ---
-        Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
-        
-        // Halaman Scan Utama
-        Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
-        
-        // API Internal untuk Scan Page (AJAX)
-        Route::get('/whatsapp/check-status', [WhatsappWebController::class, 'checkStatus'])->name('whatsapp.check-status');
-        Route::get('/whatsapp/get-qr', [WhatsappWebController::class, 'getQr'])->name('whatsapp.get-qr');
-        
-        // Actions
-        Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout');
-        Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test');
+    Route::get('/wa-logs', [WaLogController::class, 'index'])->name('wa-logs.index');
+    
+    // Halaman Scan Utama
+    Route::get('/whatsapp/scan', [WhatsappWebController::class, 'scan'])->name('whatsapp.scan');
+    
+    // API Internal untuk Scan Page (AJAX)
+    Route::get('/whatsapp/check-status', [WhatsappWebController::class, 'checkStatus'])->name('whatsapp.check-status');
+    Route::get('/whatsapp/get-qr', [WhatsappWebController::class, 'getQr'])->name('whatsapp.get-qr');
+    
+    // Actions
+    Route::post('/whatsapp/logout', [WhatsappWebController::class, 'logout'])->name('whatsapp.logout');
+    Route::post('/whatsapp/send-test', [WhatsappWebController::class, 'sendTest'])->name('whatsapp.send-test');
 
-        Route::resource('wa-templates', WaTemplateController::class);
-        Route::resource('wa-placeholders', WaPlaceholderController::class);
+    Route::resource('wa-templates', WaTemplateController::class);
+    Route::resource('wa-placeholders', WaPlaceholderController::class);
 
     // --- PERBAIKAN BERKAS (Tool Admin) ---
     Route::get('/perbaikan-berkas', [PerbaikanBerkasController::class, 'index'])->name('perbaikan.index');

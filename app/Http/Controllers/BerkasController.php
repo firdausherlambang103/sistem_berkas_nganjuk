@@ -31,7 +31,13 @@ class BerkasController extends Controller
         $jenisPermohonans = JenisPermohonan::orderBy('nama_permohonan')->get();
         $penerimaKuasas = PenerimaKuasa::orderBy('nama_kuasa')->get();
         
-        return view('berkas.create', compact('kecamatans', 'jenisPermohonans', 'penerimaKuasas'));
+        $user = Auth::user();
+        $isMitra = $user->jabatan && ($user->jabatan->is_mitra || in_array($user->jabatan->nama_jabatan, ['PPAT', 'Freelance']));
+        
+        // Generate kode acak 6 digit huruf besar & angka (Bisa diedit nantinya di view)
+        $generatedCode = strtoupper(substr(str_shuffle("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 6));
+        
+        return view('berkas.create', compact('kecamatans', 'jenisPermohonans', 'penerimaKuasas', 'isMitra', 'user', 'generatedCode'));
     }
 
     /**

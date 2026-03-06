@@ -21,7 +21,7 @@ class UserController extends Controller
                             ->orderBy('created_at', 'desc')
                             ->get();
         
-        // (PERBAIKAN) Mengambil pengguna yang SUDAH disetujui
+        // Mengambil pengguna yang SUDAH disetujui
         $approvedUsers = User::where('is_approved', true)
                              ->with('jabatan') // Memuat relasi jabatan untuk efisiensi
                              ->orderBy('name', 'asc')
@@ -67,6 +67,10 @@ class UserController extends Controller
         $user->email = $request->email;
         $user->jabatan_id = $request->jabatan_id;
 
+        // [BARU] Simpan akses menu dari checkbox
+        // Jika tidak ada checkbox yang dicentang, kita set menjadi array kosong []
+        $user->akses_menu = $request->input('akses_menu', []);
+
         // Hanya update password jika diisi
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
@@ -93,4 +97,3 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User ' . $userName . ' berhasil dihapus.');
     }
 }
-
