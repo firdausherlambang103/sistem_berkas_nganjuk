@@ -13,7 +13,14 @@ class Berkas extends Model
     protected $fillable = [
         'nomer_berkas','tahun', 'nama_pemohon', 'jenis_alas_hak', 'nomer_hak', 'jenis_permohonan_id',
         'kecamatan', 'desa', 'nomer_wa', 'catatan', 'posisi_sekarang_user_id', 'status',
-        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses','penerima_kuasa_id','status_buku_tanah', 'petugas_ukur_id'
+        'status_pengiriman', 'pengirim_id', 'penerima_id', 'waktu_mulai_proses', 'waktu_selesai_proses',
+        'penerima_kuasa_id', 'status_buku_tanah', 'petugas_ukur_id',
+        
+        // [DITAMBAHKAN] Field untuk Lampiran dan Peta Lokasi
+        'file_sertipikat', 
+        'file_data_pendukung', 
+        'latitude', 
+        'longitude'
     ];
 
     protected $casts = [

@@ -12,6 +12,7 @@ use App\Models\JenisPermohonan;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use App\Models\PenerimaKuasa;
+use App\Models\MasterStatus;
 
 
 class ManajemenController extends Controller
@@ -307,5 +308,56 @@ class ManajemenController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus data. Mungkin data sedang digunakan pada berkas.');
         }
+    }
+
+    // ==========================================
+    // MANAJEMEN MASTER STATUS
+    // ==========================================
+
+    public function statusIndex()
+    {
+        $statuses = MasterStatus::orderBy('nama_status', 'asc')->get();
+        return view('admin.manajemen.status', compact('statuses'));
+    }
+
+    public function statusStore(Request $request)
+    {
+        $request->validate([
+            'nama_status' => 'required|string|unique:master_statuses,nama_status',
+            'butuh_waktu_hari' => 'nullable|boolean'
+        ]);
+
+        MasterStatus::create([
+            'nama_status' => $request->nama_status,
+            'butuh_waktu_hari' => $request->has('butuh_waktu_hari')
+        ]);
+
+        return redirect()->route('admin.status.index')->with('success', 'Status baru berhasil ditambahkan.');
+    }
+
+    public function statusEdit(MasterStatus $status)
+    {
+        return view('admin.manajemen.status-edit', compact('status'));
+    }
+
+    public function statusUpdate(Request $request, MasterStatus $status)
+    {
+        $request->validate([
+            'nama_status' => 'required|string|unique:master_statuses,nama_status,' . $status->id,
+            'butuh_waktu_hari' => 'nullable|boolean'
+        ]);
+
+        $status->update([
+            'nama_status' => $request->nama_status,
+            'butuh_waktu_hari' => $request->has('butuh_waktu_hari')
+        ]);
+
+        return redirect()->route('admin.status.index')->with('success', 'Status berhasil diperbarui.');
+    }
+
+    public function statusDestroy(MasterStatus $status)
+    {
+        $status->delete();
+        return redirect()->route('admin.status.index')->with('success', 'Status berhasil dihapus.');
     }
 }

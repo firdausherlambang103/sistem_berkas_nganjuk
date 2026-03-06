@@ -24,7 +24,9 @@
                         <span class="block sm:inline">{{ session('error') }}</span>
                     </div>
                 @endif
-                <form action="{{ route('berkas.store') }}" method="POST" class="p-6 lg:p-8">
+                
+                {{-- Form dengan enctype multipart/form-data untuk upload file --}}
+                <form action="{{ route('berkas.store') }}" method="POST" enctype="multipart/form-data" class="p-6 lg:p-8">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         
@@ -38,13 +40,10 @@
                                     <x-input-error :messages="$errors->get('tahun')" class="mt-2" />
                                 </div>
 
-                                {{-- [DIUBAH] Input Nomer Berkas --}}
+                                {{-- Input Nomer Berkas --}}
                                 <div class="col-span-2">
                                     <x-input-label for="nomer_berkas" value="Nomer Berkas (Kode)" />
                                     @php
-                                        // Jika error validasi gagal, pakai isian lama. 
-                                        // Jika tidak error & ini mitra, pakai kode generated. 
-                                        // Jika bukan mitra, kosongkan.
                                         $defaultNomer = old('nomer_berkas') ?? ($isMitra ? $generatedCode : '');
                                     @endphp
                                     <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="mt-1 block w-full {{ $isMitra ? 'bg-indigo-50 font-mono font-bold text-indigo-700 tracking-widest' : '' }}" :value="$defaultNomer" required autofocus />
@@ -139,7 +138,7 @@
                                 <x-input-error :messages="$errors->get('desa')" class="mt-2" />
                             </div>
 
-                            {{-- [DIUBAH] Input Nomer WA --}}
+                            {{-- Input Nomer WA --}}
                             <div>
                                 <x-input-label for="nomer_wa" value="Nomer WhatsApp (Kontak yang bisa dihubungi)" />
                                 @php
@@ -152,7 +151,6 @@
                             {{-- ================= BAGIAN PENERIMA KUASA ================= --}}
                             <div class="pt-4 border-t border-gray-200 mt-4">
                                 @if($isMitra)
-                                    {{-- JIKA MITRA: Tampilkan text statis, jangan kirim ID kuasa karena mereka belum tentu ada di tabel penerima_kuasas --}}
                                     <x-input-label value="Penerima Kuasa / Pengaju" />
                                     <div class="mt-1 p-3 bg-gray-100 border border-gray-300 rounded-md shadow-sm flex items-center">
                                         <i class="fa-solid fa-user-tie text-gray-500 mr-3"></i>
@@ -161,11 +159,9 @@
                                             <p class="text-xs text-gray-500">Otomatis didaftarkan atas nama Anda sebagai {{ $user->jabatan->nama_jabatan }}.</p>
                                         </div>
                                     </div>
-                                    {{-- Opsional: Kirim null untuk penerima_kuasa_id, karena kita bisa identifikasi mitra dari user_id pembuat --}}
                                     <input type="hidden" name="penerima_kuasa_id" value=""> 
 
                                 @else
-                                    {{-- JIKA BUKAN MITRA: Tampilkan dropdown normal + AJAX --}}
                                     <div x-data="{ showQuickAdd: false }">
                                         <div class="flex justify-between items-center mb-2">
                                             <x-input-label for="penerima_kuasa_id" value="Penerima Kuasa (Opsional)" />
@@ -205,6 +201,53 @@
                             </div>
                         </div>
                     </div>
+
+                    {{-- ================= BAGIAN KHUSUS MITRA ================= --}}
+                    @if($isMitra)
+                        <div class="col-span-1 md:col-span-2 mt-8 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-cloud-arrow-up mr-2 text-indigo-600"></i>Data Pendukung & Lokasi Objek</h3>
+                            
+                            {{-- Container diubah menjadi space-y-8 agar elemen tersusun atas-bawah --}}
+                            <div class="space-y-8">
+                                
+                                {{-- Area Upload File (Berada di Atas, Full Width Kanan-Kiri dibagi 2 kolom) --}}
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="p-4 bg-gray-50 border border-gray-200 rounded-md">
+                                        <x-input-label for="file_sertipikat" value="Upload Sertipikat (Format PDF, Maks 5MB)" class="font-bold" />
+                                        <input type="file" id="file_sertipikat" name="file_sertipikat" accept="application/pdf" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 focus:outline-none" required />
+                                        <x-input-error :messages="$errors->get('file_sertipikat')" class="mt-2" />
+                                    </div>
+                                    <div class="p-4 bg-gray-50 border border-gray-200 rounded-md">
+                                        <x-input-label for="file_data_pendukung" value="Upload Data Pendukung (Format PDF, Maks 5MB)" class="font-bold" />
+                                        <input type="file" id="file_data_pendukung" name="file_data_pendukung" accept="application/pdf" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 focus:outline-none" required />
+                                        <x-input-error :messages="$errors->get('file_data_pendukung')" class="mt-2" />
+                                    </div>
+                                </div>
+
+                                {{-- Area Peta (Berada di Bawah Upload, Full Width) --}}
+                                <div class="space-y-4">
+                                    <x-input-label value="Cari dan Pilih Titik Lokasi Objek Tanah di Peta" class="font-bold" />
+                                    <div id="map" class="w-full h-[400px] rounded-md border border-gray-300 z-10 shadow-inner"></div>
+                                    <p class="text-[11px] text-gray-500 italic">*Gunakan kolom pencarian di peta, atau geser Pin Biru pada peta, atau klik sembarang titik untuk menentukan koordinat secara akurat.</p>
+                                    
+                                    {{-- Koordinat diletakkan di bawah peta --}}
+                                    <div class="grid grid-cols-2 gap-4 pt-2">
+                                        <div>
+                                            <x-input-label for="latitude" value="Latitude" />
+                                            <x-text-input id="latitude" name="latitude" type="text" class="mt-1 block w-full bg-gray-100 cursor-not-allowed" :value="old('latitude')" readonly required />
+                                            <x-input-error :messages="$errors->get('latitude')" class="mt-2" />
+                                        </div>
+                                        <div>
+                                            <x-input-label for="longitude" value="Longitude" />
+                                            <x-text-input id="longitude" name="longitude" type="text" class="mt-1 block w-full bg-gray-100 cursor-not-allowed" :value="old('longitude')" readonly required />
+                                            <x-input-error :messages="$errors->get('longitude')" class="mt-2" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    @endif
                     
                     {{-- Input Catatan --}}
                     <div class="mt-6">
@@ -224,9 +267,86 @@
     </div>
 
     @push('scripts')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+
+            @if($isMitra)
+            // ================= INISIALISASI PETA (LEAFLET.JS) =================
+            // Default center diatur ke Kabupaten Kediri (bisa disesuaikan)
+            var defaultLat = -7.8200;
+            var defaultLng = 112.0118;
+
+            // 1. Definisi Base Layers (Peta Standar dan Mode Satelit)
+            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            });
+
+            var googleSatLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '&copy; Google Satellite'
+            });
+
+            // Inisialisasi Peta
+            var map = L.map('map', {
+                center: [defaultLat, defaultLng],
+                zoom: 12,
+                layers: [osmLayer] // Layer default saat pertama kali dimuat
+            });
+
+            // 2. Tambahkan Control Layer untuk mengganti mode peta (Pojok Kanan Atas)
+            var baseMaps = {
+                "Peta Jalan (OSM)": osmLayer,
+                "Satelit (Google)": googleSatLayer
+            };
+            L.control.layers(baseMaps).addTo(map);
+
+            // 3. Tambahkan Fitur Pencarian (Geocoder) di Peta
+            L.Control.geocoder({
+                defaultMarkGeocode: false,
+                placeholder: "Cari daerah, desa, jalan..."
+            })
+            .on('markgeocode', function(e) {
+                var center = e.geocode.center;
+                
+                // Pindahkan marker dan peta ke hasil pencarian
+                map.setView(center, 16);
+                marker.setLatLng(center);
+                
+                // Update input longitude & latitude
+                document.getElementById('latitude').value = center.lat.toFixed(7);
+                document.getElementById('longitude').value = center.lng.toFixed(7);
+            })
+            .addTo(map);
+
+            // Inisialisasi Marker Draggable
+            var marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+            // Update Input jika marker digeser manual
+            marker.on('dragend', function (e) {
+                var latLng = e.target.getLatLng();
+                document.getElementById('latitude').value = latLng.lat.toFixed(7);
+                document.getElementById('longitude').value = latLng.lng.toFixed(7);
+            });
+
+            // Pindah marker jika peta diklik manual
+            map.on('click', function (e) {
+                marker.setLatLng(e.latlng);
+                document.getElementById('latitude').value = e.latlng.lat.toFixed(7);
+                document.getElementById('longitude').value = e.latlng.lng.toFixed(7);
+            });
+
+            // Fix masalah load peta saat render UI
+            setTimeout(function(){ map.invalidateSize(); }, 500);
+            @endif
             
+            // ================================================================
             // 1. LOGIKA WILAYAH (KECAMATAN -> DESA)
             const kecamatanSelect = document.getElementById('kecamatan');
             const desaSelect = document.getElementById('desa');

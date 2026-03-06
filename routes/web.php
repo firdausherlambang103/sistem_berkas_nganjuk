@@ -106,6 +106,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{berkas}/tutup', 'tutup')->name('tutup');
         Route::post('/{berkas}/pending', 'pending')->name('pending');
         Route::post('/{berkas}/aktifkan', 'aktifkan')->name('aktifkan');
+        
+        // [DITAMBAHKAN] Route untuk Update Status Khusus
+        Route::patch('/{berkas}/update-status', 'updateStatusKhusus')->name('update-status');
+        
         Route::delete('/{berkas}', 'destroy')->name('destroy')->middleware('can:manage-berkas');
         Route::get('/{berkas}', 'show')->name('show');
     });
@@ -194,6 +198,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/petugas-ukur/{petugasUkur}', 'petugasUkurUpdate')->name('petugas-ukur.update');
         Route::delete('/petugas-ukur/{petugasUkur}', 'petugasUkurDestroy')->name('petugas-ukur.destroy');
         
+        // Master Status
+        Route::get('/status', 'statusIndex')->name('status.index');
+        Route::post('/status', 'statusStore')->name('status.store');
+        Route::get('/status/{status}/edit', 'statusEdit')->name('status.edit');
+        Route::patch('/status/{status}', 'statusUpdate')->name('status.update');
+        Route::delete('/status/{status}', 'statusDestroy')->name('status.destroy');
+
         // Setting Area Kerja
         Route::get('/setting-area-kerja', 'settingAreaKerjaIndex')->name('setting-area-kerja.index');
         Route::post('/setting-area-kerja', 'settingAreaKerjaUpdate')->name('setting-area-kerja.update');

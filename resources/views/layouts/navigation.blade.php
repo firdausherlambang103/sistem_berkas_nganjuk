@@ -115,7 +115,9 @@
                                         <x-dropdown-link :href="route('admin.permohonan.index')">
                                             {{ __('Manajemen Jenis Permohonan') }}
                                         </x-dropdown-link>
-                                        
+                                        <x-dropdown-link :href="route('admin.status.index')">
+                                            {{ __('Manajemen Status') }}
+                                        </x-dropdown-link>
                                         <div class="border-t border-gray-100 my-1"></div>
                                         <div class="block px-4 py-2 text-xs text-gray-400">Alat Bantu</div>
                                         
@@ -281,7 +283,10 @@
                             <x-responsive-nav-link :href="route('admin.permohonan.index')">
                                 {{ __('Manajemen Jenis Permohonan') }}
                             </x-responsive-nav-link>
-                            
+                            <x-responsive-nav-link :href="route('admin.status.index')">
+                                {{ __('Manajemen Status') }}
+                            </x-responsive-nav-link>
+
                             <x-responsive-nav-link :href="route('admin.perbaikan.index')" :active="request()->routeIs('admin.perbaikan.*')">
                                 {{ __('Perbaikan Posisi Berkas') }}
                             </x-responsive-nav-link>

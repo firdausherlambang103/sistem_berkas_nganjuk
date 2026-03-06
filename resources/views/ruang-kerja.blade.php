@@ -218,6 +218,12 @@
 
                                         <td class="px-4 py-4 text-right">
                                             <div class="flex items-center justify-end gap-2">
+                                                
+                                                {{-- TOMBOL UPDATE STATUS KHUSUS --}}
+                                                <button type="button" class="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded transition" title="Update Status Khusus" onclick="bukaModalUpdateStatus({{ $berkas->id }}, '{{ $berkas->nomer_berkas }}')">
+                                                    <i class="fa-solid fa-flag"></i>
+                                                </button>
+
                                                 @php
                                                     $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
                                                     $isAdmin = optional(Auth::user()->jabatan)->is_admin;
@@ -378,6 +384,73 @@
             </div>
         </div>
     </div>
+
+    {{-- MODAL UPDATE STATUS BERKAS --}}
+    <div id="modal-update-status" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-gray-900 bg-opacity-50">
+        <div class="relative p-4 w-full max-w-md max-h-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <div class="relative bg-white rounded-lg shadow">
+                <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        Update Status: <span id="text-nomer-berkas" class="text-indigo-600"></span>
+                    </h3>
+                    <button type="button" onclick="tutupModalUpdateStatus()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                <form id="form-update-status" action="" method="POST" class="p-4 md:p-5">
+                    @csrf
+                    @method('PATCH')
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <x-input-label for="status_baru" value="Pilih Status Baru" />
+                            @php
+                                // Tarik data status dinamis dari database (jika tabel sudah di-migrate)
+                                $masterStatuses = [];
+                                if(Illuminate\Support\Facades\Schema::hasTable('master_statuses')) {
+                                    $masterStatuses = \App\Models\MasterStatus::all();
+                                }
+                            @endphp
+                            <select id="status_baru" name="status" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md" onchange="cekStatusPengumuman(this)" required>
+                                <option value="" disabled selected>-- Pilih Status --</option>
+                                
+                                @forelse($masterStatuses as $ms)
+                                    <option value="{{ $ms->nama_status }}" data-waktu="{{ $ms->butuh_waktu_hari ? 'yes' : 'no' }}">
+                                        {{ $ms->nama_status }}
+                                    </option>
+                                @empty
+                                    {{-- Data Fallback sementara jika tabel Master Status belum diisi admin --}}
+                                    <option value="Diproses" data-waktu="no">Diproses</option>
+                                    <option value="Pengumuman" data-waktu="yes">Pengumuman (Butuh Waktu)</option>
+                                    <option value="Berkas Kembali" data-waktu="no">Berkas Kembali / Ditolak</option>
+                                    <option value="Selesai" data-waktu="no">Selesai</option>
+                                @endforelse
+
+                            </select>
+                        </div>
+
+                        {{-- Form Dinamis: Akan muncul otomatis jika status di setting butuh hari --}}
+                        <div id="div-hari-pengumuman" style="display: none;" class="p-3 bg-yellow-50 border border-yellow-300 rounded-md">
+                            <x-input-label for="hari_pengumuman" value="Berapa Hari?" />
+                            <x-text-input id="hari_pengumuman" name="hari_pengumuman" type="number" min="1" class="mt-1 block w-full" placeholder="Contoh: 30" />
+                            <p class="text-xs text-gray-500 mt-1">*Silakan tentukan jumlah hari untuk status ini.</p>
+                        </div>
+
+                        {{-- Keterangan --}}
+                        <div>
+                            <x-input-label for="keterangan_status" value="Keterangan / Catatan Aksi" />
+                            <textarea id="keterangan_status" name="keterangan" rows="3" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md" placeholder="Masukkan alasan perubahan status..." required></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-end mt-6 border-t pt-4">
+                        <button type="button" onclick="tutupModalUpdateStatus()" class="py-2 px-4 text-sm font-medium text-gray-500 bg-white rounded-lg border border-gray-200 hover:bg-gray-100 mr-2">Batal</button>
+                        <x-primary-button>Update Status</x-primary-button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     
     @push('scripts')
     <script>
@@ -491,7 +564,6 @@
                 sessionStorage.removeItem(STORAGE_KEY);
             @endif
         });
-
 
         // ==========================================
         // 2. FUNGSI UTILITAS LAIN
@@ -660,6 +732,41 @@
                 btnKirim.disabled = false;
                 btnKirim.innerHTML = originalText;
             });
+        }
+
+        // ==========================================
+        // 4. LOGIKA MODAL UPDATE STATUS BERKAS DINAMIS
+        // ==========================================
+        function bukaModalUpdateStatus(berkasId, nomerBerkas) {
+            document.getElementById('modal-update-status').classList.remove('hidden');
+            document.getElementById('text-nomer-berkas').innerText = nomerBerkas;
+            
+            // Set URL action secara dinamis
+            document.getElementById('form-update-status').action = `/berkas/${berkasId}/update-status`;
+        }
+
+        function tutupModalUpdateStatus() {
+            document.getElementById('modal-update-status').classList.add('hidden');
+            document.getElementById('form-update-status').reset();
+            document.getElementById('div-hari-pengumuman').style.display = 'none';
+        }
+
+        function cekStatusPengumuman(selectElement) {
+            // Cek apakah opsi yang dipilih butuh input hari (berdasarkan atribut data-waktu)
+            var selectedOption = selectElement.options[selectElement.selectedIndex];
+            var butuhWaktu = selectedOption.getAttribute('data-waktu');
+            
+            var divHari = document.getElementById('div-hari-pengumuman');
+            var inputHari = document.getElementById('hari_pengumuman');
+            
+            if (butuhWaktu === 'yes') {
+                divHari.style.display = 'block';
+                inputHari.setAttribute('required', 'required'); // Jadikan Wajib
+            } else {
+                divHari.style.display = 'none';
+                inputHari.removeAttribute('required'); // Copot Wajib
+                inputHari.value = ''; // Kosongkan nilainya
+            }
         }
     </script>
     @endpush

@@ -67,13 +67,30 @@ class BerkasController extends Controller
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
             'status_buku_tanah' => 'required|in:Sertipikat Elektronik,Sertipikat Analog,Belum Sertipikat', 
+            
+            // [DITAMBAHKAN] Validasi File & Lokasi
+            'file_sertipikat' => 'nullable|mimes:pdf|max:5120', 
+            'file_data_pendukung' => 'nullable|mimes:pdf|max:5120',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
         ]);
 
         $berkas = null; 
 
         try {
-            DB::transaction(function () use ($validatedData, &$berkas) {
+            DB::transaction(function () use ($request, $validatedData, &$berkas) {
                 $currentUser = Auth::user();
+
+                // [DITAMBAHKAN] Proses Upload File jika ada
+                $pathSertipikat = null;
+                if ($request->hasFile('file_sertipikat')) {
+                    $pathSertipikat = $request->file('file_sertipikat')->store('berkas/sertipikat', 'public');
+                }
+
+                $pathDataPendukung = null;
+                if ($request->hasFile('file_data_pendukung')) {
+                    $pathDataPendukung = $request->file('file_data_pendukung')->store('berkas/data_pendukung', 'public');
+                }
 
                 // 2. Buat Data Berkas
                 $berkas = Berkas::create([
@@ -95,9 +112,13 @@ class BerkasController extends Controller
                     'status' => 'Diproses',
                     'status_pengiriman' => 'Diterima',
                     'pengirim_id' => $currentUser->id, // Pengirim awal adalah pembuat
-                    
-                    // [UPDATED] Waktu proses belum dimulai saat pembuatan awal
                     'waktu_mulai_proses' => null, 
+                    
+                    // [DITAMBAHKAN] Simpan Data File dan Lokasi ke tabel
+                    'file_sertipikat' => $pathSertipikat,
+                    'file_data_pendukung' => $pathDataPendukung,
+                    'latitude' => $validatedData['latitude'] ?? null,
+                    'longitude' => $validatedData['longitude'] ?? null,
                 ]);
 
                 // 3. Catat Riwayat Pembuatan
@@ -109,9 +130,6 @@ class BerkasController extends Controller
                     'catatan_pengiriman' => 'Berkas baru dibuat dan masuk ke ruang kerja pembuat.'
                 ]);
             });
-
-            // (Opsional) Kirim WA Notifikasi di sini jika diperlukan menggunakan WaService
-            // WaService::sendByTemplate('BERKAS_MASUK', $berkas->nomer_wa, $berkas);
 
         } catch (\Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Gagal menyimpan berkas. Error: ' . $e->getMessage());
@@ -222,7 +240,6 @@ class BerkasController extends Controller
     public function destroy(Berkas $berkas): RedirectResponse
     {
         try {
-            // Cek otorisasi hapus jika perlu (misal hanya Admin)
             $berkas->delete();
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus berkas. Error: ' . $e->getMessage());
@@ -246,7 +263,6 @@ class BerkasController extends Controller
                 $berkasIds = explode(',', $request->berkas_ids);
                 $pengirim = Auth::user();
                 
-                // [UPDATED] Ambil jabatan pengirim untuk logika timer
                 $jabatanPengirim = optional($pengirim->jabatan)->nama_jabatan;
                 $jabatanPemicuTimer = [
                     'Petugas Loket Pembayaran', 
@@ -268,14 +284,12 @@ class BerkasController extends Controller
                     $berkas->pengirim_id = $pengirim->id;
                     $berkas->penerima_id = $request->tujuan_user_id;
                     
-                    // [UPDATED] Logika Mulai Proses: Timer berjalan saat dikirim oleh loket pembayaran/alih media
                     if (in_array($jabatanPengirim, $jabatanPemicuTimer) && is_null($berkas->waktu_mulai_proses)) {
                         $berkas->waktu_mulai_proses = now();
                     }
 
                     $berkas->save();
 
-                    // Catat Riwayat
                     RiwayatBerkas::create([
                         'berkas_id' => $berkas->id,
                         'dari_user_id' => $pengirim->id,
@@ -306,12 +320,8 @@ class BerkasController extends Controller
 
         $berkas->status_pengiriman = 'Diterima';
         $berkas->posisi_sekarang_user_id = Auth::id();
-        
-        // Reset pengirim/penerima sementara agar status 'Dikirim' hilang
-        // Namun, riwayat tetap tersimpan di tabel riwayat_berkas
         $berkas->pengirim_id = null; 
         $berkas->penerima_id = null;
-        
         $berkas->save();
 
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} berhasil diterima.");
@@ -331,9 +341,9 @@ class BerkasController extends Controller
         }
 
         // Kembalikan berkas ke pengirim asal
-        $berkas->penerima_id = $pengirimAsalId; // Tujuan balik
-        $berkas->pengirim_id = $penolakSaatIniId; // Pengirim balik (si penolak)
-        $berkas->status_pengiriman = 'Dikirim'; // Status jadi dikirim balik
+        $berkas->penerima_id = $pengirimAsalId; 
+        $berkas->pengirim_id = $penolakSaatIniId; 
+        $berkas->status_pengiriman = 'Dikirim'; 
         $berkas->save();
 
         RiwayatBerkas::create([
@@ -351,7 +361,6 @@ class BerkasController extends Controller
     {
         $user = Auth::user();
         
-        // Validasi Jabatan
         if (optional($user->jabatan)->nama_jabatan !== 'Petugas Loket Penyerahan') {
             return redirect()->back()->with('error', 'Hanya Petugas Loket Penyerahan yang dapat menyelesaikan berkas.');
         }
@@ -371,9 +380,6 @@ class BerkasController extends Controller
             'waktu_kirim' => now(),
             'catatan_pengiriman' => 'Berkas telah diselesaikan oleh Petugas Loket Penyerahan.'
         ]);
-
-        // (Opsional) Trigger Notifikasi WA "Berkas Selesai"
-        // WaService::sendByTemplate('BERKAS_SELESAI', $berkas->nomer_wa, $berkas);
 
         return redirect()->route('ruang-kerja')->with('success', 'Berkas berhasil diselesaikan!');
     }
@@ -429,13 +435,6 @@ class BerkasController extends Controller
         }
 
         $berkas->status = 'Diproses';
-        
-        // [UPDATED] Menghapus auto-set waktu_mulai_proses di sini 
-        // agar tetap mengikuti aturan "setelah loket pembayaran".
-        // if (is_null($berkas->waktu_mulai_proses)) {
-        //    $berkas->waktu_mulai_proses = now();
-        // }
-        
         $berkas->save();
 
         RiwayatBerkas::create([
@@ -447,6 +446,51 @@ class BerkasController extends Controller
         ]);
 
         return redirect()->route('ruang-kerja')->with('success', "Berkas {$berkas->nomer_berkas} telah diaktifkan kembali.");
+    }
+
+    /**
+     * [DITAMBAHKAN] Menangani Aksi Update Status Khusus (Pengumuman, Berkas Kembali, Selesai) dari Modal.
+     */
+    public function updateStatusKhusus(Request $request, Berkas $berkas): RedirectResponse
+    {
+        // 1. Validasi dibuat dinamis (hanya mengecek apakah status berbentuk teks/string)
+        $request->validate([
+            'status' => 'required|string|max:255',
+            'keterangan' => 'required|string',
+            'hari_pengumuman' => 'nullable|integer|min:1',
+        ]);
+
+        if ($berkas->posisi_sekarang_user_id !== Auth::id()) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki wewenang untuk memperbarui status berkas ini.');
+        }
+
+        $statusLama = $berkas->status;
+        $berkas->status = $request->status;
+
+        $tambahanKeterangan = '';
+
+        // Jika ada input hari pengumuman, masukkan ke dalam catatan
+        if ($request->filled('hari_pengumuman')) {
+            $tambahanKeterangan = " (Menunggu waktu: {$request->hari_pengumuman} Hari).";
+        } 
+        
+        // Jika status mengandung kata 'selesai', hentikan timer
+        if (strtolower($request->status) === 'selesai') {
+            $berkas->waktu_selesai_proses = now();
+        }
+
+        $berkas->save();
+
+        // Tambahkan ke Riwayat Perjalanan Berkas
+        RiwayatBerkas::create([
+            'berkas_id' => $berkas->id,
+            'dari_user_id' => Auth::id(),
+            'ke_user_id' => Auth::id(),
+            'waktu_kirim' => now(),
+            'catatan_pengiriman' => 'Status diubah dari [' . $statusLama . '] menjadi [' . $request->status . ']' . $tambahanKeterangan . ' Catatan: ' . $request->keterangan,
+        ]);
+
+        return redirect()->back()->with('success', 'Status berkas berhasil diperbarui menjadi: ' . $request->status);
     }
 
     /**
