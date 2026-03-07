@@ -17,6 +17,7 @@ use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
 use App\Http\Controllers\SensusWakafController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
+use App\Http\Controllers\MapController; // [DITAMBAHKAN] Controller Peta
 
 // Import Controller Khusus Mitra
 use App\Http\Controllers\Mitra\AuthController as MitraAuthController;
@@ -72,9 +73,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Ruang Kerja Internal
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
 
-    // --- SENSUS WAKAF (PETA) ---
+    // --- SENSUS WAKAF (PETA LAMA) ---
     Route::get('/sensus-wakaf', [SensusWakafController::class, 'index'])->name('sensus-wakaf.index');
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
+
+    // --- WEBGIS / MASTER PETA (BARU) ---
+    Route::prefix('map')->name('map.')->controller(MapController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/import', 'import')->name('import');
+        Route::patch('/update-warna/{id}', 'updateWarna')->name('updateWarna');
+        // Route khusus untuk memuat tile peta dari PostGIS (z, x, y)
+        Route::get('/tiles/{layerId}/{z}/{x}/{y}.pbf', 'getVectorTiles')->name('tiles');
+    });
 
     // --- LAPORAN ---
     Route::prefix('laporan')->name('laporan.')->controller(LaporanController::class)->group(function () {
@@ -88,7 +98,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // --- MANAJEMEN BERKAS (Semua User Login) ---
+    // --- MANAJEMEN BERKAS ---
     Route::post('/berkas/simpan-kuasa-ajax', [BerkasController::class, 'storeKuasaAjax'])->name('berkas.store-kuasa-ajax');
     
     Route::prefix('berkas')->name('berkas.')->controller(BerkasController::class)->group(function() {
@@ -107,7 +117,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{berkas}/pending', 'pending')->name('pending');
         Route::post('/{berkas}/aktifkan', 'aktifkan')->name('aktifkan');
         
-        // [DITAMBAHKAN] Route untuk Update Status Khusus
+        // Update Status Khusus (Dinamis dari Master Status)
         Route::patch('/{berkas}/update-status', 'updateStatusKhusus')->name('update-status');
         
         Route::delete('/{berkas}', 'destroy')->name('destroy')->middleware('can:manage-berkas');
@@ -135,7 +145,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/generate', 'generate')->name('generate');
     });
 
-    // --- WHATSAPP INTEGRATION (Umum / User Biasa) ---
+    // --- WHATSAPP INTEGRATION (Umum) ---
     // API untuk Modal di Ruang Kerja
     Route::get('/ajax/wa-templates', [WaTemplateController::class, 'getJsonList'])->name('ajax.wa-templates');
     Route::post('/ajax/wa-preview', [WaTemplateController::class, 'previewMessage'])->name('ajax.wa-preview');
@@ -190,6 +200,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/jenis-permohonan/{jenisPermohonan}', 'permohonanUpdate')->name('permohonan.update');
         Route::delete('/jenis-permohonan/{jenisPermohonan}', 'permohonanDestroy')->name('permohonan.destroy');
 
+        // Master Status (BARU)
+        Route::get('/status', 'statusIndex')->name('status.index');
+        Route::post('/status', 'statusStore')->name('status.store');
+        Route::get('/status/{status}/edit', 'statusEdit')->name('status.edit');
+        Route::patch('/status/{status}', 'statusUpdate')->name('status.update');
+        Route::delete('/status/{status}', 'statusDestroy')->name('status.destroy');
+
         // Petugas Ukur
         Route::get('/petugas-ukur', 'petugasUkurIndex')->name('petugas-ukur.index');
         Route::get('/petugas-ukur/create', 'petugasUkurCreate')->name('petugas-ukur.create');
@@ -198,13 +215,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/petugas-ukur/{petugasUkur}', 'petugasUkurUpdate')->name('petugas-ukur.update');
         Route::delete('/petugas-ukur/{petugasUkur}', 'petugasUkurDestroy')->name('petugas-ukur.destroy');
         
-        // Master Status
-        Route::get('/status', 'statusIndex')->name('status.index');
-        Route::post('/status', 'statusStore')->name('status.store');
-        Route::get('/status/{status}/edit', 'statusEdit')->name('status.edit');
-        Route::patch('/status/{status}', 'statusUpdate')->name('status.update');
-        Route::delete('/status/{status}', 'statusDestroy')->name('status.destroy');
-
         // Setting Area Kerja
         Route::get('/setting-area-kerja', 'settingAreaKerjaIndex')->name('setting-area-kerja.index');
         Route::post('/setting-area-kerja', 'settingAreaKerjaUpdate')->name('setting-area-kerja.update');

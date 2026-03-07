@@ -20,6 +20,12 @@
         </div>
 
         <div class="mt-4">
+            <x-input-label for="nomer_wa" :value="__('Nomer WhatsApp')" />
+            <x-text-input id="nomer_wa" class="block mt-1 w-full" type="text" name="nomer_wa" :value="old('nomer_wa')" placeholder="Contoh: 08123456789" required />
+            <x-input-error :messages="$errors->get('nomer_wa')" class="mt-2" />
+        </div>
+
+        <div class="mt-4">
             <x-input-label for="jabatan_id" :value="__('Mendaftar Sebagai')" />
             <select id="jabatan_id" name="jabatan_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
                 <option value="" disabled selected>-- Pilih Peran --</option>

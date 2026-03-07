@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('jabatans', function (Blueprint $table) {
-            //
+            // Menambahkan kolom is_mitra setelah kolom is_admin
+            $table->boolean('is_mitra')->default(false)->after('is_admin');
         });
     }
 
@@ -22,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('jabatans', function (Blueprint $table) {
-            //
+            $table->dropColumn('is_mitra');
         });
     }
 };
