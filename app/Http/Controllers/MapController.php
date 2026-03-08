@@ -96,7 +96,8 @@ class MapController extends Controller
 
             $features = Cache::remember($cacheKey, 60, function() use ($polygonWKT, $layerIds, $search, $keywords, $zoom) {
                 
-                $query = SpatialFeature::query()
+                // MENGGUNAKAN KONEKSI PGSQL KARENA SPATIAL DATA ADA DI POSTGRES
+                $query = SpatialFeature::on('pgsql')
                     ->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])
                     ->whereIn('layer_id', $layerIds);
                 
@@ -128,8 +129,9 @@ class MapController extends Controller
                               ->get();
                 
                 $formattedFeatures = [];
-                // Load semua layer ke memori untuk efisiensi
-                $layersDict = MapLayer::whereIn('id', $layerIds)->pluck('warna', 'id')->toArray();
+                
+                // Load semua layer ke memori untuk mengambil detail warna Hak
+                $layersData = MapLayer::whereIn('id', $layerIds)->get()->keyBy('id');
 
                 foreach ($data as $item) {
                     if (!$item->geometry) continue;
@@ -137,7 +139,39 @@ class MapController extends Controller
                     $props = is_string($item->properties) ? json_decode($item->properties, true) : $item->properties;
                     $props = $props ?? [];
                     
-                    $props['layer_color'] = $layersDict[$item->layer_id] ?? '#3388ff'; 
+                    $layer = $layersData->get($item->layer_id);
+                    $defaultColor = $layer->warna ?? '#3388ff';
+                    $finalColor = $defaultColor;
+
+                    // Deteksi Jenis Hak dari properties
+                    $tipeHak = '';
+                    $raw_data = $props['raw_data'] ?? $props;
+                    
+                    foreach ($raw_data as $key => $val) {
+                        if (in_array(strtoupper($key), ['TIPEHAK', 'HAK', 'STATUS', 'JENIS_HAK'])) {
+                            $tipeHak = strtolower(trim((string)$val));
+                            break;
+                        }
+                    }
+
+                    // Tentukan warna berdasarkan jenis hak (Mendukung struktur web_gis_kediri)
+                    if ($layer) {
+                        if (str_contains($tipeHak, 'milik') || $tipeHak === 'hm') {
+                            $finalColor = $layer->color_hm ?? $defaultColor;
+                        } elseif (str_contains($tipeHak, 'guna bangunan') || $tipeHak === 'hgb') {
+                            $finalColor = $layer->color_hgb ?? $defaultColor;
+                        } elseif (str_contains($tipeHak, 'pakai') || $tipeHak === 'hp') {
+                            $finalColor = $layer->color_hp ?? $defaultColor;
+                        } elseif (str_contains($tipeHak, 'guna usaha') || $tipeHak === 'hgu') {
+                            $finalColor = $layer->color_hgu ?? $defaultColor;
+                        } elseif (str_contains($tipeHak, 'wakaf')) {
+                            $finalColor = $layer->color_wakaf ?? $defaultColor;
+                        }
+                    }
+
+                    $props['layer_color'] = $finalColor;
+                    // Format tambahan agar frontend mudah membaca
+                    $props['kategori_hak'] = strtoupper($tipeHak); 
 
                     $formattedFeatures[] = [
                         'type' => 'Feature', 
@@ -286,7 +320,7 @@ class MapController extends Controller
                 'properties' => json_encode([
                     'type' => 'Manual',
                     'raw_data' => [
-                        'TIPEHAK' => $request->status, 
+                        'TIPEHAK' => $request->status, // TIPEHAK akan dirender khusus di apiData
                         'KECAMATAN' => $request->kecamatan ?? '-', 
                         'KELURAHAN' => $request->desa ?? '-',
                         'PENGGUNAAN' => $request->description
@@ -316,7 +350,20 @@ class MapController extends Controller
     
     public function updateWarna(Request $request, $id) {
         $this->cekAkses('Kelola Layer');
-        MapLayer::where('id', $id)->update(['warna' => $request->warna]);
+        
+        // Pastikan menyimpan semua parameter warna Hak agar terdeteksi beda-beda saat apiData() merender
+        $updateData = [
+            'warna' => $request->warna
+        ];
+
+        if ($request->has('color_hm')) $updateData['color_hm'] = $request->color_hm;
+        if ($request->has('color_hgb')) $updateData['color_hgb'] = $request->color_hgb;
+        if ($request->has('color_hgu')) $updateData['color_hgu'] = $request->color_hgu;
+        if ($request->has('color_hp')) $updateData['color_hp'] = $request->color_hp;
+        if ($request->has('color_wakaf')) $updateData['color_wakaf'] = $request->color_wakaf;
+
+        MapLayer::where('id', $id)->update($updateData);
+        
         return response()->json(['status' => 'success']);
     }
 

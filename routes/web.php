@@ -81,6 +81,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('map')->name('map.')->controller(\App\Http\Controllers\MapController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/aset', 'aset')->name('aset');
+              // Master Layer Management
+        // Rute Master Layer (Penyebab Error Jika Belum Ada)
+        Route::get('/master-layer', [MapController::class, 'masterLayer'])->name('master.layer');
+        Route::post('/master-layer/{id}/update-warna', [MapController::class, 'updateWarna'])->name('master.layer.updateWarna');
         
         // API Peta & CRUD Aset
         Route::get('/api/data', 'apiData')->name('api');

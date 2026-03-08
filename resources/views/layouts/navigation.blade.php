@@ -88,6 +88,11 @@
                                                 <i class="fa-solid fa-chart-pie w-5 text-center mr-1 text-orange-500"></i> {{ __('Statistik Peta') }}
                                             </x-dropdown-link>
                                         @endif
+
+                                        <!-- Contoh penambahan di navigasi utama -->
+                                        <x-nav-link :href="route('master.layer')" :active="request()->routeIs('master.layer')">
+                                            {{ __('Master Layer') }}
+                                        </x-nav-link>
                                     </x-slot>
                                 </x-dropdown>
                             </div>
