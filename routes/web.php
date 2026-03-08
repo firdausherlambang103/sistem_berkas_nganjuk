@@ -89,7 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/asset/{id}', 'showAsset')->name('asset.show');
         Route::put('/asset/{id}', 'updateAsset')->name('asset.update');
         Route::delete('/asset/{id}', 'destroyAsset')->name('asset.destroy');
-        
+        Route::get('/layer-bounds/{id}', 'getLayerBounds')->name('layer.bounds');
         Route::patch('/update-warna/{id}', 'updateWarna')->name('updateWarna');
     });
 

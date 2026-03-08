@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\MapLayer;
-use App\Models\SpatialFeature; // Wajib dipanggil
+use App\Models\SpatialFeature;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use ZipArchive;
@@ -62,7 +62,7 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 2. API UNTUK LEAFLET (PENGGANTI MVT)
+    // 2. API UNTUK LEAFLET (GEOJSON)
     // ========================================================
     public function apiData(Request $request)
     {
@@ -71,25 +71,34 @@ class MapController extends Controller
         }
         
         try {
-            $n = $request->north; $s = $request->south; $e = $request->east; $w = $request->west;
+            $n = (float) $request->north; 
+            $s = (float) $request->south; 
+            $e = (float) $request->east; 
+            $w = (float) $request->west;
             $zoom = (int) $request->zoom;
             $search = $request->input('search');
             $hak = $request->input('hak');
             $layerIds = $request->input('layers'); 
 
-            $polygonWKT = sprintf("SRID=4326;POLYGON((%s %s, %s %s, %s %s, %s %s, %s %s))", $w, $s, $e, $s, $e, $n, $w, $n, $w, $s);
+            $polygonWKT = sprintf("SRID=4326;POLYGON((%F %F, %F %F, %F %F, %F %F, %F %F))", $w, $s, $e, $s, $e, $n, $w, $n, $w, $s);
             $features = [];
             $strategy = '';
 
-            // MODE CLUSTER (Zoom Jauh)
-            if ($zoom < 14 && empty($search) && empty($hak) && empty($layerIds)) {
+            if (empty($layerIds)) {
+                return response()->json(['type'=>'FeatureCollection', 'features'=>[], 'strategy'=>'empty']);
+            }
+
+            // CLUSTER
+            if ($zoom < 14 && empty($search) && empty($hak)) {
                 $strategy = 'cluster';
                 $gridSize = $zoom < 10 ? 0.05 : 0.005;
                 $gridSizeStr = number_format($gridSize, 5, '.', ''); 
                 
-                $clusters = DB::table('spatial_features')
-                    ->select(DB::raw("COUNT(id) as total"), DB::raw("ST_AsGeoJSON(ST_Centroid(ST_Collect(geom::geometry))) as center"))
+                // UPDATE: Pakai koneksi pgsql
+                $clusters = DB::connection('pgsql')->table('spatial_features')
+                    ->whereIn('layer_id', $layerIds)
                     ->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])
+                    ->select(DB::raw("COUNT(id) as total"), DB::raw("ST_AsGeoJSON(ST_Centroid(ST_Collect(geom::geometry))) as center"))
                     ->groupByRaw("ST_SnapToGrid(ST_Centroid(geom::geometry), $gridSizeStr)")
                     ->get();
 
@@ -101,12 +110,10 @@ class MapController extends Controller
                     ];
                 }
             } 
-            // MODE DETAIL (Zoom Dekat)
+            // DETAIL
             else {
-                // Ambil data langsung dari tabel pusat spatial_features
-                $query = SpatialFeature::query()->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT]);
-                
-                if (!empty($layerIds) && is_array($layerIds)) $query->whereIn('layer_id', $layerIds);
+                // SpatialFeature otomatis pakai pgsql karena diset di model
+                $query = SpatialFeature::query()->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])->whereIn('layer_id', $layerIds);
                 
                 if ($search) {
                     $term = '%' . $search . '%';
@@ -118,11 +125,8 @@ class MapController extends Controller
                     $query->where(function($q) use ($keywords) { foreach ($keywords as $word) $q->orWhereRaw("properties::text ILIKE ?", ['%' . $word . '%']); });
                 }
 
-                $selectGeom = ($zoom > 16 || !empty($search) || !empty($hak)) 
-                    ? "ST_AsGeoJSON(geom)" 
-                    : "ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom::geometry, 0.00005))";
-                
-                $strategy = ($zoom > 16 || !empty($search) || !empty($hak)) ? 'detail' : 'simplified';
+                $selectGeom = "ST_AsGeoJSON(geom)";
+                $strategy = 'detail';
 
                 $data = $query->select('id', 'name', 'properties', 'layer_id', DB::raw("$selectGeom as geometry"))->limit(3000)->get();
                 
@@ -130,9 +134,8 @@ class MapController extends Controller
                     if (!$item->geometry) continue;
                     $props = json_decode($item->properties, true) ?? [];
                     
-                    // Ambil warna layer
                     $layerColor = '#3388ff';
-                    $layerInfo = MapLayer::find($item->layer_id);
+                    $layerInfo = MapLayer::find($item->layer_id); // Otomatis cari di MySQL
                     if($layerInfo) $layerColor = $layerInfo->warna;
 
                     $props['layer_color'] = $layerColor; 
@@ -147,8 +150,22 @@ class MapController extends Controller
         } catch (\Exception $e) { return response()->json(['error'=>$e->getMessage()], 500); }
     }
 
+    public function getLayerBounds($layerId)
+    {
+        // UPDATE: Pakai pgsql
+        $bounds = DB::connection('pgsql')->table('spatial_features')
+            ->where('layer_id', $layerId)
+            ->select(DB::raw("ST_AsGeoJSON(ST_Extent(geom)) as bbox"))
+            ->first();
+
+        if ($bounds && $bounds->bbox) {
+            return response()->json(['success' => true, 'bbox' => json_decode($bounds->bbox)]);
+        }
+        return response()->json(['success' => false]);
+    }
+
     // ========================================================
-    // 3. IMPORT SHP MENGGUNAKAN METODE GEOJSONSEQ (PERSIS GITHUB)
+    // 3. IMPORT SHP MENGGUNAKAN METODE GEOJSONSEQ
     // ========================================================
     public function import(Request $request)
     {
@@ -164,9 +181,12 @@ class MapController extends Controller
         $file = $request->file('file_zip');
         $layerName = $request->nama_layer;
         
+
+        // Simpan layer ke database MySQL (default)
         $layer = MapLayer::create([
             'nama_layer' => $layerName,
-            'tabel_db' => 'spatial_features', // Semua masuk sini
+            // Beri nama acak untuk mengelabui aturan UNIQUE Constraint di database lama
+            'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99), 
             'warna' => $request->warna
         ]);
         $layerId = $layer->id;
@@ -191,7 +211,7 @@ class MapController extends Controller
             $shpFile = $shpFiles[0];
             $geojsonFile = $extractPath . '/output.json';
             
-            // Konversi ke GeoJSON
+            // Konversi GDAL
             $cmd = "ogr2ogr -f GeoJSONSeq -dim XY -t_srs EPSG:4326 -skipfailures \"{$geojsonFile}\" \"{$shpFile}\" 2>&1";
             exec($cmd, $output, $returnVar);
 
@@ -227,11 +247,12 @@ class MapController extends Controller
                 ];
 
                 if (count($batchData) >= 500) {
-                    DB::table('spatial_features')->insert($batchData);
+                    // UPDATE: Simpan ke pgsql
+                    DB::connection('pgsql')->table('spatial_features')->insert($batchData);
                     $batchData = []; 
                 }
             }
-            if (!empty($batchData)) DB::table('spatial_features')->insert($batchData);
+            if (!empty($batchData)) DB::connection('pgsql')->table('spatial_features')->insert($batchData);
             fclose($handle);
 
         } catch (\Exception $e) {
@@ -241,7 +262,7 @@ class MapController extends Controller
         }
 
         $this->deleteDirectory($extractPath);
-        return back()->with('success', 'Data SHP berhasil diimport dan disimpan di Spatial Features!');
+        return back()->with('success', 'Data SHP berhasil diimport!');
     }
 
     // ========================================================
@@ -254,7 +275,7 @@ class MapController extends Controller
             $geometryJson = $request->geometry;
             $layerId = $request->input('layer_id');
             
-            DB::table('spatial_features')->insert([
+            DB::connection('pgsql')->table('spatial_features')->insert([
                 'name' => $request->name,
                 'layer_id' => $layerId,
                 'properties' => json_encode([
@@ -277,15 +298,17 @@ class MapController extends Controller
     }
 
     public function showAsset($id) {
-        $item = DB::table('spatial_features')->where('id', $id)->first();
+        $item = DB::connection('pgsql')->table('spatial_features')->where('id', $id)->first();
         if (!$item) return response()->json(['error' => 'Data tidak ditemukan'], 404);
         return response()->json($item);
     }
+    
     public function destroyAsset($id) {
         $this->cekAkses('Kelola Layer');
-        DB::table('spatial_features')->delete($id); 
+        DB::connection('pgsql')->table('spatial_features')->delete($id); 
         return response()->json(['status' => 'success', 'message' => 'Data dihapus!']); 
     }
+    
     public function updateWarna(Request $request, $id) {
         $this->cekAkses('Kelola Layer');
         MapLayer::where('id', $id)->update(['warna' => $request->warna]);
@@ -304,8 +327,7 @@ class MapController extends Controller
         
         $features = [];
         if ($selectedLayer) {
-            // Ambil data properties dari tabel spatial_features untuk layer ini
-            $data = DB::table('spatial_features')->where('layer_id', $selectedLayer->id)->limit(1000)->get();
+            $data = DB::connection('pgsql')->table('spatial_features')->where('layer_id', $selectedLayer->id)->limit(1000)->get();
             foreach($data as $d) {
                 $props = json_decode($d->properties, true);
                 $raw = $props['raw_data'] ?? [];
