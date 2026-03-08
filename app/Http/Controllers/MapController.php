@@ -7,6 +7,7 @@ use App\Models\MapLayer;
 use App\Models\SpatialFeature;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use ZipArchive;
 use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
@@ -62,7 +63,7 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 2. API UNTUK LEAFLET (GEOJSON)
+    // 2. API UNTUK LEAFLET (GEOJSON MAP)
     // ========================================================
     public function apiData(Request $request)
     {
@@ -88,13 +89,11 @@ class MapController extends Controller
                 return response()->json(['type'=>'FeatureCollection', 'features'=>[], 'strategy'=>'empty']);
             }
 
-            // CLUSTER
             if ($zoom < 14 && empty($search) && empty($hak)) {
                 $strategy = 'cluster';
                 $gridSize = $zoom < 10 ? 0.05 : 0.005;
                 $gridSizeStr = number_format($gridSize, 5, '.', ''); 
                 
-                // UPDATE: Pakai koneksi pgsql
                 $clusters = DB::connection('pgsql')->table('spatial_features')
                     ->whereIn('layer_id', $layerIds)
                     ->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])
@@ -110,9 +109,7 @@ class MapController extends Controller
                     ];
                 }
             } 
-            // DETAIL
             else {
-                // SpatialFeature otomatis pakai pgsql karena diset di model
                 $query = SpatialFeature::query()->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])->whereIn('layer_id', $layerIds);
                 
                 if ($search) {
@@ -132,10 +129,11 @@ class MapController extends Controller
                 
                 foreach ($data as $item) {
                     if (!$item->geometry) continue;
-                    $props = json_decode($item->properties, true) ?? [];
+                    $props = is_string($item->properties) ? json_decode($item->properties, true) : $item->properties;
+                    $props = $props ?? [];
                     
                     $layerColor = '#3388ff';
-                    $layerInfo = MapLayer::find($item->layer_id); // Otomatis cari di MySQL
+                    $layerInfo = MapLayer::find($item->layer_id); 
                     if($layerInfo) $layerColor = $layerInfo->warna;
 
                     $props['layer_color'] = $layerColor; 
@@ -152,7 +150,6 @@ class MapController extends Controller
 
     public function getLayerBounds($layerId)
     {
-        // UPDATE: Pakai pgsql
         $bounds = DB::connection('pgsql')->table('spatial_features')
             ->where('layer_id', $layerId)
             ->select(DB::raw("ST_AsGeoJSON(ST_Extent(geom)) as bbox"))
@@ -165,12 +162,16 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 3. IMPORT SHP MENGGUNAKAN METODE GEOJSONSEQ
+    // 3. IMPORT SHP (BYPASS GDAL PROJ)
     // ========================================================
     public function import(Request $request)
     {
         $this->cekAkses('Kelola Layer');
         set_time_limit(0);              
+
+        // MEMAKSA PHP MENGHAPUS CACHE ENVIRONMENT WINDOWS YANG RUSAK
+        putenv('PROJ_LIB=');
+        putenv('PROJ_DATA=');
 
         $request->validate([
             'nama_layer' => 'required|string',
@@ -181,12 +182,9 @@ class MapController extends Controller
         $file = $request->file('file_zip');
         $layerName = $request->nama_layer;
         
-
-        // Simpan layer ke database MySQL (default)
         $layer = MapLayer::create([
             'nama_layer' => $layerName,
-            // Beri nama acak untuk mengelabui aturan UNIQUE Constraint di database lama
-            'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99), 
+            'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99),
             'warna' => $request->warna
         ]);
         $layerId = $layer->id;
@@ -209,51 +207,57 @@ class MapController extends Controller
             if (empty($shpFiles)) throw new \Exception('File .shp tidak ditemukan.');
             
             $shpFile = $shpFiles[0];
-            $geojsonFile = $extractPath . '/output.json';
             
-            // Konversi GDAL
-            $cmd = "ogr2ogr -f GeoJSONSeq -dim XY -t_srs EPSG:4326 -skipfailures \"{$geojsonFile}\" \"{$shpFile}\" 2>&1";
-            exec($cmd, $output, $returnVar);
+            $tempTableName = 'temp_layer_' . time();
+            
+            $dbHost = env('DB_PGSQL_HOST', '127.0.0.1');
+            $dbPort = env('DB_PGSQL_PORT', '5432');
+            $dbName = env('DB_PGSQL_DATABASE', env('DB_DATABASE'));
+            $dbUser = env('DB_PGSQL_USERNAME', env('DB_USERNAME'));
+            $dbPass = env('DB_PGSQL_PASSWORD', env('DB_PASSWORD'));
 
-            if (!file_exists($geojsonFile) || filesize($geojsonFile) < 10) {
-                $cmd = str_replace('GeoJSONSeq', 'GeoJSON', $cmd);
-                exec($cmd, $output, $returnVar);
+            // [SOLUSI PAMUNGKAS]: 
+            // 1. Membersihkan env di CMD via `set PROJ_LIB=`
+            // 2. MENCABUT parameter `-t_srs EPSG:4326` agar GDAL tidak perlu memakai Proj.db sama sekali.
+            $command = "set PROJ_LIB= && set PROJ_DATA= && ogr2ogr -f \"PostgreSQL\" PG:\"host=$dbHost port=$dbPort user=$dbUser dbname=$dbName password=$dbPass\" \"$shpFile\" -nln \"$tempTableName\" -nlt PROMOTE_TO_MULTI -makevalid -lco GEOMETRY_NAME=geom -lco FID=id -overwrite -progress 2>&1";
+            exec($command, $output, $returnVar);
+
+            if ($returnVar !== 0) {
+                throw new \Exception("GDAL Error: " . implode(" ", $output));
             }
 
-            $handle = fopen($geojsonFile, "r");
-            if (!$handle) throw new \Exception("Gagal membuka hasil konversi GDAL.");
-
-            $batchData = [];
-            while (($line = fgets($handle)) !== false) {
-                $line = trim($line);
-                if (empty($line) || in_array($line, ['[', ']', '{', '}'])) continue;
-                $line = rtrim($line, ',');
-                if (substr($line, 0, 10) == '"type":') continue;
-
-                $feature = json_decode($line, true);
-                if (!$feature || empty($feature['geometry'])) continue;
-
-                $props = $feature['properties'] ?? [];
-                $name = $props['NIB'] ?? ($props['ID'] ?? ($props['DESA'] ?? 'Aset Baru'));
-                $geomJson = json_encode($feature['geometry']);
-
-                $batchData[] = [
-                    'name' => $name,
-                    'layer_id' => $layerId,
-                    'properties' => json_encode(['type' => 'Imported', 'raw_data' => $props]),
-                    'geom' => DB::raw("ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON('$geomJson'), 4326))"),
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ];
-
-                if (count($batchData) >= 500) {
-                    // UPDATE: Simpan ke pgsql
-                    DB::connection('pgsql')->table('spatial_features')->insert($batchData);
-                    $batchData = []; 
+            $columns = Schema::connection('pgsql')->getColumnListing($tempTableName);
+            
+            $nameCol = 'id';
+            $possibles = ['nib', 'nama', 'name', 'desa', 'kelurahan', 'pemilik'];
+            foreach($columns as $c) {
+                if(in_array(strtolower($c), $possibles)) {
+                    $nameCol = $c; break;
                 }
             }
-            if (!empty($batchData)) DB::connection('pgsql')->table('spatial_features')->insert($batchData);
-            fclose($handle);
+
+            // [KONVERSI KORDINAT OLEH POSTGRESQL]
+            // Karena GDAL dilarang memproses kordinat, kita serahkan konversinya (ST_Transform) secara langsung ke PostGIS
+            $insertQuery = "
+                INSERT INTO spatial_features (layer_id, name, properties, geom, created_at, updated_at)
+                SELECT
+                    ?,
+                    COALESCE(\"$nameCol\"::text, 'Aset Baru'),
+                    jsonb_build_object('type', 'Imported', 'raw_data', jsonb_strip_nulls(row_to_json(t)::jsonb - 'geom' - 'wkb_geometry' - 'id')),
+                    ST_Force2D(ST_Transform(
+                        CASE 
+                            WHEN ST_SRID(geom) = 0 THEN ST_SetSRID(geom, 4326) 
+                            ELSE geom 
+                        END, 
+                    4326)),
+                    NOW(),
+                    NOW()
+                FROM \"$tempTableName\" t
+                WHERE geom IS NOT NULL
+            ";
+            
+            DB::connection('pgsql')->insert($insertQuery, [$layerId]);
+            Schema::connection('pgsql')->dropIfExists($tempTableName);
 
         } catch (\Exception $e) {
             MapLayer::find($layerId)->delete();
@@ -262,7 +266,7 @@ class MapController extends Controller
         }
 
         $this->deleteDirectory($extractPath);
-        return back()->with('success', 'Data SHP berhasil diimport!');
+        return back()->with('success', 'Data SHP berhasil diimport dan dikonversi oleh PostGIS!');
     }
 
     // ========================================================
@@ -305,7 +309,7 @@ class MapController extends Controller
     
     public function destroyAsset($id) {
         $this->cekAkses('Kelola Layer');
-        DB::connection('pgsql')->table('spatial_features')->delete($id); 
+        DB::connection('pgsql')->table('spatial_features')->where('id', $id)->delete(); 
         return response()->json(['status' => 'success', 'message' => 'Data dihapus!']); 
     }
     
@@ -329,7 +333,7 @@ class MapController extends Controller
         if ($selectedLayer) {
             $data = DB::connection('pgsql')->table('spatial_features')->where('layer_id', $selectedLayer->id)->limit(1000)->get();
             foreach($data as $d) {
-                $props = json_decode($d->properties, true);
+                $props = is_string($d->properties) ? json_decode($d->properties, true) : $d->properties;
                 $raw = $props['raw_data'] ?? [];
                 $features[] = (object) array_merge(['id' => $d->id, 'name' => $d->name], $raw);
             }
