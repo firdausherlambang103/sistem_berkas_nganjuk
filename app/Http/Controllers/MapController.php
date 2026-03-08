@@ -6,48 +6,82 @@ use Illuminate\Http\Request;
 use App\Models\MapLayer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema; // Tambahan Facade Schema
 use ZipArchive;
 use Illuminate\Support\Facades\Log;
 
 class MapController extends Controller
 {
-    // Helper Fungsi Cek Hak Akses (Hanya Admin atau yang dicentang menunya yang bisa)
+    // ========================================================
+    // HELPER: Cek Hak Akses Menu
+    // ========================================================
     private function cekAkses($hakAksesDibutuhkan)
     {
         $aksesMenu = is_array(auth()->user()->akses_menu) ? auth()->user()->akses_menu : json_decode(auth()->user()->akses_menu, true) ?? [];
         $isAdmin = optional(auth()->user()->jabatan)->is_admin;
 
         if (!$isAdmin && !in_array($hakAksesDibutuhkan, $aksesMenu)) {
-            abort(403, "Akses Ditolak! Anda tidak memiliki izin untuk menu ($hakAksesDibutuhkan).");
+            abort(403, "Akses Ditolak! Anda tidak memiliki izin untuk ($hakAksesDibutuhkan).");
         }
-
         return true;
     }
 
+    // ========================================================
+    // 1. TAMPILAN PETA UTAMA
+    // ========================================================
     public function index()
     {
-        // 1. Pastikan user punya akses lihat WebGIS
         $this->cekAkses('WebGIS');
 
-        // 2. Ambil data layer
         $layers = MapLayer::all();
-        
-        // 3. Cek apakah user ini boleh mengelola layer (dikirim ke view)
         $aksesMenu = is_array(auth()->user()->akses_menu) ? auth()->user()->akses_menu : json_decode(auth()->user()->akses_menu, true) ?? [];
         $bisaKelolaLayer = optional(auth()->user()->jabatan)->is_admin || in_array('Kelola Layer', $aksesMenu);
 
-        // 4. Kirim variabel $layers dan $bisaKelolaLayer ke view
         return view('map.index', compact('layers', 'bisaKelolaLayer'));
     }
 
+    // ========================================================
+    // 2. TAMPILAN DATA ASET (TABEL TABULAR)
+    // ========================================================
+    public function aset(Request $request)
+    {
+        $this->cekAkses('Data Aset');
+
+        $layers = MapLayer::all();
+        $selectedLayerId = $request->get('layer_id');
+        $selectedLayer = $selectedLayerId ? MapLayer::find($selectedLayerId) : $layers->first();
+        
+        $features = collect();
+        $columns = [];
+        
+        if ($selectedLayer) {
+            $table = $selectedLayer->tabel_db;
+            try {
+                $featureData = DB::connection('pgsql')->table($table)->limit(5000)->get();
+                if ($featureData->count() > 0) {
+                    $features = $featureData;
+                    $columns = array_keys((array) $featureData->first());
+                    // Buang kolom geom dari tabel web agar tidak error panjang
+                    $columns = array_diff($columns, ['geom', 'wkb_geometry']); 
+                }
+            } catch (\Exception $e) {
+                Log::error("Gagal memuat atribut data aset: " . $e->getMessage());
+            }
+        }
+
+        return view('map.aset', compact('layers', 'selectedLayer', 'features', 'columns'));
+    }
+
+    // ========================================================
+    // 3. PROSES IMPORT SHP KE POSTGIS
+    // ========================================================
     public function import(Request $request)
     {
-        // Pastikan user punya akses Kelola Layer
         $this->cekAkses('Kelola Layer');
 
         $request->validate([
             'nama_layer' => 'required|string',
-            'file_zip' => 'required|mimes:zip|max:500000', // Max 500MB
+            'file_zip' => 'required|mimes:zip|max:500000', 
             'warna' => 'required|string'
         ]);
 
@@ -68,83 +102,122 @@ class MapController extends Controller
         }
         $shpFile = $shpFiles[0];
 
-        // Format nama tabel ke bentuk aman (huruf kecil & tanpa spasi)
         $tableName = 'layer_' . time() . '_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $request->nama_layer));
 
-        // Kredensial DB PostgreSQL Peta (dari .env)
         $dbHost = env('DB_PGSQL_HOST', '127.0.0.1');
         $dbPort = env('DB_PGSQL_PORT', '5432');
         $dbName = env('DB_PGSQL_DATABASE');
         $dbUser = env('DB_PGSQL_USERNAME');
         $dbPass = env('DB_PGSQL_PASSWORD');
 
-        // COMMAND GDAL (ogr2ogr)
-        $command = "ogr2ogr -f \"PostgreSQL\" PG:\"host=$dbHost port=$dbPort user=$dbUser dbname=$dbName password=$dbPass\" \"$shpFile\" -nln \"$tableName\" -nlt PROMOTE_TO_MULTI -lco GEOMETRY_NAME=geom -lco FID=id -overwrite -progress";
+        $command = "ogr2ogr -f \"PostgreSQL\" PG:\"host=$dbHost port=$dbPort user=$dbUser dbname=$dbName password=$dbPass\" \"$shpFile\" -nln \"$tableName\" -nlt PROMOTE_TO_MULTI -makevalid -t_srs EPSG:4326 -lco GEOMETRY_NAME=geom -lco FID=id -overwrite -progress 2>&1";
         
         exec($command, $output, $returnVar);
 
         if ($returnVar !== 0) {
+            $errorMessage = implode(" | ", $output);
             Log::error("Import SHP Gagal", ['command' => $command, 'output' => $output]);
-            return back()->with('error', 'Gagal memproses SHP. Pastikan GDAL terinstall di Environment Variables.');
+            Storage::delete($zipPath);
+            $this->deleteDirectory($extractPath);
+            
+            if (strpos($errorMessage, 'is not recognized') !== false || empty($output)) {
+                return back()->with('error', 'Aplikasi GDAL (ogr2ogr) belum terinstal di server.');
+            }
+            return back()->with('error', 'Gagal memproses SHP: ' . $errorMessage);
         }
 
-        // Simpan referensi ke database
+        // --- BUAT SPATIAL INDEX AGAR PETA SUPER CEPAT ---
+        try {
+            DB::connection('pgsql')->statement("CREATE INDEX IF NOT EXISTS {$tableName}_geom_idx ON \"$tableName\" USING GIST (geom)");
+        } catch (\Exception $e) {
+            Log::warning("Gagal membuat index spatial untuk $tableName");
+        }
+
         MapLayer::create([
             'nama_layer' => $request->nama_layer,
             'tabel_db' => $tableName,
             'warna' => $request->warna
         ]);
 
-        // Hapus file temporary
         Storage::delete($zipPath);
         $this->deleteDirectory($extractPath);
 
-        return back()->with('success', 'Data Peta SHP berhasil diimport ke database!');
+        return back()->with('success', 'Data SHP berhasil diimport!');
     }
 
+    // ========================================================
+    // 4. MVT RENDERER (PERBAIKAN UTAMA DI SINI)
+    // ========================================================
     public function getVectorTiles($layerId, $z, $x, $y)
     {
-        // Tetap pastikan user punya akses lihat WebGIS
         $this->cekAkses('WebGIS');
 
         $layer = MapLayer::findOrFail($layerId);
         $table = $layer->tabel_db;
 
-        // Query MVT PostGIS
-        $query = "
-            WITH bounds AS (
-                SELECT ST_TileEnvelope(?, ?, ?) AS geom
-            ),
-            mvtgeom AS (
-                SELECT ST_AsMVTGeom(ST_Transform(t.geom, 3857), bounds.geom) AS geom
-                FROM $table t, bounds
-                WHERE ST_Intersects(ST_Transform(t.geom, 3857), bounds.geom)
-            )
-            SELECT ST_AsMVT(mvtgeom, 'default') as tile FROM mvtgeom;
-        ";
+        // 1. WAJIB Cast ke Integer agar ST_TileEnvelope PostgreSQL tidak Error
+        $z = (int) $z;
+        $x = (int) $x;
+        $y = (int) $y;
 
-        // Query dijalankan ke connection pgsql
-        $result = DB::connection('pgsql')->select($query, [$z, $x, $y]);
-        $tile = $result[0]->tile ?? null;
+        try {
+            // 2. Ambil semua nama kolom tabel, lalu BUANG kolom geom.
+            // Ini untuk menghindari error "kolom duplikat" pada fungsi MVT
+            $columns = Schema::connection('pgsql')->getColumnListing($table);
+            $attributeCols = array_diff($columns, ['geom', 'wkb_geometry']); 
+            
+            $selectAttributes = '';
+            if (!empty($attributeCols)) {
+                // Bungkus kolom dengan tanda kutip " agar aman jika ada spasi/huruf besar
+                $quotedCols = array_map(function($col) { return "t.\"$col\""; }, $attributeCols);
+                $selectAttributes = ", " . implode(', ', $quotedCols);
+            }
 
-        if (!$tile) {
-            return response('', 204); // No Content
+            // 3. Query MVT yang sudah bersih
+            $query = "
+                WITH bounds AS (
+                    SELECT ST_TileEnvelope(?, ?, ?) AS bounds_geom
+                ),
+                mvtgeom AS (
+                    SELECT ST_AsMVTGeom(ST_Transform(ST_SetSRID(t.geom, 4326), 3857), bounds.bounds_geom) AS geom
+                           $selectAttributes
+                    FROM \"$table\" t, bounds
+                    WHERE ST_Intersects(ST_Transform(ST_SetSRID(t.geom, 4326), 3857), bounds.bounds_geom)
+                )
+                SELECT ST_AsMVT(mvtgeom, 'default') as tile FROM mvtgeom;
+            ";
+
+            $result = DB::connection('pgsql')->select($query, [$z, $x, $y]);
+            $tile = $result[0]->tile ?? null;
+
+            if (!$tile) {
+                return response('', 204); 
+            }
+
+            return response($tile)->header('Content-Type', 'application/x-protobuf')
+                                 ->header('Access-Control-Allow-Origin', '*'); // Pastikan CORS diizinkan
+
+        } catch (\Exception $e) {
+            Log::error("MVT Error pada Layer {$layer->nama_layer}: " . $e->getMessage());
+            return response('', 204);
         }
-
-        return response($tile)->header('Content-Type', 'application/x-protobuf');
     }
 
+    // ========================================================
+    // 5. UPDATE WARNA
+    // ========================================================
     public function updateWarna(Request $request, $id)
     {
         $this->cekAkses('Kelola Layer');
-
         $request->validate(['warna' => 'required|string']);
         $layer = MapLayer::findOrFail($id);
         $layer->update(['warna' => $request->warna]);
-        
-        return back()->with('success', 'Warna layer berhasil diupdate.');
+        return back()->with('success', 'Warna layer diupdate.');
     }
 
+    // ========================================================
+    // 6. HELPER HAPUS FOLDER
+    // ========================================================
     private function deleteDirectory($dir) {
         if (!file_exists($dir)) return true;
         if (!is_dir($dir)) return unlink($dir);

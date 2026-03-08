@@ -1,42 +1,81 @@
 <x-app-layout>
-    {{-- Kita sembunyikan header bawaan agar peta bisa lebih luas (Full Screen Look) --}}
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <i class="fa-solid fa-map-location-dot text-indigo-600 mr-2"></i> {{ __('WebGIS Master Peta') }}
+                <i class="fa-solid fa-map-location-dot text-indigo-600 mr-2"></i> {{ __('Peta Sebaran Aset (WebGIS)') }}
             </h2>
-            <div class="text-sm text-gray-500 font-mono bg-gray-100 px-3 py-1 rounded-full border border-gray-200">
-                <i class="fa-solid fa-server text-green-500 mr-1"></i> PostGIS MVT Engine
+            <div class="text-sm text-gray-500 font-mono bg-gray-100 px-3 py-1 rounded-full border border-gray-200 shadow-sm flex items-center">
+                <i class="fa-solid fa-server text-green-500 mr-2"></i> PostGIS MVT 
             </div>
         </div>
     </x-slot>
 
-    <div class="relative w-full h-[calc(100vh-140px)] bg-gray-200 overflow-hidden">
+    {{-- ========================================================= --}}
+    {{-- LOGIKA HAK AKSES (Diletakkan di View agar tidak Error)    --}}
+    {{-- ========================================================= --}}
+    @php
+        $aksesMenu = is_array(auth()->user()->akses_menu) ? auth()->user()->akses_menu : json_decode(auth()->user()->akses_menu, true) ?? [];
+        $isAdmin = optional(auth()->user()->jabatan)->is_admin;
         
-        {{-- 1. LOADING INDICATOR MELAYANG --}}
+        $bisaKelolaLayer = $isAdmin || in_array('Kelola Layer', $aksesMenu);
+        $bisaLihatData = $isAdmin || in_array('Data Aset', $aksesMenu);
+        $bisaLihatStatistik = $isAdmin || in_array('Statistik', $aksesMenu);
+    @endphp
+
+    {{-- KONTANER UTAMA PETA --}}
+    <div class="relative w-full bg-gray-200 overflow-hidden" style="height: calc(100vh - 140px); min-height: 600px;">
+        
+        {{-- LOADING INDICATOR --}}
         <div id="map-loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white/95 px-6 py-3 rounded-full font-bold shadow-2xl text-gray-700 flex items-center border border-gray-100 backdrop-blur-sm">
             <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 text-xl mr-3"></i> 
-            <span id="loading-text">Memuat Jutaan Data...</span>
+            <span id="loading-text">Memuat Data Spasial...</span>
         </div>
 
-        {{-- 2. PANEL FILTER & ALAT (KANAN ATAS) --}}
-        <div class="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-72 transition-all hover:bg-white">
-            <h6 class="font-bold text-gray-800 mb-3 flex items-center text-sm">
-                <i class="fa-solid fa-magnifying-glass text-indigo-600 mr-2"></i> Alat & Pencarian
+        {{-- ========================================================= --}}
+        {{-- SUB MENU TENGAH ATAS (DATA ASET & STATISTIK) --}}
+        {{-- ========================================================= --}}
+        @if($bisaLihatData || $bisaLihatStatistik)
+        <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] flex gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-xl shadow-lg border border-gray-200">
+            @if($bisaLihatData)
+            <a href="#" class="px-5 py-2 rounded-lg text-sm font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition flex items-center">
+                <i class="fa-solid fa-table-list text-blue-500 mr-2"></i> Data Aset
+            </a>
+            @endif
+            
+            @if($bisaLihatData && $bisaLihatStatistik)
+            <div class="w-px bg-gray-300 my-1"></div>
+            @endif
+
+            @if($bisaLihatStatistik)
+            <a href="#" class="px-5 py-2 rounded-lg text-sm font-bold text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition flex items-center">
+                <i class="fa-solid fa-chart-pie text-orange-500 mr-2"></i> Statistik
+            </a>
+            @endif
+        </div>
+        @endif
+
+        {{-- ========================================================= --}}
+        {{-- PANEL KANAN: ALAT FILTER & MANAJEMEN LAYER --}}
+        {{-- ========================================================= --}}
+        
+        {{-- 1. PANEL FILTER PETA --}}
+        <div class="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-[320px] transition-all">
+            <h6 class="font-bold text-gray-800 mb-3 flex items-center text-sm border-b pb-2">
+                <i class="fa-solid fa-filter text-indigo-600 mr-2"></i> Filter & Alat
             </h6>
             
             <div class="space-y-3 mb-3">
                 <div>
-                    <label class="text-xs font-semibold text-gray-600 mb-1 block">Pencarian Aset</label>
+                    <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Pencarian (Nama/NIB)</label>
                     <div class="relative">
-                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Nama / NIB...">
+                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik kata kunci...">
                         <button onclick="document.getElementById('searchMap').value=''" class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-gray-600 mb-1 block">Tipe Hak (Filter)</label>
+                    <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Tipe Hak</label>
                     <select id="filterHak" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 py-1.5">
-                        <option value="">Semua Hak</option>
+                        <option value="">Semua Tipe Hak</option>
                         <option value="HM">Hak Milik (HM)</option>
                         <option value="HGB">Hak Guna Bangunan (HGB)</option>
                         <option value="HGU">Hak Guna Usaha (HGU)</option>
@@ -45,132 +84,209 @@
                     </select>
                 </div>
             </div>
-            
-            <button onclick="alert('Fitur filter spesifik backend akan segera hadir!')" class="w-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold py-2 rounded-md hover:bg-indigo-100 transition shadow-sm mb-3">
-                Terapkan Filter
-            </button>
 
-            @if(isset($bisaKelolaLayer) && $bisaKelolaLayer)
-                <div class="border-t border-gray-200 pt-3">
-                    <button onclick="bukaModalUpload()" class="w-full bg-emerald-600 text-white text-xs font-bold py-2 rounded-md hover:bg-emerald-700 transition shadow-md flex items-center justify-center">
-                        <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Upload SHP Baru
-                    </button>
-                </div>
-            @endif
+            {{-- Susunan Tombol Sejajar (Rata) --}}
+            <div class="grid grid-cols-2 gap-2 mt-4">
+                <button onclick="alert('Fitur filter spesifik sedang disiapkan.')" class="w-full bg-indigo-100 text-indigo-700 text-xs font-bold py-2 rounded-md hover:bg-indigo-200 transition shadow-sm flex items-center justify-center">
+                    <i class="fa-solid fa-search mr-1.5"></i> Filter
+                </button>
+                
+                @if($bisaKelolaLayer)
+                <button onclick="bukaModal('modalUploadShp')" class="w-full bg-emerald-600 text-white text-xs font-bold py-2 rounded-md hover:bg-emerald-700 transition shadow-sm flex items-center justify-center">
+                    <i class="fa-solid fa-cloud-upload-alt mr-1.5"></i> Upload SHP
+                </button>
+                @endif
+            </div>
         </div>
 
-        {{-- 3. PANEL LAYER AKTIF (KANAN TENGAH) --}}
-        <div class="absolute top-[280px] right-4 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-72 transition-all hover:bg-white">
-            <h6 class="font-bold text-gray-800 mb-3 flex items-center text-sm border-b pb-2">
-                <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> Manajemen Layer
+        {{-- 2. PANEL LAYER AKTIF --}}
+        <div class="absolute top-[315px] right-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-[320px] transition-all">
+            <h6 class="font-bold text-gray-800 mb-2 flex items-center justify-between text-sm border-b pb-2">
+                <span><i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> Layer Aktif</span>
             </h6>
             
-            <div id="layerList" class="max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            <div id="layerList" class="max-h-[160px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 @forelse($layers as $layer)
                     <div class="flex items-center justify-between p-1.5 hover:bg-gray-50 rounded-md border border-transparent hover:border-gray-100 transition group">
                         <label class="flex items-center text-sm text-gray-700 cursor-pointer flex-1 truncate pr-2">
-                            <input type="checkbox" class="layer-toggle mr-2 rounded w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300" 
-                                   value="{{ $layer->id }}" 
-                                   data-warna="{{ $layer->warna }}"
+                            <input type="checkbox" class="layer-toggle mr-2 rounded w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 shadow-sm" 
+                                   value="{{ $layer->id }}" data-warna="{{ $layer->warna }}"
                                    data-url="{{ url('/map/tiles/' . $layer->id . '/{z}/{x}/{y}.pbf') }}">
                             <span class="truncate font-medium">{{ $layer->nama_layer }}</span>
                         </label>
-                        
-                        @if(isset($bisaKelolaLayer) && $bisaKelolaLayer)
-                            {{-- Color Picker Langsung Ganti Ajax --}}
+                        @if($bisaKelolaLayer)
                             <input type="color" class="layer-color-picker w-6 h-6 rounded cursor-pointer border border-gray-300 p-0 overflow-hidden shrink-0 opacity-70 group-hover:opacity-100 transition" 
-                                   value="{{ $layer->warna }}" 
-                                   data-id="{{ $layer->id }}" 
-                                   title="Ubah Warna Layer">
+                                   value="{{ $layer->warna }}" data-id="{{ $layer->id }}" title="Ubah Warna Layer">
                         @else
-                            <div class="w-4 h-4 rounded-full border border-gray-300 shrink-0" style="background-color: {{ $layer->warna }}"></div>
+                            <div class="w-4 h-4 rounded-full border border-gray-300 shrink-0 shadow-sm" style="background-color: {{ $layer->warna }}"></div>
                         @endif
                     </div>
                 @empty
-                    <p class="text-xs text-gray-500 italic text-center py-2">Belum ada layer. Silakan upload.</p>
+                    <p class="text-xs text-gray-500 italic py-2 text-center">Belum ada layer SHP di database.</p>
                 @endforelse
             </div>
 
-            {{-- Slider Opacity --}}
             <div class="border-t border-gray-200 mt-3 pt-3">
-                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
-                    <span>Transparansi Peta</span>
-                    <span id="opacityVal">60%</span>
+                <div class="flex justify-between text-[11px] font-bold text-gray-600 mb-1">
+                    <span>Transparansi Layer</span> <span id="opacityVal">60%</span>
                 </div>
                 <input type="range" id="opacitySlider" min="0.1" max="1" step="0.1" value="0.6" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
             </div>
+
+            @if($bisaKelolaLayer)
+                <button onclick="bukaModal('modalAddLayer')" class="w-full border-2 border-indigo-200 text-indigo-700 text-xs font-bold py-2 rounded-md hover:bg-indigo-50 hover:border-indigo-300 transition mt-4 flex items-center justify-center">
+                    <i class="fa-solid fa-plus mr-1.5"></i> Buat Layer Kosong
+                </button>
+            @endif
         </div>
 
-        {{-- 4. PANEL LEGENDA (KIRI BAWAH) --}}
-        <div class="absolute bottom-6 left-4 z-[1000] bg-white/90 backdrop-blur-md p-3 rounded-xl shadow-lg border border-gray-200 w-48 transition-all hover:bg-white">
-            <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-xs uppercase tracking-wider flex items-center">
-                <i class="fa-solid fa-list-ul text-indigo-600 mr-2"></i> Legenda
+
+        {{-- ========================================================= --}}
+        {{-- PANEL KIRI BAWAH: LEGENDA --}}
+        {{-- ========================================================= --}}
+        <div class="absolute bottom-8 left-[15px] z-[1000] bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-lg border border-gray-200 w-48 transition-all">
+            <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-[11px] uppercase tracking-wider flex items-center">
+                <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Hak
             </h6>
-            <div class="space-y-1.5 text-xs text-gray-700 font-medium">
-                <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-[#28a745] border border-gray-300 shadow-inner"></div> Hak Milik (HM)</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-[#ffc107] border border-gray-300 shadow-inner"></div> HGB</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-[#17a2b8] border border-gray-300 shadow-inner"></div> Hak Pakai (HP)</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-[#fd7e14] border border-gray-300 shadow-inner"></div> HGU</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-[#6f42c1] border border-gray-300 shadow-inner"></div> Tanah Wakaf</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-[#6c757d] border border-gray-300 shadow-inner"></div> Tanah Negara</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-[#3388ff] border border-gray-300 shadow-inner"></div> Layer Kustom</div>
+            <div class="space-y-1.5 text-[11px] text-gray-700 font-medium">
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#28a745] border border-gray-300"></div> Hak Milik (HM)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#ffc107] border border-gray-300"></div> HGB</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#17a2b8] border border-gray-300"></div> Hak Pakai (HP)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#fd7e14] border border-gray-300"></div> HGU</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#6f42c1] border border-gray-300"></div> Tanah Wakaf</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#6c757d] border border-gray-300"></div> Tanah Negara</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#3388ff] border border-gray-300"></div> Default Layer</div>
             </div>
         </div>
 
         {{-- WADAH PETA UTAMA --}}
-        <div id="main-map" class="w-full h-full z-10"></div>
+        <div id="main-map" style="width: 100%; height: 100%; z-index: 10;"></div>
     </div>
 
-    {{-- 5. MODAL UPLOAD SHP (TAILWIND STYLE) --}}
-    @if(isset($bisaKelolaLayer) && $bisaKelolaLayer)
-    <div id="modalUploadShp" class="fixed inset-0 z-[3000] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-900 bg-opacity-60 transition-opacity backdrop-blur-sm" onclick="tutupModalUpload()"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-            
-            <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
-                <div class="bg-indigo-600 px-4 py-3 flex justify-between items-center">
-                    <h3 class="text-lg leading-6 font-bold text-white flex items-center" id="modal-title">
-                        <i class="fa-solid fa-layer-group mr-2"></i> Upload SHP Baru
-                    </h3>
-                    <button type="button" onclick="tutupModalUpload()" class="text-indigo-100 hover:text-white focus:outline-none">
-                        <i class="fa-solid fa-xmark text-xl"></i>
-                    </button>
+
+    {{-- ========================================================= --}}
+    {{-- MODAL - MODAL APLIKASI --}}
+    {{-- ========================================================= --}}
+
+    @if($bisaKelolaLayer)
+    {{-- 1. Modal Upload SHP --}}
+    <div id="modalUploadShp" class="fixed inset-0 z-[3000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all border border-gray-100">
+                <div class="bg-indigo-600 px-5 py-4 flex justify-between items-center text-white">
+                    <h3 class="font-bold text-lg"><i class="fa-solid fa-cloud-upload-alt mr-2"></i> Upload File SHP</h3>
+                    <button onclick="tutupModal('modalUploadShp')" class="hover:text-indigo-200 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
                 </div>
-                
-                <form action="{{ route('map.import') }}" method="POST" enctype="multipart/form-data" id="formUploadShp">
+                <form action="{{ route('map.import') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
                     @csrf
-                    <div class="bg-white px-6 py-5 space-y-4">
-                        <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-lg border border-blue-200 flex items-start">
-                            <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-blue-500 text-base"></i>
-                            <span>File ZIP harus berisi komponen lengkap shapefile (.shp, .shx, .dbf, .prj).</span>
-                        </div>
+                    <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-lg border border-blue-200 flex items-start">
+                        <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-blue-500 text-base"></i>
+                        <span>Pastikan Anda mengunggah file <b>.ZIP</b> yang didalamnya berisi lengkap komponen Shapefile (.shp, .shx, .dbf, .prj).</span>
+                    </div>
 
-                        <div>
-                            <x-input-label value="Nama Layer Tampilan" />
-                            <x-text-input name="nama_layer" type="text" required class="w-full mt-1 text-sm bg-gray-50" placeholder="Misal: Batas Desa 2026..." />
-                        </div>
-                        
-                        <div>
-                            <x-input-label value="Pilih File (.ZIP)" />
-                            <input type="file" name="file_zip" accept=".zip" required class="w-full mt-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-gray-300 rounded-md cursor-pointer">
-                        </div>
-
-                        <div>
-                            <x-input-label value="Warna Default Layer" />
-                            <div class="flex items-center mt-1 gap-3">
-                                <input type="color" name="warna" value="#3388ff" class="w-12 h-10 rounded cursor-pointer border border-gray-300 p-0.5">
-                                <span class="text-xs text-gray-500 italic">Bisa diubah nanti di panel manajemen layer.</span>
-                            </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Layer (Alias) <span class="text-red-500">*</span></label>
+                        <input type="text" name="nama_layer" required class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500" placeholder="Misal: Batas Desa 2026...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Pilih File (.ZIP) <span class="text-red-500">*</span></label>
+                        <input type="file" name="file_zip" accept=".zip" required class="w-full text-sm border border-gray-300 rounded-md p-1.5 bg-gray-50 cursor-pointer file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Warna Utama Poligon / Garis</label>
+                        <div class="flex items-center gap-3">
+                            <input type="color" name="warna" value="#3388ff" class="w-14 h-10 rounded cursor-pointer border border-gray-300 p-0.5">
+                            <span class="text-xs text-gray-500 italic">Bisa diubah kembali nanti.</span>
                         </div>
                     </div>
-                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
-                        <button type="submit" id="btnSubmitUpload" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:ml-3 sm:w-auto sm:text-sm transition">
-                            <i class="fa-solid fa-cloud-arrow-up mr-2 mt-1"></i> Mulai Import
+                    <div class="pt-5 border-t flex justify-end gap-3 mt-6">
+                        <button type="button" onclick="tutupModal('modalUploadShp')" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 transition shadow-sm">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition shadow-sm flex items-center">
+                            <i class="fa-solid fa-upload mr-2"></i> Proses Upload
                         </button>
-                        <button type="button" onclick="tutupModalUpload()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition">
-                            Batal
-                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- 2. Modal Buat Layer Kosong --}}
+    <div id="modalAddLayer" class="fixed inset-0 z-[3000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+                <div class="bg-indigo-600 px-4 py-3 flex justify-between items-center text-white">
+                    <h3 class="font-bold"><i class="fa-solid fa-layer-group mr-2"></i> Buat Layer Baru</h3>
+                    <button onclick="tutupModal('modalAddLayer')" class="hover:text-indigo-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Layer</label>
+                        <input type="text" id="newLayerName" class="w-full text-sm border-gray-300 rounded-md" placeholder="Misal: Jalan, Sungai...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Warna Default</label>
+                        <input type="color" id="newLayerColor" value="#3388ff" class="w-14 h-10 rounded border border-gray-300 p-0.5 cursor-pointer">
+                    </div>
+                    <div class="pt-4 border-t flex justify-end gap-2 mt-2">
+                        <button onclick="tutupModal('modalAddLayer')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-bold hover:bg-gray-200">Batal</button>
+                        <button onclick="alert('Fungsi simpan layer kosong sedang dikembangkan.')" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-bold hover:bg-indigo-700">Simpan Layer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- 3. Modal Draw (Gambar Manual) --}}
+    <div id="modalDraw" class="fixed inset-0 z-[3000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+        <div class="flex items-center justify-center min-h-screen px-4 py-10">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <div class="bg-emerald-600 px-4 py-3 flex justify-between items-center text-white">
+                    <h3 class="font-bold"><i class="fa-solid fa-pen-to-square mr-2"></i> Simpan Data Bidang (Manual)</h3>
+                    <button onclick="batalDraw()" class="hover:text-emerald-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form id="formDraw" class="p-5 space-y-3">
+                    <input type="hidden" id="drawGeometry">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Nama Aset / Bidang <span class="text-red-500">*</span></label>
+                        <input type="text" required class="w-full mt-1 text-sm border-gray-300 rounded-md" placeholder="Contoh: Tanah Wakaf Masjid...">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700">Tipe Hak <span class="text-red-500">*</span></label>
+                            <select class="w-full mt-1 text-sm border-gray-300 rounded-md">
+                                <option value="HM">Hak Milik (HM)</option>
+                                <option value="HP">Hak Pakai (HP)</option>
+                                <option value="HGB">HGB</option>
+                                <option value="HGU">HGU</option>
+                                <option value="Wakaf">Wakaf</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700">Warna Poligon</label>
+                            <input type="color" value="#ff0000" class="w-full h-[38px] mt-1 rounded cursor-pointer border border-gray-300 p-0.5">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700">Kecamatan</label>
+                            <input type="text" class="w-full mt-1 text-sm border-gray-300 rounded-md" placeholder="Nama Kecamatan">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700">Desa/Kelurahan</label>
+                            <input type="text" class="w-full mt-1 text-sm border-gray-300 rounded-md" placeholder="Nama Desa">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Keterangan Penggunaan</label>
+                        <textarea rows="2" class="w-full mt-1 text-sm border-gray-300 rounded-md" placeholder="Contoh: Sawah, Kebun..."></textarea>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                        <label class="block text-xs font-bold text-gray-700 mb-1"><i class="fa-solid fa-file-pdf text-red-500 mr-1"></i> Upload Dokumen (Opsional)</label>
+                        <input type="file" accept=".pdf" class="w-full text-xs text-gray-500 border border-gray-300 rounded bg-white p-1">
+                    </div>
+                    <div class="pt-3 border-t flex justify-end gap-2 mt-4">
+                        <button type="button" onclick="batalDraw()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-bold hover:bg-gray-200">Batal</button>
+                        <button type="button" onclick="alert('Simpan polygon manual sedang dikembangkan.')" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-bold hover:bg-emerald-700">Simpan Aset</button>
                     </div>
                 </form>
             </div>
@@ -180,54 +296,81 @@
 
     @push('scripts')
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     <script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
-        /* Custom Scrollbar untuk kotak layer agar lebih rapi */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        /* Menyembunyikan control zoom Leaflet default dan memindahkannya */
-        .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important; }
-        .leaflet-control-zoom a { color: #4f46e5 !important; background-color: rgba(255,255,255,0.9) !important; backdrop-filter: blur(4px); }
-        .leaflet-control-zoom a:hover { background-color: #fff !important; }
+        /* Modifikasi Posisi Kontrol Peta */
+        .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; margin-left: 15px !important; margin-top: 15px !important; }
+        .leaflet-control-zoom a { color: #4f46e5 !important; }
+        
+        .leaflet-control-layers { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; border-radius: 8px !important; margin-bottom: 25px !important; margin-left: 215px !important; }
+        
+        .leaflet-draw-toolbar { margin-left: 15px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; }
+        .leaflet-control-geocoder { margin-left: 15px !important; margin-top: 15px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; border: none !important; border-radius: 6px !important; }
     </style>
 
     <script>
+        // Helper Buka/Tutup Modal
+        function bukaModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
+
         document.addEventListener('DOMContentLoaded', function () {
             
-            // === 1. INISIASI PETA ===
-            var map = L.map('main-map', {
-                zoomControl: false, // Matikan default agar bisa dipindah posisinya
-                maxZoom: 22         // Super Zoom (Digital)
-            }).setView([-7.8200, 112.0118], 13); // Pusat Default Kediri
+            // Inisiasi Peta Utama
+            var map = L.map('main-map', { zoomControl: false, maxZoom: 22 }).setView([-7.8200, 112.0118], 13);
 
-            // Pindahkan Zoom Control ke Kanan Bawah agar tidak tertutup panel
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            // Zoom & Pencarian Lokasi (Di kiri Atas)
+            L.control.zoom({ position: 'topleft' }).addTo(map);
+            L.Control.geocoder({ position: 'topleft', placeholder: 'Cari Nama Daerah...' }).addTo(map);
 
-            // Layer Dasar (Basemaps) seperti di web_gis_kediri
-            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: 'OSM', maxNativeZoom: 19, maxZoom: 22
-            });
-
-            var googleSatLayer = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{ 
-                attribution: 'Google', maxNativeZoom: 20, maxZoom: 22
-            });
-
+            // Layer Dasar Peta (Basemaps)
+            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM', maxNativeZoom: 19, maxZoom: 22 });
+            var googleSatLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{ attribution: 'Google', maxNativeZoom: 20, maxZoom: 22 });
             osmLayer.addTo(map);
 
-            // Switcher Basemap Kiri Bawah
-            L.control.layers({ 
-                "Peta Jalan (OSM)": osmLayer, 
-                "Satelit (Google)": googleSatLayer 
-            }, null, { position: 'bottomleft' }).addTo(map);
+            L.control.layers({ "Peta Jalan (OSM)": osmLayer, "Satelit (Google)": googleSatLayer }, null, { position: 'bottomleft' }).addTo(map);
 
-            // === 2. LOGIKA MVT (VECTOR GRID) ===
+            // Plugin Menggambar Manual (Leaflet Draw)
+            @if($bisaKelolaLayer)
+                var drawnItems = new L.FeatureGroup(); 
+                map.addLayer(drawnItems);
+                
+                var drawControl = new L.Control.Draw({ 
+                    position: 'topleft',
+                    edit: { featureGroup: drawnItems }, 
+                    draw: { polygon: true, rectangle: true, marker: true, circle: false, polyline: false, circlemarker: false } 
+                });
+                map.addControl(drawControl);
+
+                var currentLayer = null;
+                map.on(L.Draw.Event.CREATED, function (e) {
+                    currentLayer = e.layer;
+                    var geojson = currentLayer.toGeoJSON();
+                    document.getElementById('drawGeometry').value = JSON.stringify(geojson.geometry);
+                    drawnItems.addLayer(currentLayer);
+                    bukaModal('modalDraw'); // Panggil form saat selesai gambar
+                });
+
+                window.batalDraw = function() {
+                    if(currentLayer) drawnItems.removeLayer(currentLayer);
+                    tutupModal('modalDraw');
+                    document.getElementById('formDraw').reset();
+                }
+            @endif
+
+            // Sistem Pemuatan Jutaan Data (PostGIS MVT)
             var activeLayers = {};
             var currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
 
@@ -237,12 +380,12 @@
                 var layerColor = checkbox.getAttribute('data-warna');
 
                 if (checkbox.checked) {
-                    showLoading();
+                    document.getElementById('map-loading').classList.remove('hidden');
                     
                     var vectorLayer = L.vectorGrid.protobuf(layerUrl, {
                         vectorTileLayerStyles: {
                             'default': function(properties, zoom) {
-                                // Jika tabel properties punya TIPEHAK, warnai sesuai legenda, jika tidak pakai warna default layer
+                                // Deteksi warna legenda otomatis berdasarkan data atribut
                                 let tipe = properties.tipehak || properties.tipe_hak || '';
                                 tipe = tipe.toString().toUpperCase();
                                 let finalColor = layerColor;
@@ -253,31 +396,28 @@
                                 else if (tipe.includes('HP') || tipe.includes('PAKAI')) finalColor = '#17a2b8';
                                 else if (tipe.includes('WAKAF')) finalColor = '#6f42c1';
 
-                                return {
-                                    weight: 1.5,
-                                    color: '#ffffff',     // Garis batas (putih)
-                                    fillColor: finalColor, 
-                                    fillOpacity: currentOpacity, // Opacity dari slider
-                                    fill: true
-                                }
+                                return { weight: 1.5, color: '#ffffff', fillColor: finalColor, fillOpacity: currentOpacity, fill: true }
                             }
                         },
-                        interactive: true, // Agar bisa diklik
+                        interactive: true,
                         getFeatureId: function(f) { return f.properties.id; }
                     });
 
-                    // Event Click pada bidang MVT
+                    // Event saat bidang tanah di-klik
                     vectorLayer.on('click', function(e) {
                         let p = e.layer.properties;
                         let content = `
-                            <div class="p-1 min-w-[200px]">
-                                <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">Informasi Bidang</h6>
+                            <div class="p-1 min-w-[220px]">
+                                <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.nama || p.name || 'Data Aset Bidang'}</h6>
                                 <table class="w-full text-xs text-gray-700">
-                                    <tr><td class="font-semibold py-1 w-1/3">ID</td><td>: ${p.id || '-'}</td></tr>
-                                    <tr><td class="font-semibold py-1">Tipe Hak</td><td>: ${p.tipehak || p.tipe_hak || '-'}</td></tr>
+                                    <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${p.tipehak || p.tipe_hak || '-'}</td></tr>
                                     <tr><td class="font-semibold py-1">Luas</td><td>: ${p.luas || p.luastertul || '-'} m²</td></tr>
                                     <tr><td class="font-semibold py-1">Lokasi</td><td>: ${p.desa || p.kelurahan || '-'}</td></tr>
                                 </table>
+                                <div class="mt-3 flex justify-between gap-1 border-t pt-2">
+                                    <button class="bg-orange-400 hover:bg-orange-500 text-white text-[10px] px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-edit"></i> Edit</button>
+                                    <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i> Hapus</button>
+                                </div>
                             </div>
                         `;
                         L.popup().setLatLng(e.latlng).setContent(content).openOn(map);
@@ -285,9 +425,7 @@
 
                     vectorLayer.addTo(map);
                     activeLayers[layerId] = vectorLayer;
-                    
-                    // Sembunyikan loading setelah beberapa saat (MVT render sangat cepat)
-                    setTimeout(hideLoading, 800);
+                    setTimeout(() => document.getElementById('map-loading').classList.add('hidden'), 800);
                 } else {
                     if (activeLayers[layerId]) {
                         map.removeLayer(activeLayers[layerId]);
@@ -296,86 +434,46 @@
                 }
             }
 
-            // Daftarkan event checkbox
-            document.querySelectorAll('.layer-toggle').forEach(function(checkbox) {
+            document.querySelectorAll('.layer-toggle').forEach(checkbox => {
                 checkbox.addEventListener('change', function() { toggleLayer(this); });
             });
 
-            // === 3. UPDATE OPACITY ===
+            // Slider Transparansi (Opacity)
             var opacitySlider = document.getElementById('opacitySlider');
-            var opacityValText = document.getElementById('opacityVal');
-            
             opacitySlider.addEventListener('input', function() {
                 currentOpacity = this.value;
-                opacityValText.innerText = Math.round(currentOpacity * 100) + '%';
+                document.getElementById('opacityVal').innerText = Math.round(currentOpacity * 100) + '%';
             });
-
             opacitySlider.addEventListener('change', function() {
-                // Untuk apply opacity di VectorGrid, cara paling aman adalah mematikan dan menyalakan ulang layer yang aktif
-                showLoading();
-                document.querySelectorAll('.layer-toggle:checked').forEach(function(checkbox) {
-                    toggleLayer(checkbox); // Matikan
-                    setTimeout(() => toggleLayer(checkbox), 50); // Nyalakan lagi dengan opacity baru
+                document.querySelectorAll('.layer-toggle:checked').forEach(checkbox => {
+                    toggleLayer(checkbox); setTimeout(() => toggleLayer(checkbox), 50); 
                 });
-                setTimeout(hideLoading, 500);
             });
 
-            // === 4. UPDATE WARNA LAYER (AJAX) ===
-            document.querySelectorAll('.layer-color-picker').forEach(function(picker) {
+            // Pengubah Warna Layer secara Real-time (AJAX)
+            document.querySelectorAll('.layer-color-picker').forEach(picker => {
                 picker.addEventListener('change', function() {
                     let layerId = this.getAttribute('data-id');
                     let newColor = this.value;
                     let csrfToken = document.querySelector('input[name="_token"]').value;
 
-                    // Update attribute di checkbox
                     let checkbox = document.querySelector(`.layer-toggle[value="${layerId}"]`);
                     if(checkbox) checkbox.setAttribute('data-warna', newColor);
 
-                    // Kirim ke server
                     fetch(`/map/update-warna/${layerId}`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-HTTP-Method-Override': 'PATCH' // Laravel Method Spoofing
-                        },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-HTTP-Method-Override': 'PATCH' },
                         body: JSON.stringify({ warna: newColor })
                     }).then(res => {
-                        // Jika layer sedang aktif, refresh layernya
                         if(checkbox && checkbox.checked) {
                             checkbox.checked = false; toggleLayer(checkbox);
                             setTimeout(() => { checkbox.checked = true; toggleLayer(checkbox); }, 100);
                         }
-                        
-                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-                        Toast.fire({ icon: 'success', title: 'Warna layer diperbarui' });
+                        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 }).fire({ icon: 'success', title: 'Warna layer diupdate' });
                     });
                 });
             });
-
-            // === HELPER UI ===
-            function showLoading() { document.getElementById('map-loading').classList.remove('hidden'); }
-            function hideLoading() { document.getElementById('map-loading').classList.add('hidden'); }
-            
-            // Handle form upload submit
-            var formUpload = document.getElementById('formUploadShp');
-            if(formUpload) {
-                formUpload.addEventListener('submit', function() {
-                    let btn = document.getElementById('btnSubmitUpload');
-                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2 mt-1"></i> Memproses PostGIS...';
-                    btn.disabled = true;
-                    btn.classList.add('opacity-70', 'cursor-not-allowed');
-                });
-            }
         });
-
-        // FUNGSI MODAL UPLOAD
-        function bukaModalUpload() {
-            document.getElementById('modalUploadShp').classList.remove('hidden');
-        }
-        function tutupModalUpload() {
-            document.getElementById('modalUploadShp').classList.add('hidden');
-        }
     </script>
     @endpush
 </x-app-layout>

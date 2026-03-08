@@ -8,7 +8,7 @@
     $bisaWebGIS = $isAdmin || in_array('WebGIS', $aksesMenuArray);
 @endphp
 
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+<nav x-data="{ open: false }" class="bg-white border-b border-gray-100 shadow-sm relative z-[9999]">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
             <div class="flex">
@@ -52,11 +52,45 @@
                             </x-nav-link>
                         @endif
                         
-                        {{-- MENU PETA WEBGIS --}}
+                        {{-- ======================================================== --}}
+                        {{-- MENU PETA WEBGIS (DROPDOWN / SUB-MENU)                   --}}
+                        {{-- ======================================================== --}}
                         @if($bisaWebGIS)
-                            <x-nav-link :href="route('map.index')" :active="request()->routeIs('map.*')">
-                                <i class="fa-solid fa-map mr-2"></i> {{ __('WebGIS') }}
-                            </x-nav-link>
+                            <div class="hidden sm:flex sm:items-center sm:ms-6">
+                                <x-dropdown align="left" width="48">
+                                    <x-slot name="trigger">
+                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('map.*') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out h-full mt-1">
+                                            <div><i class="fa-solid fa-map-location-dot text-indigo-600 mr-1.5"></i> WebGIS</div>
+                                            <div class="ms-1">
+                                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        </button>
+                                    </x-slot>
+                                    <x-slot name="content">
+                                        {{-- Sub Menu 1: Peta Utama --}}
+                                        <x-dropdown-link :href="route('map.index')">
+                                            <i class="fa-solid fa-map w-5 text-center mr-1 text-indigo-600"></i> {{ __('Peta Utama') }}
+                                        </x-dropdown-link>
+                                        
+                                        {{-- Sub Menu 2: Data Aset (Cek RBAC) --}}
+                                        @if($isAdmin || in_array('Data Aset', $aksesMenuArray))
+                                            <div class="border-t border-gray-100 my-1"></div>
+                                                <x-dropdown-link :href="route('map.aset')">
+                                                    <i class="fa-solid fa-table-list w-5 text-center mr-1 text-blue-500"></i> {{ __('Data Aset (Tabular)') }}
+                                                </x-dropdown-link>
+                                        @endif
+                                        
+                                        {{-- Sub Menu 3: Statistik (Cek RBAC) --}}
+                                        @if($isAdmin || in_array('Statistik', $aksesMenuArray))
+                                            <x-dropdown-link href="#" onclick="alert('Halaman Grafik Statistik belum diintegrasikan.')">
+                                                <i class="fa-solid fa-chart-pie w-5 text-center mr-1 text-orange-500"></i> {{ __('Statistik Peta') }}
+                                            </x-dropdown-link>
+                                        @endif
+                                    </x-slot>
+                                </x-dropdown>
+                            </div>
                         @endif
 
                         @if(Auth::user()->hasMenuAccess('silabus') || (Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah'))
@@ -70,7 +104,7 @@
                             <div class="hidden sm:flex sm:items-center sm:ms-6">
                                 <x-dropdown align="left" width="48">
                                     <x-slot name="trigger">
-                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('jadwal-ukur.*') ? 'border-indigo-400' : 'border-transparent' }} text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
+                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('jadwal-ukur.*') ? 'border-indigo-400' : 'border-transparent' }} text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 h-full mt-1">
                                             <div>Penjadwalan Ukur</div>
                                             <div class="ms-1"><svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></div>
                                         </button>
@@ -92,7 +126,7 @@
                             <div class="hidden sm:flex sm:items-center sm:ms-6">
                                 <x-dropdown align="right" width="48">
                                     <x-slot name="trigger">
-                                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
+                                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 mt-3">
                                             <div>Administrasi</div>
                                             <div class="ms-1">
                                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -160,7 +194,8 @@
                 </div>
             </div>
 
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
+            {{-- User Profile Dropdown (Kanan) --}}
+            <div class="hidden sm:flex sm:items-center sm:ms-6 mt-3">
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
@@ -229,15 +264,34 @@
                     </x-responsive-nav-link>
                 @endif
                 
-                {{-- MENU PETA WEBGIS MOBILE --}}
+                {{-- ======================================================== --}}
+                {{-- MENU PETA WEBGIS MOBILE (SUB-MENU)                       --}}
+                {{-- ======================================================== --}}
                 @if($bisaWebGIS)
-                    <x-responsive-nav-link :href="route('map.index')" :active="request()->routeIs('map.*')">
-                        <i class="fa-solid fa-map mr-2"></i> {{ __('WebGIS') }}
-                    </x-responsive-nav-link>
+                    <div class="pt-2 pb-1 border-t border-gray-200 mt-2">
+                        <div class="px-4 font-bold text-sm text-indigo-600 bg-indigo-50 py-2"><i class="fa-solid fa-map-location-dot mr-2"></i> Modul WebGIS</div>
+                        <div class="mt-1 space-y-1">
+                            <x-responsive-nav-link :href="route('map.index')" :active="request()->routeIs('map.index')">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-1"></i> {{ __('Peta Utama') }}
+                            </x-responsive-nav-link>
+
+                            @if($isAdmin || in_array('Data Aset', $aksesMenuArray))
+                            <x-responsive-nav-link :href="route('map.aset')">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-1"></i> {{ __('Data Aset (Tabular)') }}
+                            </x-responsive-nav-link>
+                            @endif
+
+                            @if($isAdmin || in_array('Statistik', $aksesMenuArray))
+                                <x-responsive-nav-link href="#" onclick="alert('Halaman Statistik belum tersedia')">
+                                    <i class="fa-solid fa-caret-right text-gray-400 mr-1"></i> {{ __('Statistik Peta') }}
+                                </x-responsive-nav-link>
+                            @endif
+                        </div>
+                    </div>
                 @endif
 
                 @if(Auth::user()->hasMenuAccess('silabus') || (Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah'))
-                    <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
+                    <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')" class="border-t border-gray-200 mt-2 pt-2">
                         {{ __('Silabus') }}
                     </x-responsive-nav-link>
                 @endif

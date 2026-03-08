@@ -77,12 +77,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/sensus-wakaf', [SensusWakafController::class, 'index'])->name('sensus-wakaf.index');
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
 
-    // --- WEBGIS / MASTER PETA (BARU) ---
+    // --- WEBGIS / MASTER PETA ---
     Route::prefix('map')->name('map.')->controller(MapController::class)->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::get('/aset', 'aset')->name('aset'); // <--- TAMBAHKAN BARIS INI
         Route::post('/import', 'import')->name('import');
         Route::patch('/update-warna/{id}', 'updateWarna')->name('updateWarna');
-        // Route khusus untuk memuat tile peta dari PostGIS (z, x, y)
         Route::get('/tiles/{layerId}/{z}/{x}/{y}.pbf', 'getVectorTiles')->name('tiles');
     });
 
