@@ -322,157 +322,144 @@
     </style>
 
     <script>
-        // Helper Buka/Tutup Modal
+        // Modal Handlers
         function bukaModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
 
         document.addEventListener('DOMContentLoaded', function () {
-            
-            // Inisiasi Peta Utama
+            // Tangkap Notifikasi
+            @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}' }); @endif
+            @if(session('error')) Swal.fire({ icon: 'error', title: 'Gagal!', text: '{!! session('error') !!}' }); @endif
+
+            // INISIASI PETA
             var map = L.map('main-map', { zoomControl: false, maxZoom: 22 }).setView([-7.8200, 112.0118], 13);
-
-            // Zoom & Pencarian Lokasi (Di kiri Atas)
             L.control.zoom({ position: 'topleft' }).addTo(map);
-            L.Control.geocoder({ position: 'topleft', placeholder: 'Cari Nama Daerah...' }).addTo(map);
 
-            // Layer Dasar Peta (Basemaps)
-            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM', maxNativeZoom: 19, maxZoom: 22 });
-            var googleSatLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{ attribution: 'Google', maxNativeZoom: 20, maxZoom: 22 });
+            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 22 });
+            var googleSatLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{ maxNativeZoom: 20, maxZoom: 22 });
             osmLayer.addTo(map);
-
             L.control.layers({ "Peta Jalan (OSM)": osmLayer, "Satelit (Google)": googleSatLayer }, null, { position: 'bottomleft' }).addTo(map);
 
-            // Plugin Menggambar Manual (Leaflet Draw)
-            @if($bisaKelolaLayer)
-                var drawnItems = new L.FeatureGroup(); 
-                map.addLayer(drawnItems);
-                
-                var drawControl = new L.Control.Draw({ 
-                    position: 'topleft',
-                    edit: { featureGroup: drawnItems }, 
-                    draw: { polygon: true, rectangle: true, marker: true, circle: false, polyline: false, circlemarker: false } 
-                });
-                map.addControl(drawControl);
-
-                var currentLayer = null;
-                map.on(L.Draw.Event.CREATED, function (e) {
-                    currentLayer = e.layer;
-                    var geojson = currentLayer.toGeoJSON();
-                    document.getElementById('drawGeometry').value = JSON.stringify(geojson.geometry);
-                    drawnItems.addLayer(currentLayer);
-                    bukaModal('modalDraw'); // Panggil form saat selesai gambar
-                });
-
-                window.batalDraw = function() {
-                    if(currentLayer) drawnItems.removeLayer(currentLayer);
-                    tutupModal('modalDraw');
-                    document.getElementById('formDraw').reset();
-                }
-            @endif
-
-            // Sistem Pemuatan Jutaan Data (PostGIS MVT)
-            var activeLayers = {};
-            var currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
-
-            function toggleLayer(checkbox) {
-                var layerId = checkbox.value;
-                var layerUrl = checkbox.getAttribute('data-url');
-                var layerColor = checkbox.getAttribute('data-warna');
-
-                if (checkbox.checked) {
-                    document.getElementById('map-loading').classList.remove('hidden');
-                    
-                    var vectorLayer = L.vectorGrid.protobuf(layerUrl, {
-                        vectorTileLayerStyles: {
-                            'default': function(properties, zoom) {
-                                // Deteksi warna legenda otomatis berdasarkan data atribut
-                                let tipe = properties.tipehak || properties.tipe_hak || '';
-                                tipe = tipe.toString().toUpperCase();
-                                let finalColor = layerColor;
-
-                                if (tipe.includes('HM') || tipe.includes('MILIK')) finalColor = '#28a745';
-                                else if (tipe.includes('HGB') || tipe.includes('BANGUNAN')) finalColor = '#ffc107';
-                                else if (tipe.includes('HGU') || tipe.includes('USAHA')) finalColor = '#fd7e14';
-                                else if (tipe.includes('HP') || tipe.includes('PAKAI')) finalColor = '#17a2b8';
-                                else if (tipe.includes('WAKAF')) finalColor = '#6f42c1';
-
-                                return { weight: 1.5, color: '#ffffff', fillColor: finalColor, fillOpacity: currentOpacity, fill: true }
-                            }
-                        },
-                        interactive: true,
-                        getFeatureId: function(f) { return f.properties.id; }
-                    });
-
-                    // Event saat bidang tanah di-klik
-                    vectorLayer.on('click', function(e) {
-                        let p = e.layer.properties;
-                        let content = `
-                            <div class="p-1 min-w-[220px]">
-                                <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.nama || p.name || 'Data Aset Bidang'}</h6>
-                                <table class="w-full text-xs text-gray-700">
-                                    <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${p.tipehak || p.tipe_hak || '-'}</td></tr>
-                                    <tr><td class="font-semibold py-1">Luas</td><td>: ${p.luas || p.luastertul || '-'} m²</td></tr>
-                                    <tr><td class="font-semibold py-1">Lokasi</td><td>: ${p.desa || p.kelurahan || '-'}</td></tr>
-                                </table>
-                                <div class="mt-3 flex justify-between gap-1 border-t pt-2">
-                                    <button class="bg-orange-400 hover:bg-orange-500 text-white text-[10px] px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-edit"></i> Edit</button>
-                                    <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i> Hapus</button>
-                                </div>
-                            </div>
-                        `;
-                        L.popup().setLatLng(e.latlng).setContent(content).openOn(map);
-                    });
-
-                    vectorLayer.addTo(map);
-                    activeLayers[layerId] = vectorLayer;
-                    setTimeout(() => document.getElementById('map-loading').classList.add('hidden'), 800);
-                } else {
-                    if (activeLayers[layerId]) {
-                        map.removeLayer(activeLayers[layerId]);
-                        delete activeLayers[layerId];
-                    }
-                }
+            // LOGIKA GEOJSON & RENDERER (DIADOPSI DARI WEB_GIS_KEDIRI)
+            var currentOpacity = 0.6;
+            
+            function getColor(props) {
+                if (props.layer_color) return props.layer_color;
+                var raw = props.raw_data || {};
+                var tipe = (raw.TIPEHAK || raw.TIPE_HAK || '').toString().toUpperCase();
+                if (tipe.includes('HM') || tipe.includes('MILIK')) return '#28a745';
+                if (tipe.includes('HGB') || tipe.includes('BANGUNAN')) return '#ffc107';
+                if (tipe.includes('HGU') || tipe.includes('USAHA')) return '#fd7e14';
+                if (tipe.includes('HP') || tipe.includes('PAKAI')) return '#17a2b8';
+                if (tipe.includes('WAKAF')) return '#6f42c1';
+                return '#3388ff';
             }
 
-            document.querySelectorAll('.layer-toggle').forEach(checkbox => {
-                checkbox.addEventListener('change', function() { toggleLayer(this); });
-            });
+            var geoJsonLayer = L.geoJSON(null, {
+                style: function(feature) {
+                    var col = getColor(feature.properties || {});
+                    return { color: '#ffffff', fillColor: col, weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
+                },
+                pointToLayer: function(feature, latlng) {
+                    if (feature.properties.type === 'cluster') {
+                        var size = feature.properties.count > 100 ? 40 : 30;
+                        var icon = L.divIcon({ className: 'bg-red-500 text-white rounded-full font-bold flex items-center justify-center border-2 border-white shadow-md', html: feature.properties.count, iconSize: [size, size] });
+                        return L.marker(latlng, { icon: icon });
+                    }
+                    return L.marker(latlng);
+                },
+                onEachFeature: function(feature, layer) {
+                    if (feature.properties.type === 'cluster') {
+                        layer.bindPopup(`<b>Area Padat</b><br>${feature.properties.count} Aset.<br>Zoom in.`);
+                        layer.on('click', function() { map.flyTo(layer.getLatLng(), map.getZoom() + 2); });
+                    } else {
+                        var p = feature.properties;
+                        var raw = p.raw_data || {};
+                        var content = `
+                            <div class="p-1 min-w-[220px]">
+                                <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.name || 'Data Aset'}</h6>
+                                <table class="w-full text-xs text-gray-700">
+                                    <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${raw.TIPEHAK || raw.TIPE_HAK || '-'}</td></tr>
+                                    <tr><td class="font-semibold py-1">Luas</td><td>: ${raw.LUASTERTUL || raw.LUAS || 0} m²</td></tr>
+                                    <tr><td class="font-semibold py-1">Lokasi</td><td>: ${raw.KELURAHAN || raw.DESA || '-'}</td></tr>
+                                </table>
+                                @if($bisaKelolaLayer)
+                                <div class="mt-3 flex justify-end gap-1 border-t pt-2">
+                                    <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-3 py-1 rounded shadow-sm" onclick="deleteAsset(${p.id})"><i class="fa-solid fa-trash"></i> Hapus</button>
+                                </div>
+                                @endif
+                            </div>`;
+                        layer.bindPopup(content);
+                    }
+                }
+            }).addTo(map);
 
-            // Slider Transparansi (Opacity)
-            var opacitySlider = document.getElementById('opacitySlider');
-            opacitySlider.addEventListener('input', function() {
-                currentOpacity = this.value;
-                document.getElementById('opacityVal').innerText = Math.round(currentOpacity * 100) + '%';
-            });
-            opacitySlider.addEventListener('change', function() {
-                document.querySelectorAll('.layer-toggle:checked').forEach(checkbox => {
-                    toggleLayer(checkbox); setTimeout(() => toggleLayer(checkbox), 50); 
+            var abortController = null;
+            window.loadData = function() {
+                var loading = document.getElementById('map-loading');
+                if(loading) loading.classList.remove('hidden');
+                
+                var selectedLayers = [];
+                document.querySelectorAll('.layer-toggle:checked').forEach(function(cb) { selectedLayers.push(cb.value); });
+
+                var params = new URLSearchParams({
+                    north: map.getBounds().getNorth(), south: map.getBounds().getSouth(),
+                    east: map.getBounds().getEast(), west: map.getBounds().getWest(),
+                    zoom: map.getZoom(), search: document.getElementById('searchMap').value, hak: document.getElementById('filterHak').value
                 });
+                selectedLayers.forEach(id => params.append('layers[]', id));
+
+                if (abortController) abortController.abort();
+                abortController = new AbortController();
+
+                fetch("{{ route('map.api') }}?" + params.toString(), { signal: abortController.signal })
+                    .then(res => res.json())
+                    .then(data => {
+                        geoJsonLayer.clearLayers();
+                        if(data.features && data.features.length > 0) geoJsonLayer.addData(data);
+                        if(loading) loading.classList.add('hidden');
+                    })
+                    .catch(err => { if (err.name !== 'AbortError' && loading) loading.classList.add('hidden'); });
+            };
+
+            // Trigger Load Data saat Peta Digeser
+            map.on('moveend', loadData); 
+            document.querySelectorAll('.layer-toggle').forEach(cb => cb.addEventListener('change', loadData));
+
+            // Slider Opacity
+            document.getElementById('opacitySlider').addEventListener('input', function(e) {
+                currentOpacity = e.target.value;
+                document.getElementById('opacityVal').innerText = Math.round(currentOpacity * 100) + '%';
+                geoJsonLayer.eachLayer(function(layer) { if (layer.options && layer.options.fill) layer.setStyle({ fillOpacity: currentOpacity }); });
             });
 
-            // Pengubah Warna Layer secara Real-time (AJAX)
+            // Ganti Warna Layer Ajax
             document.querySelectorAll('.layer-color-picker').forEach(picker => {
                 picker.addEventListener('change', function() {
                     let layerId = this.getAttribute('data-id');
                     let newColor = this.value;
                     let csrfToken = document.querySelector('input[name="_token"]').value;
 
-                    let checkbox = document.querySelector(`.layer-toggle[value="${layerId}"]`);
-                    if(checkbox) checkbox.setAttribute('data-warna', newColor);
-
                     fetch(`/map/update-warna/${layerId}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-HTTP-Method-Override': 'PATCH' },
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-HTTP-Method-Override': 'PATCH' },
                         body: JSON.stringify({ warna: newColor })
-                    }).then(res => {
-                        if(checkbox && checkbox.checked) {
-                            checkbox.checked = false; toggleLayer(checkbox);
-                            setTimeout(() => { checkbox.checked = true; toggleLayer(checkbox); }, 100);
-                        }
-                        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 }).fire({ icon: 'success', title: 'Warna layer diupdate' });
-                    });
+                    }).then(res => { loadData(); Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 }).fire({ icon: 'success', title: 'Warna layer diupdate' }); });
                 });
             });
+
+            // Global Fungsi Delete Aset
+            window.deleteAsset = function(id) {
+                Swal.fire({ title: 'Hapus Aset?', text: "Data hilang permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
+                    if (result.isConfirmed) {
+                        let csrfToken = document.querySelector('input[name="_token"]').value;
+                        fetch(`/map/asset/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrfToken } })
+                        .then(res => res.json()).then(data => { Swal.fire('Terhapus!', data.message, 'success'); loadData(); });
+                    }
+                });
+            };
+
+            // Init Render Pertama Kali
+            loadData();
         });
     </script>
     @endpush

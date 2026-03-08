@@ -78,12 +78,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
 
     // --- WEBGIS / MASTER PETA ---
-    Route::prefix('map')->name('map.')->controller(MapController::class)->group(function () {
+    Route::prefix('map')->name('map.')->controller(\App\Http\Controllers\MapController::class)->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::get('/aset', 'aset')->name('aset'); // <--- TAMBAHKAN BARIS INI
+        Route::get('/aset', 'aset')->name('aset');
+        
+        // API Peta & CRUD Aset
+        Route::get('/api/data', 'apiData')->name('api');
         Route::post('/import', 'import')->name('import');
+        Route::post('/store-draw', 'storeDraw')->name('storeDraw');
+        Route::get('/asset/{id}', 'showAsset')->name('asset.show');
+        Route::put('/asset/{id}', 'updateAsset')->name('asset.update');
+        Route::delete('/asset/{id}', 'destroyAsset')->name('asset.destroy');
+        
         Route::patch('/update-warna/{id}', 'updateWarna')->name('updateWarna');
-        Route::get('/tiles/{layerId}/{z}/{x}/{y}.pbf', 'getVectorTiles')->name('tiles');
     });
 
     // --- LAPORAN ---
