@@ -42,7 +42,8 @@
                         <p class="text-sm text-gray-500 mb-4">Centang menu di bawah ini untuk memberikan izin akses kepada user. (Abaikan jika user ini menjabat sebagai Admin).</p>
                         
                         @php 
-                            $akses = is_array($user->akses_menu) ? $user->akses_menu : []; 
+                            // Pastikan data bisa dibaca baik sebagai array langsung maupun JSON string
+                            $akses = is_array($user->akses_menu) ? $user->akses_menu : json_decode($user->akses_menu, true) ?? []; 
                         @endphp
                         
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -66,10 +67,22 @@
                                 <span class="ml-2 text-sm text-gray-700">Penjadwalan Ukur</span>
                             </label>
 
-                            {{-- [BARU] Checkbox Hak Akses Membuat Berkas Baru --}}
+                            {{-- Checkbox Hak Akses Membuat Berkas Baru --}}
                             <label class="inline-flex items-center bg-indigo-50 p-2 rounded border border-indigo-100 mt-2 sm:mt-0">
                                 <input type="checkbox" name="akses_menu[]" value="buat_berkas" class="rounded border-indigo-500 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('buat_berkas', $akses) ? 'checked' : '' }}>
                                 <span class="ml-2 text-sm font-bold text-indigo-700">Fitur: Buat Berkas Baru</span>
+                            </label>
+
+                            {{-- [BARU] Checkbox Hak Akses WebGIS --}}
+                            <label class="inline-flex items-center mt-2 sm:mt-0">
+                                <input type="checkbox" name="akses_menu[]" value="WebGIS" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('WebGIS', $akses) ? 'checked' : '' }}>
+                                <span class="ml-2 text-sm text-gray-700 font-semibold">WebGIS (Melihat Peta)</span>
+                            </label>
+
+                            {{-- [BARU] Checkbox Hak Akses Kelola Layer Peta --}}
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" name="akses_menu[]" value="Kelola Layer" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('Kelola Layer', $akses) ? 'checked' : '' }}>
+                                <span class="ml-2 text-sm text-gray-700">Kelola Layer (Import SHP & Warna)</span>
                             </label>
                         </div>
                     </div>

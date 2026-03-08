@@ -1,6 +1,11 @@
 @php
     // Cek apakah user yang login adalah Mitra (PPAT / Freelance)
     $isMitra = Auth::user()->jabatan && in_array(Auth::user()->jabatan->nama_jabatan, ['PPAT', 'Freelance']);
+    
+    // Cek Akses Khusus WebGIS (Admin otomatis bisa, atau user yang dicentang akses WebGIS-nya)
+    $aksesMenuArray = is_array(Auth::user()->akses_menu) ? Auth::user()->akses_menu : (json_decode(Auth::user()->akses_menu, true) ?? []);
+    $isAdmin = Auth::user()->jabatan && Auth::user()->jabatan->is_admin;
+    $bisaWebGIS = $isAdmin || in_array('WebGIS', $aksesMenuArray);
 @endphp
 
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
@@ -47,6 +52,13 @@
                             </x-nav-link>
                         @endif
                         
+                        {{-- MENU PETA WEBGIS --}}
+                        @if($bisaWebGIS)
+                            <x-nav-link :href="route('map.index')" :active="request()->routeIs('map.*')">
+                                <i class="fa-solid fa-map mr-2"></i> {{ __('WebGIS') }}
+                            </x-nav-link>
+                        @endif
+
                         @if(Auth::user()->hasMenuAccess('silabus') || (Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah'))
                             <x-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
                                 {{ __('Silabus') }}
@@ -76,7 +88,7 @@
                         @endif
 
                         {{-- Admin Dropdown --}}
-                        @if(Auth::user()->jabatan && Auth::user()->jabatan->is_admin)
+                        @if($isAdmin)
                             <div class="hidden sm:flex sm:items-center sm:ms-6">
                                 <x-dropdown align="right" width="48">
                                     <x-slot name="trigger">
@@ -217,6 +229,13 @@
                     </x-responsive-nav-link>
                 @endif
                 
+                {{-- MENU PETA WEBGIS MOBILE --}}
+                @if($bisaWebGIS)
+                    <x-responsive-nav-link :href="route('map.index')" :active="request()->routeIs('map.*')">
+                        <i class="fa-solid fa-map mr-2"></i> {{ __('WebGIS') }}
+                    </x-responsive-nav-link>
+                @endif
+
                 @if(Auth::user()->hasMenuAccess('silabus') || (Auth::user()->jabatan && Auth::user()->jabatan->nama_jabatan === 'Petugas Buku Tanah'))
                     <x-responsive-nav-link :href="route('peminjaman-bt.index')" :active="request()->routeIs('peminjaman-bt.*')">
                         {{ __('Silabus') }}
@@ -255,7 +274,7 @@
                 </form>
 
                 {{-- Responsive Admin Menu (Hanya muncul jika admin & bukan Mitra) --}}
-                @if(!$isMitra && Auth::user()->jabatan && Auth::user()->jabatan->is_admin)
+                @if(!$isMitra && $isAdmin)
                     <div class="border-t border-gray-200 mt-3 pt-3">
                         <div class="px-4 font-medium text-base text-gray-800 bg-gray-50 py-2">Administrasi</div>
                          <div class="mt-1 space-y-1">
