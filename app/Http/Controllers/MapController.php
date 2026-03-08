@@ -73,7 +73,6 @@ class MapController extends Controller
         }
         
         try {
-            // FIX BUG BBOX LOKAL: Memaksa format titik (.)
             $n = number_format((float)$request->north, 8, '.', ''); 
             $s = number_format((float)$request->south, 8, '.', ''); 
             $e = number_format((float)$request->east, 8, '.', ''); 
@@ -91,12 +90,10 @@ class MapController extends Controller
             $polygonWKT = "SRID=4326;POLYGON(($w $s, $e $s, $e $n, $w $n, $w $s))";
             $keywords = $this->getHakKeywords($hak);
             
-            // OPTIMASI: Cache API Key (Simpan hasil query selama 60 detik)
             $cacheKey = 'map_geojson_' . md5($polygonWKT . $zoom . $search . $hak . json_encode($layerIds));
 
             $features = Cache::remember($cacheKey, 60, function() use ($polygonWKT, $layerIds, $search, $keywords, $zoom) {
                 
-                // MENGGUNAKAN KONEKSI PGSQL KARENA SPATIAL DATA ADA DI POSTGRES
                 $query = SpatialFeature::on('pgsql')
                     ->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])
                     ->whereIn('layer_id', $layerIds);
@@ -116,21 +113,17 @@ class MapController extends Controller
                     });
                 }
 
-                // OPTIMASI: ST_Simplify untuk Polygon saat Zoom Jauh
                 if ($zoom < 13) {
                     $selectGeom = "ST_AsGeoJSON(ST_Simplify(geom, 0.00005))";
                 } else {
                     $selectGeom = "ST_AsGeoJSON(geom)";
                 }
 
-                // OPTIMASI: Batasi maksimal 1500 data per request agar Browser aman
                 $data = $query->select('id', 'name', 'properties', 'layer_id', DB::raw("$selectGeom as geometry"))
                               ->limit(1500)
                               ->get();
                 
                 $formattedFeatures = [];
-                
-                // Load semua layer ke memori untuk mengambil detail warna Hak
                 $layersData = MapLayer::whereIn('id', $layerIds)->get()->keyBy('id');
 
                 foreach ($data as $item) {
@@ -140,10 +133,13 @@ class MapController extends Controller
                     $props = $props ?? [];
                     
                     $layer = $layersData->get($item->layer_id);
+                    
+                    // Ambil warna default dan tipe layer
                     $defaultColor = $layer->warna ?? '#3388ff';
                     $finalColor = $defaultColor;
+                    $tipeLayer = $layer->tipe_layer ?? 'Standar';
 
-                    // Deteksi Jenis Hak dari properties
+                    // Cek Tipe Hak (HM/HGB/dll) untuk properties informasi
                     $tipeHak = '';
                     $raw_data = $props['raw_data'] ?? $props;
                     
@@ -154,8 +150,8 @@ class MapController extends Controller
                         }
                     }
 
-                    // Tentukan warna berdasarkan jenis hak (Mendukung struktur web_gis_kediri)
-                    if ($layer) {
+                    // LOGIKA PEWARNAAN UTAMA
+                    if ($tipeLayer === 'Utama' && $layer) {
                         if (str_contains($tipeHak, 'milik') || $tipeHak === 'hm') {
                             $finalColor = $layer->color_hm ?? $defaultColor;
                         } elseif (str_contains($tipeHak, 'guna bangunan') || $tipeHak === 'hgb') {
@@ -170,7 +166,6 @@ class MapController extends Controller
                     }
 
                     $props['layer_color'] = $finalColor;
-                    // Format tambahan agar frontend mudah membaca
                     $props['kategori_hak'] = strtoupper($tipeHak); 
 
                     $formattedFeatures[] = [
@@ -203,7 +198,30 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 3. IMPORT SHP (BYPASS GDAL PROJ)
+    // 3. STORE LAYER BARU
+    // ========================================================
+    public function storeLayer(Request $request)
+    {
+        $this->cekAkses('Kelola Layer');
+        
+        $request->validate([
+            'nama_layer' => 'required|string',
+            'tipe_layer' => 'required|string|in:Standar,Utama',
+            'warna' => 'required|string'
+        ]);
+
+        MapLayer::create([
+            'nama_layer' => $request->nama_layer,
+            'tipe_layer' => $request->tipe_layer,
+            'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99),
+            'warna' => $request->warna
+        ]);
+
+        return back()->with('success', 'Layer "' . $request->nama_layer . '" berhasil dibuat! Silakan Import SHP ke layer ini.');
+    }
+
+    // ========================================================
+    // 4. IMPORT SHP KE LAYER EXISTING
     // ========================================================
     public function import(Request $request)
     {
@@ -214,21 +232,31 @@ class MapController extends Controller
         putenv('PROJ_LIB=');
         putenv('PROJ_DATA=');
 
+        // PERBAIKAN: Hapus validasi exists:map_layers,id karena Laravel sering bentrok saat menggunakan multi-database (PgSQL & MySQL).
+        // Kita juga melonggarkan mimes:zip menjadi validasi ekstensi manual agar lebih kompatibel dengan Windows.
         $request->validate([
-            'nama_layer' => 'required|string',
-            'file_zip' => 'required|mimes:zip|max:500000', 
-            'warna' => 'required|string'
+            'layer_id' => 'required',
+            'file_zip' => 'required|file|max:500000', 
+        ], [
+            'layer_id.required' => 'Silakan pilih Layer Tujuan terlebih dahulu.',
+            'file_zip.required' => 'File SHP (.zip) wajib diunggah.',
+            'file_zip.max' => 'Ukuran file terlalu besar (Maks 500MB).'
         ]);
 
         $file = $request->file('file_zip');
-        $layerName = $request->nama_layer;
         
-        $layer = MapLayer::create([
-            'nama_layer' => $layerName,
-            'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99),
-            'warna' => $request->warna
-        ]);
-        $layerId = $layer->id;
+        // Pengecekan Ekstensi File ZIP Manual
+        if (strtolower($file->getClientOriginalExtension()) !== 'zip') {
+            return back()->withErrors(['file_zip' => 'File yang diupload wajib memiliki format .zip!'])->withInput();
+        }
+
+        $layerId = $request->layer_id;
+        
+        // Pengecekan Eksistensi Layer secara manual (Bypass Validasi Default Laravel)
+        $layer = MapLayer::find($layerId);
+        if (!$layer) {
+            return back()->withErrors(['layer_id' => 'Pilihan Layer Tujuan tidak ditemukan di dalam sistem database.'])->withInput();
+        }
 
         $uniqueId = uniqid('shp_', true);
         $extractPath = storage_path('app/temp_shp/' . $uniqueId);
@@ -238,14 +266,14 @@ class MapController extends Controller
             $zip = new ZipArchive;
             if ($zip->open($file->getPathname()) === TRUE) { 
                 $zip->extractTo($extractPath); $zip->close(); 
-            } else { throw new \Exception('Gagal ekstrak ZIP.'); }
+            } else { throw new \Exception('Gagal ekstrak file ZIP. File mungkin korup.'); }
 
             $shpFiles = [];
             $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($extractPath));
             foreach ($iterator as $info) {
                 if ($info->isFile() && strtolower($info->getExtension()) === 'shp') $shpFiles[] = $info->getPathname();
             }
-            if (empty($shpFiles)) throw new \Exception('File .shp tidak ditemukan.');
+            if (empty($shpFiles)) throw new \Exception('File SHP utama (.shp) tidak ditemukan di dalam zip tersebut.');
             
             $shpFile = $shpFiles[0];
             $tempTableName = 'temp_layer_' . time();
@@ -260,7 +288,7 @@ class MapController extends Controller
             exec($command, $output, $returnVar);
 
             if ($returnVar !== 0) {
-                throw new \Exception("GDAL Error: " . implode(" ", $output));
+                throw new \Exception("GDAL Engine Error: Gagal membaca file SHP. Pastikan isinya lengkap (.shp, .shx, .dbf, .prj).");
             }
 
             $columns = Schema::connection('pgsql')->getColumnListing($tempTableName);
@@ -291,21 +319,20 @@ class MapController extends Controller
                 WHERE geom IS NOT NULL
             ";
             
-            DB::connection('pgsql')->insert($insertQuery, [$layerId]);
+            DB::connection('pgsql')->insert($insertQuery, [$layer->id]);
             Schema::connection('pgsql')->dropIfExists($tempTableName);
 
         } catch (\Exception $e) {
-            MapLayer::find($layerId)->delete();
             $this->deleteDirectory($extractPath);
-            return back()->with('error', "Gagal memproses file: " . $e->getMessage());
+            return back()->with('error', "Terjadi Kendala saat import: " . $e->getMessage());
         }
 
         $this->deleteDirectory($extractPath);
-        return back()->with('success', 'Data SHP berhasil diimport dan dikonversi oleh PostGIS!');
+        return back()->with('success', 'Data SHP berhasil diimport dan dimasukkan ke dalam Layer "'. $layer->nama_layer .'"!');
     }
 
     // ========================================================
-    // 4. MANUAL DRAW & CRUD
+    // 5. MANUAL DRAW & CRUD
     // ========================================================
     public function storeDraw(Request $request)
     {
@@ -320,7 +347,7 @@ class MapController extends Controller
                 'properties' => json_encode([
                     'type' => 'Manual',
                     'raw_data' => [
-                        'TIPEHAK' => $request->status, // TIPEHAK akan dirender khusus di apiData
+                        'TIPEHAK' => $request->status, 
                         'KECAMATAN' => $request->kecamatan ?? '-', 
                         'KELURAHAN' => $request->desa ?? '-',
                         'PENGGUNAAN' => $request->description
@@ -351,7 +378,6 @@ class MapController extends Controller
     public function updateWarna(Request $request, $id) {
         $this->cekAkses('Kelola Layer');
         
-        // Pastikan menyimpan semua parameter warna Hak agar terdeteksi beda-beda saat apiData() merender
         $updateData = [
             'warna' => $request->warna
         ];
@@ -368,7 +394,7 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 5. HALAMAN TABEL DATA ASET
+    // 6. HALAMAN TABEL DATA ASET
     // ========================================================
     public function aset(Request $request)
     {
@@ -389,5 +415,29 @@ class MapController extends Controller
         
         $columns = count($features) > 0 ? array_keys((array) $features[0]) : [];
         return view('map.aset', compact('layers', 'selectedLayer', 'features', 'columns'));
+    }
+
+    // ========================================================
+    // 7. MASTER LAYER (ADMIN)
+    // ========================================================
+    public function masterLayer()
+    {
+        $this->cekAkses('Kelola Layer');
+        $layers = MapLayer::all();
+        return view('admin.layers.index', compact('layers'));
+    }
+
+    // ========================================================
+    // 8. HAPUS MASTER LAYER & ISINYA
+    // ========================================================
+    public function destroyLayer($id)
+    {
+        $this->cekAkses('Kelola Layer');
+        $layer = MapLayer::findOrFail($id);
+        
+        DB::connection('pgsql')->table('spatial_features')->where('layer_id', $layer->id)->delete();
+        $layer->delete();
+
+        return back()->with('success', 'Layer "' . $layer->nama_layer . '" dan seluruh aset di dalamnya berhasil dihapus!');
     }
 }

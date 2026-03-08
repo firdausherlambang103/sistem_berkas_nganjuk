@@ -21,14 +21,28 @@ class UserController extends Controller
                             ->orderBy('created_at', 'desc')
                             ->get();
         
-        // Mengambil pengguna yang SUDAH disetujui
+        // Mengambil pengguna yang SUDAH disetujui beserta jabatannya
         $approvedUsers = User::where('is_approved', true)
-                             ->with('jabatan') // Memuat relasi jabatan untuk efisiensi
+                             ->with('jabatan') 
                              ->orderBy('name', 'asc')
                              ->get();
+
+        // Pisahkan pengguna INTERNAL (Pegawai/Admin) dan kelompokkan per jabatan
+        $internalUsers = $approvedUsers->filter(function($user) {
+            return empty($user->jabatan) || !$user->jabatan->is_mitra;
+        })->groupBy(function($user) {
+            return $user->jabatan->nama_jabatan ?? 'Tanpa Jabatan';
+        })->sortKeys();
+
+        // Pisahkan pengguna MITRA (PPAT/Freelance) dan kelompokkan per jabatan
+        $mitraUsers = $approvedUsers->filter(function($user) {
+            return !empty($user->jabatan) && $user->jabatan->is_mitra;
+        })->groupBy(function($user) {
+            return $user->jabatan->nama_jabatan;
+        })->sortKeys();
                                 
-        // Kirim KEDUA variabel ke view
-        return view('admin.users.index', compact('pendingUsers', 'approvedUsers'));
+        // Mengirimkan ketiga variabel ke view
+        return view('admin.users.index', compact('pendingUsers', 'internalUsers', 'mitraUsers'));
     }
 
     /**
@@ -67,8 +81,7 @@ class UserController extends Controller
         $user->email = $request->email;
         $user->jabatan_id = $request->jabatan_id;
 
-        // [BARU] Simpan akses menu dari checkbox
-        // Jika tidak ada checkbox yang dicentang, kita set menjadi array kosong []
+        // Simpan akses menu dari checkbox
         $user->akses_menu = $request->input('akses_menu', []);
 
         // Hanya update password jika diisi

@@ -17,7 +17,7 @@ use App\Http\Controllers\JadwalUkurController;
 use App\Http\Controllers\SuratTugasController;
 use App\Http\Controllers\SensusWakafController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
-use App\Http\Controllers\MapController; // [DITAMBAHKAN] Controller Peta
+use App\Http\Controllers\MapController;
 
 // Import Controller Khusus Mitra
 use App\Http\Controllers\Mitra\AuthController as MitraAuthController;
@@ -81,10 +81,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('map')->name('map.')->controller(\App\Http\Controllers\MapController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/aset', 'aset')->name('aset');
-              // Master Layer Management
-        // Rute Master Layer (Penyebab Error Jika Belum Ada)
-        Route::get('/master-layer', [MapController::class, 'masterLayer'])->name('master.layer');
-        Route::post('/master-layer/{id}/update-warna', [MapController::class, 'updateWarna'])->name('master.layer.updateWarna');
+        
+        // Master Layer Management (DITAMBAHKAN ROUTE STORE & DESTROY)
+        Route::get('/master-layer', 'masterLayer')->name('master.layer');
+        Route::post('/master-layer/store', 'storeLayer')->name('layer.store'); 
+        Route::post('/master-layer/{id}/update-warna', 'updateWarna')->name('layer.updateWarna');
+        Route::delete('/master-layer/{id}', 'destroyLayer')->name('layer.destroy');
         
         // API Peta & CRUD Aset
         Route::get('/api/data', 'apiData')->name('api');
@@ -211,7 +213,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/jenis-permohonan/{jenisPermohonan}', 'permohonanUpdate')->name('permohonan.update');
         Route::delete('/jenis-permohonan/{jenisPermohonan}', 'permohonanDestroy')->name('permohonan.destroy');
 
-        // Master Status (BARU)
+        // Master Status
         Route::get('/status', 'statusIndex')->name('status.index');
         Route::post('/status', 'statusStore')->name('status.store');
         Route::get('/status/{status}/edit', 'statusEdit')->name('status.edit');

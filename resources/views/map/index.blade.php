@@ -130,32 +130,34 @@
     <div id="modalUploadShp" class="fixed inset-0 z-[3000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
         <div class="flex items-center justify-center min-h-screen px-4">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all border border-gray-100">
-                <div class="bg-indigo-600 px-5 py-4 flex justify-between items-center text-white">
-                    <h3 class="font-bold text-lg"><i class="fa-solid fa-cloud-upload-alt mr-2"></i> Upload File SHP</h3>
-                    <button onclick="tutupModal('modalUploadShp')" class="hover:text-indigo-200 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <div class="bg-emerald-600 px-5 py-4 flex justify-between items-center text-white">
+                    <h3 class="font-bold text-lg"><i class="fa-solid fa-cloud-upload-alt mr-2"></i> Upload & Import Data SHP</h3>
+                    <button onclick="tutupModal('modalUploadShp')" class="hover:text-emerald-200 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
                 </div>
                 <form action="{{ route('map.import') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
                     @csrf
                     <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-lg border border-blue-200 flex items-start">
                         <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-blue-500 text-base"></i>
-                        <span>Pastikan Anda mengunggah file <b>.ZIP</b> yang didalamnya berisi lengkap komponen Shapefile (.shp, .shx, .dbf, .prj).</span>
+                        <div>
+                            Pastikan Anda mengunggah file <b>.ZIP</b> yang didalamnya berisi lengkap komponen Shapefile (.shp, .shx, .dbf, .prj).<br>
+                            <span class="mt-1 block text-blue-600">Belum punya layer? <a href="{{ route('map.master.layer') }}" class="underline font-bold">Buat Layer Baru di Master Layer</a>.</span>
+                        </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Layer (Alias) <span class="text-red-500">*</span></label>
-                        <input type="text" name="nama_layer" required class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500" placeholder="Misal: Batas Desa 2026...">
+                        <label for="layer_id" class="block text-sm font-semibold text-gray-700 mb-1">Pilih Layer Tujuan <span class="text-red-500">*</span></label>
+                        <select id="layer_id" name="layer_id" class="w-full text-sm border-gray-300 rounded-md focus:ring-emerald-500" required>
+                            <option value="" disabled selected>-- Pilih Layer yang sudah dibuat --</option>
+                            @foreach($layers as $layer)
+                                <option value="{{ $layer->id }}">{{ $layer->nama_layer }} ({{ $layer->tipe_layer ?? 'Standar' }})</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Pilih File (.ZIP) <span class="text-red-500">*</span></label>
-                        <input type="file" name="file_zip" accept=".zip" required class="w-full text-sm border border-gray-300 rounded-md p-1.5 bg-gray-50 cursor-pointer file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition">
+                        <input type="file" name="file_zip" accept=".zip" required class="w-full text-sm border border-gray-300 rounded-md p-1.5 bg-gray-50 cursor-pointer file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 transition">
                     </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Warna Utama Poligon / Garis</label>
-                        <div class="flex items-center gap-3">
-                            <input type="color" name="warna" value="#3388ff" class="w-14 h-10 rounded cursor-pointer border border-gray-300 p-0.5">
-                            <span class="text-xs text-gray-500 italic">Bisa diubah kembali nanti.</span>
-                        </div>
-                    </div>
+                    
                     <div class="pt-5 border-t flex justify-end gap-3 mt-6">
                         <button type="button" onclick="tutupModal('modalUploadShp')" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 transition shadow-sm">Batal</button>
                         <button type="submit" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin mr-2\'></i> Memproses...'; this.classList.add('opacity-70');" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition shadow-sm flex items-center">
@@ -189,8 +191,25 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             
-            @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}', confirmButtonColor: '#4f46e5' }); @endif
-            @if(session('error')) Swal.fire({ icon: 'error', title: 'Peringatan!', text: '{!! session('error') !!}', confirmButtonColor: '#d33' }); @endif
+            // Tangkap notifikasi SUCCESS dari session
+            @if(session('success')) 
+                Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}', confirmButtonColor: '#4f46e5' }); 
+            @endif
+            
+            // Tangkap notifikasi ERROR dari session
+            @if(session('error')) 
+                Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: '{!! session('error') !!}', confirmButtonColor: '#d33' }); 
+            @endif
+
+            // Tangkap notifikasi VALIDASI ERROR (File zip salah ukuran/format dll)
+            @if($errors->any())
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: 'Validasi Gagal!', 
+                    html: '{!! implode("<br>", $errors->all()) !!}', 
+                    confirmButtonColor: '#d33' 
+                });
+            @endif
 
             // OPTIMASI 5: CANVAS RENDERER UNTUK RIBUAN POLIGON
             var map = L.map('main-map', { 

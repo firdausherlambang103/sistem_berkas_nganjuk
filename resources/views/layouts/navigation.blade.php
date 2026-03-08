@@ -56,10 +56,10 @@
                         {{-- MENU PETA WEBGIS (DROPDOWN / SUB-MENU)                   --}}
                         {{-- ======================================================== --}}
                         @if($bisaWebGIS)
-                            <div class="hidden sm:flex sm:items-center sm:ms-6">
+                            <div class="hidden sm:flex sm:ms-8 sm:-my-px">
                                 <x-dropdown align="left" width="48">
                                     <x-slot name="trigger">
-                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('map.*') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out h-full mt-1">
+                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('map.*') ? 'border-indigo-400 text-gray-900 focus:border-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:text-gray-700 focus:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out h-16 bg-transparent">
                                             <div><i class="fa-solid fa-map-location-dot text-indigo-600 mr-1.5"></i> WebGIS</div>
                                             <div class="ms-1">
                                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -89,10 +89,9 @@
                                             </x-dropdown-link>
                                         @endif
 
-                                        <!-- Contoh penambahan di navigasi utama -->
-                                        <x-nav-link :href="route('master.layer')" :active="request()->routeIs('master.layer')">
-                                            {{ __('Master Layer') }}
-                                        </x-nav-link>
+                                        <x-dropdown-link :href="route('map.master.layer')">
+                                            <i class="fa-solid fa-layer-group w-5 text-center mr-1 text-purple-500"></i> {{ __('Master Layer') }}
+                                        </x-dropdown-link>
                                     </x-slot>
                                 </x-dropdown>
                             </div>
@@ -104,12 +103,14 @@
                             </x-nav-link>
                         @endif
 
-                        {{-- Penjadwalan Ukur Dropdown --}}
+                        {{-- ======================================================== --}}
+                        {{-- MENU PENJADWALAN UKUR (DROPDOWN)                         --}}
+                        {{-- ======================================================== --}}
                         @if(Auth::user()->hasMenuAccess('penjadwalan_ukur'))
-                            <div class="hidden sm:flex sm:items-center sm:ms-6">
+                            <div class="hidden sm:flex sm:ms-8 sm:-my-px">
                                 <x-dropdown align="left" width="48">
                                     <x-slot name="trigger">
-                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('jadwal-ukur.*') ? 'border-indigo-400' : 'border-transparent' }} text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 h-full mt-1">
+                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('jadwal-ukur.*') ? 'border-indigo-400 text-gray-900 focus:border-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:text-gray-700 focus:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out h-16 bg-transparent">
                                             <div>Penjadwalan Ukur</div>
                                             <div class="ms-1"><svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></div>
                                         </button>
@@ -131,7 +132,7 @@
                             <div class="hidden sm:flex sm:items-center sm:ms-6">
                                 <x-dropdown align="right" width="48">
                                     <x-slot name="trigger">
-                                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 mt-3">
+                                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 mt-1">
                                             <div>Administrasi</div>
                                             <div class="ms-1">
                                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -200,7 +201,7 @@
             </div>
 
             {{-- User Profile Dropdown (Kanan) --}}
-            <div class="hidden sm:flex sm:items-center sm:ms-6 mt-3">
+            <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
@@ -274,23 +275,29 @@
                 {{-- ======================================================== --}}
                 @if($bisaWebGIS)
                     <div class="pt-2 pb-1 border-t border-gray-200 mt-2">
-                        <div class="px-4 font-bold text-sm text-indigo-600 bg-indigo-50 py-2"><i class="fa-solid fa-map-location-dot mr-2"></i> Modul WebGIS</div>
+                        <div class="px-4 font-bold text-sm text-indigo-700 bg-indigo-50 py-2 rounded-r-full mr-4 ml-1 mb-1">
+                            <i class="fa-solid fa-map-location-dot mr-2"></i> Modul WebGIS
+                        </div>
                         <div class="mt-1 space-y-1">
-                            <x-responsive-nav-link :href="route('map.index')" :active="request()->routeIs('map.index')">
-                                <i class="fa-solid fa-caret-right text-gray-400 mr-1"></i> {{ __('Peta Utama') }}
+                            <x-responsive-nav-link :href="route('map.index')" :active="request()->routeIs('map.index')" class="pl-8">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Peta Utama') }}
                             </x-responsive-nav-link>
 
                             @if($isAdmin || in_array('Data Aset', $aksesMenuArray))
-                            <x-responsive-nav-link :href="route('map.aset')">
-                                <i class="fa-solid fa-caret-right text-gray-400 mr-1"></i> {{ __('Data Aset (Tabular)') }}
+                            <x-responsive-nav-link :href="route('map.aset')" :active="request()->routeIs('map.aset')" class="pl-8">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Data Aset (Tabular)') }}
                             </x-responsive-nav-link>
                             @endif
 
                             @if($isAdmin || in_array('Statistik', $aksesMenuArray))
-                                <x-responsive-nav-link href="#" onclick="alert('Halaman Statistik belum tersedia')">
-                                    <i class="fa-solid fa-caret-right text-gray-400 mr-1"></i> {{ __('Statistik Peta') }}
+                                <x-responsive-nav-link href="#" onclick="alert('Halaman Statistik belum tersedia')" class="pl-8">
+                                    <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Statistik Peta') }}
                                 </x-responsive-nav-link>
                             @endif
+
+                            <x-responsive-nav-link :href="route('map.master.layer')" :active="request()->routeIs('map.master.layer')" class="pl-8">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Master Layer') }}
+                            </x-responsive-nav-link>
                         </div>
                     </div>
                 @endif
@@ -301,13 +308,21 @@
                     </x-responsive-nav-link>
                 @endif
 
+                {{-- PENJADWALAN UKUR MOBILE --}}
                 @if(Auth::user()->hasMenuAccess('penjadwalan_ukur'))
-                    <x-responsive-nav-link :href="route('jadwal-ukur.index')" :active="request()->routeIs('jadwal-ukur.index')">
-                        {{ __('Buat Jadwal Baru') }}
-                    </x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('jadwal-ukur.dashboard-petugas')" :active="request()->routeIs('jadwal-ukur.dashboard-petugas')">
-                        {{ __('Dashboard Petugas') }}
-                    </x-responsive-nav-link>
+                    <div class="pt-2 pb-1 border-t border-gray-200 mt-2">
+                        <div class="px-4 font-bold text-sm text-indigo-700 bg-indigo-50 py-2 rounded-r-full mr-4 ml-1 mb-1">
+                            Modul Penjadwalan
+                        </div>
+                        <div class="mt-1 space-y-1">
+                            <x-responsive-nav-link :href="route('jadwal-ukur.index')" :active="request()->routeIs('jadwal-ukur.index')" class="pl-8">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Buat Jadwal Baru') }}
+                            </x-responsive-nav-link>
+                            <x-responsive-nav-link :href="route('jadwal-ukur.dashboard-petugas')" :active="request()->routeIs('jadwal-ukur.dashboard-petugas')" class="pl-8">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Dashboard Petugas') }}
+                            </x-responsive-nav-link>
+                        </div>
+                    </div>
                 @endif
             @endif
         </div>
