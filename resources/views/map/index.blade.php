@@ -5,7 +5,7 @@
                 <i class="fa-solid fa-map-location-dot text-indigo-600 mr-2"></i> {{ __('Peta Sebaran Aset (WebGIS)') }}
             </h2>
             <div class="text-sm text-gray-500 font-mono bg-gray-100 px-3 py-1 rounded-full border border-gray-200 shadow-sm flex items-center">
-                <i class="fa-solid fa-server text-green-500 mr-2"></i> GeoJSON Engine
+                <i class="fa-solid fa-bolt text-green-500 mr-2"></i> Canvas GeoJSON Engine
             </div>
         </div>
     </x-slot>
@@ -25,11 +25,7 @@
             <span id="loading-text">Memuat Data Spasial...</span>
         </div>
 
-        {{-- ========================================================= --}}
-        {{-- PANEL KANAN: ALAT FILTER & MANAJEMEN LAYER --}}
-        {{-- ========================================================= --}}
-        
-        {{-- 1. PANEL FILTER PETA --}}
+        {{-- PANEL FILTER PETA --}}
         <div class="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-[320px] transition-all">
             <h6 class="font-bold text-gray-800 mb-3 flex items-center text-sm border-b pb-2">
                 <i class="fa-solid fa-filter text-indigo-600 mr-2"></i> Filter & Alat
@@ -69,7 +65,7 @@
             </div>
         </div>
 
-        {{-- 2. PANEL LAYER AKTIF --}}
+        {{-- PANEL LAYER AKTIF --}}
         <div class="absolute top-[315px] right-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-[320px] transition-all">
             <h6 class="font-bold text-gray-800 mb-2 flex items-center justify-between text-sm border-b pb-2">
                 <span><i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> Layer Aktif</span>
@@ -85,7 +81,6 @@
                         </label>
                         
                         <div class="flex items-center gap-2">
-                            {{-- TOMBOL TERBANG KE LOKASI SHP --}}
                             <button onclick="zoomToLayer({{ $layer->id }})" title="Fokuskan Peta ke Aset Ini" class="text-gray-400 hover:text-indigo-600 transition">
                                 <i class="fa-solid fa-crosshairs"></i>
                             </button>
@@ -111,9 +106,7 @@
             </div>
         </div>
 
-        {{-- ========================================================= --}}
-        {{-- PANEL KIRI BAWAH: LEGENDA --}}
-        {{-- ========================================================= --}}
+        {{-- LEGENDA --}}
         <div class="absolute bottom-8 left-[15px] z-[1000] bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-lg border border-gray-200 w-48 transition-all">
             <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-[11px] uppercase tracking-wider flex items-center">
                 <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Hak
@@ -132,10 +125,7 @@
         <div id="main-map" style="width: 100%; height: 100%; z-index: 10;"></div>
     </div>
 
-
-    {{-- ========================================================= --}}
     {{-- MODAL UPLOAD SHP --}}
-    {{-- ========================================================= --}}
     @if($bisaKelolaLayer)
     <div id="modalUploadShp" class="fixed inset-0 z-[3000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
         <div class="flex items-center justify-center min-h-screen px-4">
@@ -188,7 +178,6 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
         .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; margin-left: 15px !important; margin-top: 15px !important; }
         .leaflet-control-zoom a { color: #4f46e5 !important; }
         .leaflet-control-layers { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; border-radius: 8px !important; margin-bottom: 25px !important; margin-left: 215px !important; }
@@ -200,17 +189,16 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             
-            // 1. TANGKAP NOTIFIKASI SUCCESS/ERROR DARI CONTROLLER
-            @if(session('success'))
-                Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}', confirmButtonColor: '#4f46e5' });
-            @endif
+            @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}', confirmButtonColor: '#4f46e5' }); @endif
+            @if(session('error')) Swal.fire({ icon: 'error', title: 'Peringatan!', text: '{!! session('error') !!}', confirmButtonColor: '#d33' }); @endif
 
-            @if(session('error'))
-                Swal.fire({ icon: 'error', title: 'Peringatan!', text: '{!! session('error') !!}', confirmButtonColor: '#d33' });
-            @endif
-
-            // 2. INISIASI PETA 
-            var map = L.map('main-map', { zoomControl: false, maxZoom: 22 }).setView([-7.8200, 112.0118], 13);
+            // OPTIMASI 5: CANVAS RENDERER UNTUK RIBUAN POLIGON
+            var map = L.map('main-map', { 
+                zoomControl: false, 
+                maxZoom: 22,
+                renderer: L.canvas() // Eksekusi render 5x lebih ringan dari SVG
+            }).setView([-7.8200, 112.0118], 13);
+            
             L.control.zoom({ position: 'topleft' }).addTo(map);
 
             var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 22 });
@@ -219,7 +207,6 @@
 
             L.control.layers({ "Peta Jalan (OSM)": osmLayer, "Satelit (Google)": googleSatLayer }, null, { position: 'bottomleft' }).addTo(map);
 
-            // 3. LOGIKA RENDER GEOJSON & CLUSTER (Persis web_gis_kediri)
             var currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
             
             function getColor(props) {
@@ -235,103 +222,107 @@
                 return '#3388ff';
             }
 
+            // OPTIMASI 6: FUNGSI HOVER HIGHLIGHT ALA ARCGIS
+            function highlightFeature(e) {
+                var layer = e.target;
+                layer.setStyle({ weight: 3, color: '#111827', fillOpacity: 0.8 });
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                    layer.bringToFront();
+                }
+            }
+
+            function resetHighlight(e) {
+                geoJsonLayer.resetStyle(e.target);
+            }
+
             var geoJsonLayer = L.geoJSON(null, {
                 style: function(feature) {
                     var col = getColor(feature.properties || {});
                     return { color: '#ffffff', fillColor: col, weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
                 },
-                pointToLayer: function(feature, latlng) {
-                    if (feature.properties.type === 'cluster') {
-                        var size = feature.properties.count > 100 ? 40 : 30;
-                        var icon = L.divIcon({ 
-                            className: 'bg-red-500 text-white rounded-full font-bold flex items-center justify-center border-2 border-white shadow-md', 
-                            html: feature.properties.count, 
-                            iconSize: [size, size] 
-                        });
-                        return L.marker(latlng, { icon: icon });
-                    }
-                    return L.marker(latlng);
-                },
                 onEachFeature: function(feature, layer) {
-                    if (feature.properties.type === 'cluster') {
-                        layer.bindPopup(`<b>Area Padat Aset</b><br>${feature.properties.count} Bidang tanah.<br>Silakan zoom-in (perbesar).`);
-                        layer.on('click', function() { map.flyTo(layer.getLatLng(), map.getZoom() + 2); });
-                    } else {
-                        var p = feature.properties;
-                        var raw = p.raw_data || {};
-                        var content = `
-                            <div class="p-1 min-w-[220px]">
-                                <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.name || 'Data Aset Bidang'}</h6>
-                                <table class="w-full text-xs text-gray-700">
-                                    <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${raw.TIPEHAK || raw.TIPE_HAK || '-'}</td></tr>
-                                    <tr><td class="font-semibold py-1">Luas</td><td>: ${raw.LUASTERTUL || raw.LUAS || 0} m²</td></tr>
-                                    <tr><td class="font-semibold py-1">Lokasi</td><td>: ${raw.KELURAHAN || raw.DESA || '-'}</td></tr>
-                                </table>
-                                @if($bisaKelolaLayer)
-                                <div class="mt-3 flex justify-end gap-1 border-t pt-2">
-                                    <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-3 py-1 rounded shadow-sm transition" onclick="deleteAsset(${p.id})">
-                                        <i class="fa-solid fa-trash"></i> Hapus
-                                    </button>
-                                </div>
-                                @endif
-                            </div>`;
-                        layer.bindPopup(content);
-                    }
+                    // Panggil event Hover
+                    layer.on({
+                        mouseover: highlightFeature,
+                        mouseout: resetHighlight
+                    });
+
+                    var p = feature.properties;
+                    var raw = p.raw_data || {};
+                    var content = `
+                        <div class="p-1 min-w-[220px]">
+                            <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.name || 'Data Aset Bidang'}</h6>
+                            <table class="w-full text-xs text-gray-700">
+                                <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${raw.TIPEHAK || raw.TIPE_HAK || '-'}</td></tr>
+                                <tr><td class="font-semibold py-1">Luas</td><td>: ${raw.LUASTERTUL || raw.LUAS || 0} m²</td></tr>
+                                <tr><td class="font-semibold py-1">Lokasi</td><td>: ${raw.KELURAHAN || raw.DESA || '-'}</td></tr>
+                            </table>
+                            @if($bisaKelolaLayer)
+                            <div class="mt-3 flex justify-end gap-1 border-t pt-2">
+                                <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-3 py-1 rounded shadow-sm transition" onclick="deleteAsset(${p.id})">
+                                    <i class="fa-solid fa-trash"></i> Hapus
+                                </button>
+                            </div>
+                            @endif
+                        </div>`;
+                    layer.bindPopup(content);
                 }
             }).addTo(map);
 
-            // 4. FUNGSI TARIK DATA DARI SERVER (BERDASARKAN GESERAN PETA)
+            // OPTIMASI 9: DEBOUNCE REQUEST
             var abortController = null;
+            var fetchTimeout = null;
+
             window.loadData = function() {
-                var loading = document.getElementById('map-loading');
-                if(loading) loading.classList.remove('hidden');
-                
-                var selectedLayers = [];
-                document.querySelectorAll('.layer-toggle:checked').forEach(function(cb) { selectedLayers.push(cb.value); });
+                clearTimeout(fetchTimeout);
 
-                var params = new URLSearchParams({
-                    north: map.getBounds().getNorth(), 
-                    south: map.getBounds().getSouth(),
-                    east: map.getBounds().getEast(), 
-                    west: map.getBounds().getWest(),
-                    zoom: map.getZoom(), 
-                    search: document.getElementById('searchMap').value, 
-                    hak: document.getElementById('filterHak').value
-                });
-                
-                selectedLayers.forEach(id => params.append('layers[]', id));
+                fetchTimeout = setTimeout(function() {
+                    var loading = document.getElementById('map-loading');
+                    if(loading) loading.classList.remove('hidden');
+                    
+                    var selectedLayers = [];
+                    document.querySelectorAll('.layer-toggle:checked').forEach(function(cb) { selectedLayers.push(cb.value); });
 
-                if (abortController) abortController.abort();
-                abortController = new AbortController();
-
-                fetch(`/map/api/data?${params.toString()}`, { signal: abortController.signal })
-                    .then(res => res.json())
-                    .then(data => {
-                        geoJsonLayer.clearLayers();
-                        if(data.features && data.features.length > 0) {
-                            geoJsonLayer.addData(data);
-                        }
-                        if(loading) loading.classList.add('hidden');
-                    })
-                    .catch(err => { 
-                        if (err.name !== 'AbortError' && loading) loading.classList.add('hidden'); 
+                    var params = new URLSearchParams({
+                        north: map.getBounds().getNorth(), south: map.getBounds().getSouth(),
+                        east: map.getBounds().getEast(), west: map.getBounds().getWest(),
+                        zoom: map.getZoom(), 
+                        search: document.getElementById('searchMap').value, 
+                        hak: document.getElementById('filterHak').value
                     });
+                    
+                    selectedLayers.forEach(id => params.append('layers[]', id));
+
+                    if (abortController) abortController.abort();
+                    abortController = new AbortController();
+
+                    fetch(`/map/api/data?${params.toString()}`, { signal: abortController.signal })
+                        .then(res => res.json())
+                        .then(data => {
+                            if(data.error) console.error("API DB Error:", data.error);
+                            
+                            geoJsonLayer.clearLayers();
+                            if(data.features && data.features.length > 0) {
+                                geoJsonLayer.addData(data);
+                            }
+                            if(loading) loading.classList.add('hidden');
+                        })
+                        .catch(err => { if (err.name !== 'AbortError' && loading) loading.classList.add('hidden'); });
+
+                }, 350); // Delay penarikan data agar server tidak ter-spam
             };
 
-            // Trigger Load
             map.on('moveend', loadData); 
             document.querySelectorAll('.layer-toggle').forEach(cb => cb.addEventListener('change', loadData));
 
-            // 5. SLIDER TRANSPARANSI
             document.getElementById('opacitySlider').addEventListener('input', function(e) {
                 currentOpacity = e.target.value;
                 document.getElementById('opacityVal').innerText = Math.round(currentOpacity * 100) + '%';
                 geoJsonLayer.eachLayer(function(layer) { 
-                    if (layer.options && layer.options.fill) layer.setStyle({ fillOpacity: currentOpacity }); 
+                    if (layer.setStyle) layer.setStyle({ fillOpacity: currentOpacity }); 
                 });
             });
 
-            // 6. GANTI WARNA AJAX
             document.querySelectorAll('.layer-color-picker').forEach(picker => {
                 picker.addEventListener('change', function() {
                     let layerId = this.getAttribute('data-id');
@@ -349,7 +340,6 @@
                 });
             });
 
-            // 7. FUNGSI HAPUS ASET
             window.deleteAsset = function(id) {
                 Swal.fire({ title: 'Hapus Aset?', text: "Bidang tanah ini akan dihapus permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
                     if (result.isConfirmed) {
@@ -366,9 +356,7 @@
                 });
             };
 
-            // 8. FUNGSI TERBANG MENCARI LOKASI SHP (ZOOM TO LAYER)
             window.zoomToLayer = function(layerId) {
-                // Centang otomatis checkbox jika belum dicentang
                 let cb = document.querySelector(`.layer-toggle[value="${layerId}"]`);
                 if(cb && !cb.checked) {
                     cb.checked = true;
@@ -396,7 +384,6 @@
                 });
             };
 
-            // Init Render Pertama Kali
             loadData();
         });
     </script>

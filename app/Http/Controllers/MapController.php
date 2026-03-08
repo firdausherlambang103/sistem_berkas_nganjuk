@@ -8,10 +8,11 @@ use App\Models\SpatialFeature;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use ZipArchive;
 use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
-use Illuminate\Support\Facades\Log;
 
 class MapController extends Controller
 {
@@ -63,7 +64,7 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 2. API UNTUK LEAFLET (GEOJSON MAP)
+    // 2. API UNTUK LEAFLET (SUPER OPTIMIZED)
     // ========================================================
     public function apiData(Request $request)
     {
@@ -72,80 +73,86 @@ class MapController extends Controller
         }
         
         try {
-            $n = (float) $request->north; 
-            $s = (float) $request->south; 
-            $e = (float) $request->east; 
-            $w = (float) $request->west;
+            // FIX BUG BBOX LOKAL: Memaksa format titik (.)
+            $n = number_format((float)$request->north, 8, '.', ''); 
+            $s = number_format((float)$request->south, 8, '.', ''); 
+            $e = number_format((float)$request->east, 8, '.', ''); 
+            $w = number_format((float)$request->west, 8, '.', '');
             $zoom = (int) $request->zoom;
+            
             $search = $request->input('search');
             $hak = $request->input('hak');
             $layerIds = $request->input('layers'); 
 
-            $polygonWKT = sprintf("SRID=4326;POLYGON((%F %F, %F %F, %F %F, %F %F, %F %F))", $w, $s, $e, $s, $e, $n, $w, $n, $w, $s);
-            $features = [];
-            $strategy = '';
-
             if (empty($layerIds)) {
-                return response()->json(['type'=>'FeatureCollection', 'features'=>[], 'strategy'=>'empty']);
+                return response()->json(['type'=>'FeatureCollection', 'features'=>[]]);
             }
 
-            if ($zoom < 14 && empty($search) && empty($hak)) {
-                $strategy = 'cluster';
-                $gridSize = $zoom < 10 ? 0.05 : 0.005;
-                $gridSizeStr = number_format($gridSize, 5, '.', ''); 
-                
-                $clusters = DB::connection('pgsql')->table('spatial_features')
-                    ->whereIn('layer_id', $layerIds)
-                    ->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])
-                    ->select(DB::raw("COUNT(id) as total"), DB::raw("ST_AsGeoJSON(ST_Centroid(ST_Collect(geom::geometry))) as center"))
-                    ->groupByRaw("ST_SnapToGrid(ST_Centroid(geom::geometry), $gridSizeStr)")
-                    ->get();
+            $polygonWKT = "SRID=4326;POLYGON(($w $s, $e $s, $e $n, $w $n, $w $s))";
+            $keywords = $this->getHakKeywords($hak);
+            
+            // OPTIMASI: Cache API Key (Simpan hasil query selama 60 detik)
+            $cacheKey = 'map_geojson_' . md5($polygonWKT . $zoom . $search . $hak . json_encode($layerIds));
 
-                foreach ($clusters as $cluster) {
-                    if (!$cluster->center) continue;
-                    $features[] = [
-                        'type' => 'Feature', 'geometry' => json_decode($cluster->center),
-                        'properties' => ['type' => 'cluster', 'count' => $cluster->total]
-                    ];
-                }
-            } 
-            else {
-                $query = SpatialFeature::query()->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])->whereIn('layer_id', $layerIds);
+            $features = Cache::remember($cacheKey, 60, function() use ($polygonWKT, $layerIds, $search, $keywords, $zoom) {
+                
+                $query = SpatialFeature::query()
+                    ->whereRaw("geom && ST_GeomFromEWKT(?)", [$polygonWKT])
+                    ->whereIn('layer_id', $layerIds);
                 
                 if ($search) {
                     $term = '%' . $search . '%';
-                    $query->where(function($q) use ($term) { $q->where('name', 'ILIKE', $term)->orWhereRaw("properties::text ILIKE ?", [$term]); });
+                    $query->where(function($q) use ($term) { 
+                        $q->where('name', 'ILIKE', $term)->orWhereRaw("properties::text ILIKE ?", [$term]); 
+                    });
                 }
                 
-                if ($hak) {
-                    $keywords = $this->getHakKeywords($hak);
-                    $query->where(function($q) use ($keywords) { foreach ($keywords as $word) $q->orWhereRaw("properties::text ILIKE ?", ['%' . $word . '%']); });
+                if (!empty($keywords)) {
+                    $query->where(function($q) use ($keywords) { 
+                        foreach ($keywords as $word) {
+                            $q->orWhereRaw("properties::text ILIKE ?", ['%' . $word . '%']); 
+                        }
+                    });
                 }
 
-                $selectGeom = "ST_AsGeoJSON(geom)";
-                $strategy = 'detail';
+                // OPTIMASI: ST_Simplify untuk Polygon saat Zoom Jauh
+                if ($zoom < 13) {
+                    $selectGeom = "ST_AsGeoJSON(ST_Simplify(geom, 0.00005))";
+                } else {
+                    $selectGeom = "ST_AsGeoJSON(geom)";
+                }
 
-                $data = $query->select('id', 'name', 'properties', 'layer_id', DB::raw("$selectGeom as geometry"))->limit(3000)->get();
+                // OPTIMASI: Batasi maksimal 1500 data per request agar Browser aman
+                $data = $query->select('id', 'name', 'properties', 'layer_id', DB::raw("$selectGeom as geometry"))
+                              ->limit(1500)
+                              ->get();
                 
+                $formattedFeatures = [];
+                // Load semua layer ke memori untuk efisiensi
+                $layersDict = MapLayer::whereIn('id', $layerIds)->pluck('warna', 'id')->toArray();
+
                 foreach ($data as $item) {
                     if (!$item->geometry) continue;
+                    
                     $props = is_string($item->properties) ? json_decode($item->properties, true) : $item->properties;
                     $props = $props ?? [];
                     
-                    $layerColor = '#3388ff';
-                    $layerInfo = MapLayer::find($item->layer_id); 
-                    if($layerInfo) $layerColor = $layerInfo->warna;
+                    $props['layer_color'] = $layersDict[$item->layer_id] ?? '#3388ff'; 
 
-                    $props['layer_color'] = $layerColor; 
-
-                    $features[] = [
-                        'type' => 'Feature', 'geometry' => json_decode($item->geometry), 
+                    $formattedFeatures[] = [
+                        'type' => 'Feature', 
+                        'geometry' => json_decode($item->geometry), 
                         'properties' => array_merge(['id'=>$item->id, 'name'=>$item->name], $props)
                     ];
                 }
-            }
-            return response()->json(['type'=>'FeatureCollection', 'features'=>$features, 'strategy'=>$strategy]);
-        } catch (\Exception $e) { return response()->json(['error'=>$e->getMessage()], 500); }
+                return $formattedFeatures;
+            });
+            
+            return response()->json(['type'=>'FeatureCollection', 'features'=>$features]);
+
+        } catch (\Exception $e) { 
+            return response()->json(['error'=>$e->getMessage()], 500); 
+        }
     }
 
     public function getLayerBounds($layerId)
@@ -169,7 +176,7 @@ class MapController extends Controller
         $this->cekAkses('Kelola Layer');
         set_time_limit(0);              
 
-        // MEMAKSA PHP MENGHAPUS CACHE ENVIRONMENT WINDOWS YANG RUSAK
+        // BYPASS ENV LOKAL
         putenv('PROJ_LIB=');
         putenv('PROJ_DATA=');
 
@@ -207,7 +214,6 @@ class MapController extends Controller
             if (empty($shpFiles)) throw new \Exception('File .shp tidak ditemukan.');
             
             $shpFile = $shpFiles[0];
-            
             $tempTableName = 'temp_layer_' . time();
             
             $dbHost = env('DB_PGSQL_HOST', '127.0.0.1');
@@ -216,9 +222,6 @@ class MapController extends Controller
             $dbUser = env('DB_PGSQL_USERNAME', env('DB_USERNAME'));
             $dbPass = env('DB_PGSQL_PASSWORD', env('DB_PASSWORD'));
 
-            // [SOLUSI PAMUNGKAS]: 
-            // 1. Membersihkan env di CMD via `set PROJ_LIB=`
-            // 2. MENCABUT parameter `-t_srs EPSG:4326` agar GDAL tidak perlu memakai Proj.db sama sekali.
             $command = "set PROJ_LIB= && set PROJ_DATA= && ogr2ogr -f \"PostgreSQL\" PG:\"host=$dbHost port=$dbPort user=$dbUser dbname=$dbName password=$dbPass\" \"$shpFile\" -nln \"$tempTableName\" -nlt PROMOTE_TO_MULTI -makevalid -lco GEOMETRY_NAME=geom -lco FID=id -overwrite -progress 2>&1";
             exec($command, $output, $returnVar);
 
@@ -236,8 +239,6 @@ class MapController extends Controller
                 }
             }
 
-            // [KONVERSI KORDINAT OLEH POSTGRESQL]
-            // Karena GDAL dilarang memproses kordinat, kita serahkan konversinya (ST_Transform) secara langsung ke PostGIS
             $insertQuery = "
                 INSERT INTO spatial_features (layer_id, name, properties, geom, created_at, updated_at)
                 SELECT
