@@ -76,11 +76,11 @@
                             </button>
                             
                             @if($tL == 'utama')
-                                <div class="w-5 h-5 rounded flex items-center justify-center bg-blue-100 text-[10px] font-bold text-blue-800 border border-blue-200" title="Utama">U</div>
+                                <div class="w-5 h-5 rounded flex items-center justify-center bg-blue-100 text-[10px] font-bold text-blue-800 border border-blue-200" title="Layar Utama">U</div>
                             @elseif($tL == 'khusus')
-                                <div class="w-5 h-5 rounded flex items-center justify-center bg-purple-100 text-[10px] font-bold text-purple-800 border border-purple-200" title="Khusus">K</div>
+                                <div class="w-5 h-5 rounded flex items-center justify-center bg-purple-100 text-[10px] font-bold text-purple-800 border border-purple-200" title="Layar Khusus">K</div>
                             @else
-                                <div class="w-5 h-5 rounded border border-gray-300 shrink-0 shadow-sm" style="background-color: {{ $layer->warna_standar ?? $layer->warna ?? '#3388ff' }}" title="Standar"></div>
+                                <div class="w-5 h-5 rounded border border-gray-300 shrink-0 shadow-sm" style="background-color: {{ $layer->warna_standar ?? $layer->warna ?? '#3388ff' }}" title="Layar Standar"></div>
                             @endif
                         </div>
                     </div>
@@ -97,19 +97,18 @@
             </div>
         </div>
 
-        {{-- LEGENDA UTAMA --}}
+        {{-- LEGENDA UTAMA (SINKRON DENGAN WARNA BACKEND MAPCONTROLLER) --}}
         <div class="absolute bottom-8 left-[15px] z-[1000] bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-lg border border-gray-200 w-48 transition-all">
             <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-[11px] uppercase tracking-wider flex items-center">
-                <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Tipe Hak (Layar Utama)
+                <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Tipe Hak
             </h6>
             <div class="space-y-1.5 text-[11px] text-gray-700 font-medium">
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#00FF00] border border-gray-300"></div> Hak Milik (HM)</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#FFFF00] border border-gray-300"></div> HGB</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#FF0000] border border-gray-300"></div> Hak Pakai (HP)</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#FFA500] border border-gray-300"></div> HGU</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#0000FF] border border-gray-300"></div> HPL / Pengelolaan</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#800080] border border-gray-300"></div> Tanah Wakaf</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#CCCCCC] border border-gray-300"></div> Default / Lainnya</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#28a745] border border-gray-300"></div> Hak Milik (HM)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#ffc107] border border-gray-300"></div> HGB</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#17a2b8] border border-gray-300"></div> Hak Pakai (HP)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#fd7e14] border border-gray-300"></div> HGU</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#6f42c1] border border-gray-300"></div> Tanah Wakaf</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#000000] border border-gray-300"></div> Default / Lainnya</div>
             </div>
         </div>
 
@@ -179,9 +178,6 @@
         function bukaModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-        // Menerima data layer dari database
-        const layerConfigs = @json($layers);
-
         document.addEventListener('DOMContentLoaded', function () {
             
             @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}' }); @endif
@@ -190,7 +186,7 @@
             var map = L.map('main-map', { 
                 zoomControl: false, 
                 maxZoom: 22,
-                renderer: L.canvas() // Eksekusi render canvas
+                renderer: L.canvas() // Eksekusi render canvas untuk peforma terbaik
             }).setView([-7.8200, 112.0118], 13);
             
             L.control.zoom({ position: 'topleft' }).addTo(map);
@@ -202,43 +198,12 @@
 
             var currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
             
-            // Logika pewarnaan otomatis berdasarkan tipe layer
+            // FUNGSI WARNA YANG SANGAT RINGAN: Hanya mengambil variabel dari backend API
             function getColor(feature) {
-                var layerId = feature.properties.layer_id || feature.layer_id;
-                var props = feature.properties || {};
-                var raw = props.raw_data || props;
-                var config = layerConfigs.find(l => l.id == layerId);
-
-                if (!config) return props.layer_color || '#3388ff';
-
-                var tipeL = (config.tipe_layer || 'standar').toLowerCase();
-
-                if (tipeL === 'utama') {
-                    // Berdasarkan legend image (HM, HGB, HP, HGU, HPL, Wakaf)
-                    var tipeHak = (raw.TIPEHAK || raw.TIPE_HAK || raw.tipehak || '').toString().toLowerCase();
-                    if (tipeHak.includes('hak milik') || tipeHak === 'hm') return '#00FF00'; // Hijau
-                    if (tipeHak.includes('hgb') || tipeHak.includes('guna bangunan')) return '#FFFF00'; // Kuning
-                    if (tipeHak.includes('hak pakai') || tipeHak === 'hp') return '#FF0000'; // Merah
-                    if (tipeHak.includes('hgu') || tipeHak.includes('guna usaha')) return '#FFA500'; // Oranye
-                    if (tipeHak.includes('hpl') || tipeHak.includes('pengelolaan')) return '#0000FF'; // Biru
-                    if (tipeHak.includes('wakaf')) return '#800080'; // Ungu
-                    return '#CCCCCC'; // Abu-abu default
-                } 
-                else if (tipeL === 'standar') {
-                    return config.warna_standar || config.warna || '#3388ff';
-                } 
-                else if (tipeL === 'khusus') {
-                    var header = config.khusus_header;
-                    var colors = config.khusus_colors;
-                    if (typeof colors === 'string') {
-                        try { colors = JSON.parse(colors); } catch(e) { colors = {}; }
-                    }
-                    var val = raw[header];
-                    if (colors && val && colors[val]) return colors[val];
-                    return '#000000'; // Fallback warna hitam
+                if(feature.properties && feature.properties.layer_color) {
+                    return feature.properties.layer_color;
                 }
-                
-                return '#3388ff';
+                return '#3388ff'; // Warna default safety
             }
 
             function highlightFeature(e) {
@@ -251,18 +216,26 @@
 
             var geoJsonLayer = L.geoJSON(null, {
                 style: function(feature) {
-                    return { color: '#ffffff', fillColor: getColor(feature), weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
+                    return { 
+                        color: '#ffffff', 
+                        fillColor: getColor(feature), 
+                        weight: 1.5, 
+                        opacity: 1, 
+                        fillOpacity: currentOpacity 
+                    };
                 },
                 onEachFeature: function(feature, layer) {
                     layer.on({ mouseover: highlightFeature, mouseout: resetHighlight });
                     
                     var p = feature.properties;
                     var raw = p.raw_data || p;
+                    var tipeHakTampil = p.kategori_hak || raw.TIPEHAK || raw.TIPE_HAK || '-';
+
                     var content = `
                         <div class="p-1 min-w-[220px]">
                             <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.name || 'Atribut Bidang'}</h6>
                             <table class="w-full text-xs text-gray-700">
-                                <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${raw.TIPEHAK || raw.TIPE_HAK || '-'}</td></tr>
+                                <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${tipeHakTampil}</td></tr>
                                 <tr><td class="font-semibold py-1">Luas</td><td>: ${raw.LUASTERTUL || raw.LUAS || 0} m²</td></tr>
                                 <tr><td class="font-semibold py-1">Lokasi</td><td>: ${raw.KELURAHAN || raw.DESA || '-'}</td></tr>
                             </table>
