@@ -39,17 +39,6 @@
                         <button onclick="document.getElementById('searchMap').value=''; loadData();" class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
-                <div>
-                    <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Tipe Hak</label>
-                    <select id="filterHak" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 py-1.5" onchange="loadData()">
-                        <option value="">Semua Tipe Hak</option>
-                        <option value="HM">Hak Milik (HM)</option>
-                        <option value="HGB">Hak Guna Bangunan (HGB)</option>
-                        <option value="HGU">Hak Guna Usaha (HGU)</option>
-                        <option value="HP">Hak Pakai (HP)</option>
-                        <option value="WAKAF">Tanah Wakaf</option>
-                    </select>
-                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-2 mt-4">
@@ -66,17 +55,18 @@
         </div>
 
         {{-- PANEL LAYER AKTIF --}}
-        <div class="absolute top-[315px] right-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-[320px] transition-all">
+        <div class="absolute top-[260px] right-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200 w-[320px] transition-all">
             <h6 class="font-bold text-gray-800 mb-2 flex items-center justify-between text-sm border-b pb-2">
                 <span><i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> Layer Aktif</span>
             </h6>
             
             <div id="layerList" class="max-h-[200px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 @forelse($layers as $layer)
+                    @php $tL = strtolower($layer->tipe_layer ?? 'standar'); @endphp
                     <div class="flex items-center justify-between p-1.5 hover:bg-gray-50 rounded-md border border-transparent hover:border-gray-100 transition group">
                         <label class="flex items-center text-sm text-gray-700 cursor-pointer flex-1 truncate pr-2">
                             <input type="checkbox" class="layer-toggle mr-2 rounded w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 shadow-sm" 
-                                   value="{{ $layer->id }}" data-warna="{{ $layer->warna }}">
+                                   value="{{ $layer->id }}">
                             <span class="truncate font-medium">{{ $layer->nama_layer }}</span>
                         </label>
                         
@@ -84,12 +74,13 @@
                             <button onclick="zoomToLayer({{ $layer->id }})" title="Fokuskan Peta ke Aset Ini" class="text-gray-400 hover:text-indigo-600 transition">
                                 <i class="fa-solid fa-crosshairs"></i>
                             </button>
-
-                            @if($bisaKelolaLayer)
-                                <input type="color" class="layer-color-picker w-6 h-6 rounded cursor-pointer border border-gray-300 p-0 overflow-hidden shrink-0 opacity-70 group-hover:opacity-100 transition" 
-                                       value="{{ $layer->warna }}" data-id="{{ $layer->id }}" title="Ubah Warna Layer">
+                            
+                            @if($tL == 'utama')
+                                <div class="w-5 h-5 rounded flex items-center justify-center bg-blue-100 text-[10px] font-bold text-blue-800 border border-blue-200" title="Utama">U</div>
+                            @elseif($tL == 'khusus')
+                                <div class="w-5 h-5 rounded flex items-center justify-center bg-purple-100 text-[10px] font-bold text-purple-800 border border-purple-200" title="Khusus">K</div>
                             @else
-                                <div class="w-4 h-4 rounded-full border border-gray-300 shrink-0 shadow-sm" style="background-color: {{ $layer->warna }}"></div>
+                                <div class="w-5 h-5 rounded border border-gray-300 shrink-0 shadow-sm" style="background-color: {{ $layer->warna_standar ?? $layer->warna ?? '#3388ff' }}" title="Standar"></div>
                             @endif
                         </div>
                     </div>
@@ -106,18 +97,19 @@
             </div>
         </div>
 
-        {{-- LEGENDA --}}
+        {{-- LEGENDA UTAMA --}}
         <div class="absolute bottom-8 left-[15px] z-[1000] bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-lg border border-gray-200 w-48 transition-all">
             <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-[11px] uppercase tracking-wider flex items-center">
-                <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Hak
+                <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Tipe Hak (Layar Utama)
             </h6>
             <div class="space-y-1.5 text-[11px] text-gray-700 font-medium">
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#28a745] border border-gray-300"></div> Hak Milik (HM)</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#ffc107] border border-gray-300"></div> HGB</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#17a2b8] border border-gray-300"></div> Hak Pakai (HP)</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#fd7e14] border border-gray-300"></div> HGU</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#6f42c1] border border-gray-300"></div> Tanah Wakaf</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#3388ff] border border-gray-300"></div> Default / Lainnya</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#00FF00] border border-gray-300"></div> Hak Milik (HM)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#FFFF00] border border-gray-300"></div> HGB</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#FF0000] border border-gray-300"></div> Hak Pakai (HP)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#FFA500] border border-gray-300"></div> HGU</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#0000FF] border border-gray-300"></div> HPL / Pengelolaan</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#800080] border border-gray-300"></div> Tanah Wakaf</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#CCCCCC] border border-gray-300"></div> Default / Lainnya</div>
             </div>
         </div>
 
@@ -139,8 +131,7 @@
                     <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-lg border border-blue-200 flex items-start">
                         <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-blue-500 text-base"></i>
                         <div>
-                            Pastikan Anda mengunggah file <b>.ZIP</b> yang didalamnya berisi lengkap komponen Shapefile (.shp, .shx, .dbf, .prj).<br>
-                            <span class="mt-1 block text-blue-600">Belum punya layer? <a href="{{ route('map.master.layer') }}" class="underline font-bold">Buat Layer Baru di Master Layer</a>.</span>
+                            Pastikan Anda mengunggah file <b>.ZIP</b> yang didalamnya berisi lengkap komponen Shapefile (.shp, .shx, .dbf, .prj).
                         </div>
                     </div>
 
@@ -149,18 +140,18 @@
                         <select id="layer_id" name="layer_id" class="w-full text-sm border-gray-300 rounded-md focus:ring-emerald-500" required>
                             <option value="" disabled selected>-- Pilih Layer yang sudah dibuat --</option>
                             @foreach($layers as $layer)
-                                <option value="{{ $layer->id }}">{{ $layer->nama_layer }} ({{ $layer->tipe_layer ?? 'Standar' }})</option>
+                                <option value="{{ $layer->id }}">{{ $layer->nama_layer }} ({{ ucfirst($layer->tipe_layer ?? 'standar') }})</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Pilih File (.ZIP) <span class="text-red-500">*</span></label>
-                        <input type="file" name="file_zip" accept=".zip" required class="w-full text-sm border border-gray-300 rounded-md p-1.5 bg-gray-50 cursor-pointer file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 transition">
+                        <input type="file" name="file_zip" accept=".zip" required class="w-full text-sm border border-gray-300 rounded-md p-1.5 bg-gray-50 cursor-pointer">
                     </div>
                     
                     <div class="pt-5 border-t flex justify-end gap-3 mt-6">
-                        <button type="button" onclick="tutupModal('modalUploadShp')" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 transition shadow-sm">Batal</button>
-                        <button type="submit" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin mr-2\'></i> Memproses...'; this.classList.add('opacity-70');" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition shadow-sm flex items-center">
+                        <button type="button" onclick="tutupModal('modalUploadShp')" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 transition">Batal</button>
+                        <button type="submit" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin mr-2\'></i> Memproses...'; this.classList.add('opacity-70');" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition flex items-center">
                             <i class="fa-solid fa-upload mr-2"></i> Proses Upload
                         </button>
                     </div>
@@ -179,7 +170,6 @@
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; margin-left: 15px !important; margin-top: 15px !important; }
         .leaflet-control-zoom a { color: #4f46e5 !important; }
         .leaflet-control-layers { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; border-radius: 8px !important; margin-bottom: 25px !important; margin-left: 215px !important; }
@@ -189,33 +179,18 @@
         function bukaModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+        // Menerima data layer dari database
+        const layerConfigs = @json($layers);
+
         document.addEventListener('DOMContentLoaded', function () {
             
-            // Tangkap notifikasi SUCCESS dari session
-            @if(session('success')) 
-                Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}', confirmButtonColor: '#4f46e5' }); 
-            @endif
-            
-            // Tangkap notifikasi ERROR dari session
-            @if(session('error')) 
-                Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: '{!! session('error') !!}', confirmButtonColor: '#d33' }); 
-            @endif
+            @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}' }); @endif
+            @if(session('error')) Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: '{!! session('error') !!}' }); @endif
 
-            // Tangkap notifikasi VALIDASI ERROR (File zip salah ukuran/format dll)
-            @if($errors->any())
-                Swal.fire({ 
-                    icon: 'error', 
-                    title: 'Validasi Gagal!', 
-                    html: '{!! implode("<br>", $errors->all()) !!}', 
-                    confirmButtonColor: '#d33' 
-                });
-            @endif
-
-            // OPTIMASI 5: CANVAS RENDERER UNTUK RIBUAN POLIGON
             var map = L.map('main-map', { 
                 zoomControl: false, 
                 maxZoom: 22,
-                renderer: L.canvas() // Eksekusi render 5x lebih ringan dari SVG
+                renderer: L.canvas() // Eksekusi render canvas
             }).setView([-7.8200, 112.0118], 13);
             
             L.control.zoom({ position: 'topleft' }).addTo(map);
@@ -223,54 +198,69 @@
             var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 22 });
             var googleSatLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{ maxNativeZoom: 20, maxZoom: 22 });
             osmLayer.addTo(map);
-
             L.control.layers({ "Peta Jalan (OSM)": osmLayer, "Satelit (Google)": googleSatLayer }, null, { position: 'bottomleft' }).addTo(map);
 
             var currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
             
-            function getColor(props) {
-                if (props.layer_color) return props.layer_color;
-                var raw = props.raw_data || {};
-                var tipe = (raw.TIPEHAK || raw.TIPE_HAK || '').toString().toUpperCase();
+            // Logika pewarnaan otomatis berdasarkan tipe layer
+            function getColor(feature) {
+                var layerId = feature.properties.layer_id || feature.layer_id;
+                var props = feature.properties || {};
+                var raw = props.raw_data || props;
+                var config = layerConfigs.find(l => l.id == layerId);
+
+                if (!config) return props.layer_color || '#3388ff';
+
+                var tipeL = (config.tipe_layer || 'standar').toLowerCase();
+
+                if (tipeL === 'utama') {
+                    // Berdasarkan legend image (HM, HGB, HP, HGU, HPL, Wakaf)
+                    var tipeHak = (raw.TIPEHAK || raw.TIPE_HAK || raw.tipehak || '').toString().toLowerCase();
+                    if (tipeHak.includes('hak milik') || tipeHak === 'hm') return '#00FF00'; // Hijau
+                    if (tipeHak.includes('hgb') || tipeHak.includes('guna bangunan')) return '#FFFF00'; // Kuning
+                    if (tipeHak.includes('hak pakai') || tipeHak === 'hp') return '#FF0000'; // Merah
+                    if (tipeHak.includes('hgu') || tipeHak.includes('guna usaha')) return '#FFA500'; // Oranye
+                    if (tipeHak.includes('hpl') || tipeHak.includes('pengelolaan')) return '#0000FF'; // Biru
+                    if (tipeHak.includes('wakaf')) return '#800080'; // Ungu
+                    return '#CCCCCC'; // Abu-abu default
+                } 
+                else if (tipeL === 'standar') {
+                    return config.warna_standar || config.warna || '#3388ff';
+                } 
+                else if (tipeL === 'khusus') {
+                    var header = config.khusus_header;
+                    var colors = config.khusus_colors;
+                    if (typeof colors === 'string') {
+                        try { colors = JSON.parse(colors); } catch(e) { colors = {}; }
+                    }
+                    var val = raw[header];
+                    if (colors && val && colors[val]) return colors[val];
+                    return '#000000'; // Fallback warna hitam
+                }
                 
-                if (tipe.includes('HM') || tipe.includes('MILIK')) return '#28a745';
-                if (tipe.includes('HGB') || tipe.includes('BANGUNAN')) return '#ffc107';
-                if (tipe.includes('HGU') || tipe.includes('USAHA')) return '#fd7e14';
-                if (tipe.includes('HP') || tipe.includes('PAKAI')) return '#17a2b8';
-                if (tipe.includes('WAKAF')) return '#6f42c1';
                 return '#3388ff';
             }
 
-            // OPTIMASI 6: FUNGSI HOVER HIGHLIGHT ALA ARCGIS
             function highlightFeature(e) {
                 var layer = e.target;
                 layer.setStyle({ weight: 3, color: '#111827', fillOpacity: 0.8 });
-                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                    layer.bringToFront();
-                }
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) layer.bringToFront();
             }
 
-            function resetHighlight(e) {
-                geoJsonLayer.resetStyle(e.target);
-            }
+            function resetHighlight(e) { geoJsonLayer.resetStyle(e.target); }
 
             var geoJsonLayer = L.geoJSON(null, {
                 style: function(feature) {
-                    var col = getColor(feature.properties || {});
-                    return { color: '#ffffff', fillColor: col, weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
+                    return { color: '#ffffff', fillColor: getColor(feature), weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
                 },
                 onEachFeature: function(feature, layer) {
-                    // Panggil event Hover
-                    layer.on({
-                        mouseover: highlightFeature,
-                        mouseout: resetHighlight
-                    });
-
+                    layer.on({ mouseover: highlightFeature, mouseout: resetHighlight });
+                    
                     var p = feature.properties;
-                    var raw = p.raw_data || {};
+                    var raw = p.raw_data || p;
                     var content = `
                         <div class="p-1 min-w-[220px]">
-                            <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.name || 'Data Aset Bidang'}</h6>
+                            <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.name || 'Atribut Bidang'}</h6>
                             <table class="w-full text-xs text-gray-700">
                                 <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${raw.TIPEHAK || raw.TIPE_HAK || '-'}</td></tr>
                                 <tr><td class="font-semibold py-1">Luas</td><td>: ${raw.LUASTERTUL || raw.LUAS || 0} m²</td></tr>
@@ -278,7 +268,7 @@
                             </table>
                             @if($bisaKelolaLayer)
                             <div class="mt-3 flex justify-end gap-1 border-t pt-2">
-                                <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-3 py-1 rounded shadow-sm transition" onclick="deleteAsset(${p.id})">
+                                <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-3 py-1 rounded transition" onclick="deleteAsset(${p.id})">
                                     <i class="fa-solid fa-trash"></i> Hapus
                                 </button>
                             </div>
@@ -288,13 +278,11 @@
                 }
             }).addTo(map);
 
-            // OPTIMASI 9: DEBOUNCE REQUEST
             var abortController = null;
             var fetchTimeout = null;
 
             window.loadData = function() {
                 clearTimeout(fetchTimeout);
-
                 fetchTimeout = setTimeout(function() {
                     var loading = document.getElementById('map-loading');
                     if(loading) loading.classList.remove('hidden');
@@ -306,8 +294,7 @@
                         north: map.getBounds().getNorth(), south: map.getBounds().getSouth(),
                         east: map.getBounds().getEast(), west: map.getBounds().getWest(),
                         zoom: map.getZoom(), 
-                        search: document.getElementById('searchMap').value, 
-                        hak: document.getElementById('filterHak').value
+                        search: document.getElementById('searchMap').value
                     });
                     
                     selectedLayers.forEach(id => params.append('layers[]', id));
@@ -318,17 +305,12 @@
                     fetch(`/map/api/data?${params.toString()}`, { signal: abortController.signal })
                         .then(res => res.json())
                         .then(data => {
-                            if(data.error) console.error("API DB Error:", data.error);
-                            
                             geoJsonLayer.clearLayers();
-                            if(data.features && data.features.length > 0) {
-                                geoJsonLayer.addData(data);
-                            }
+                            if(data.features && data.features.length > 0) geoJsonLayer.addData(data);
                             if(loading) loading.classList.add('hidden');
                         })
                         .catch(err => { if (err.name !== 'AbortError' && loading) loading.classList.add('hidden'); });
-
-                }, 350); // Delay penarikan data agar server tidak ter-spam
+                }, 350);
             };
 
             map.on('moveend', loadData); 
@@ -342,46 +324,20 @@
                 });
             });
 
-            document.querySelectorAll('.layer-color-picker').forEach(picker => {
-                picker.addEventListener('change', function() {
-                    let layerId = this.getAttribute('data-id');
-                    let newColor = this.value;
-                    let csrfToken = document.querySelector('input[name="_token"]').value;
-
-                    fetch(`/map/update-warna/${layerId}`, {
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-HTTP-Method-Override': 'PATCH' },
-                        body: JSON.stringify({ warna: newColor })
-                    }).then(res => { 
-                        loadData(); 
-                        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 }).fire({ icon: 'success', title: 'Warna diperbarui' }); 
-                    });
-                });
-            });
-
             window.deleteAsset = function(id) {
-                Swal.fire({ title: 'Hapus Aset?', text: "Bidang tanah ini akan dihapus permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
+                Swal.fire({ title: 'Hapus Aset?', text: "Bidang tanah akan dihapus permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
                     if (result.isConfirmed) {
-                        let csrfToken = document.querySelector('input[name="_token"]').value;
                         fetch(`/map/asset/${id}`, { 
                             method: 'POST', 
-                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-HTTP-Method-Override': 'DELETE' } 
-                        })
-                        .then(res => res.json()).then(data => { 
-                            Swal.fire('Terhapus!', data.message, 'success'); 
-                            loadData(); 
-                        });
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-HTTP-Method-Override': 'DELETE' } 
+                        }).then(res => res.json()).then(data => { Swal.fire('Terhapus!', data.message, 'success'); loadData(); });
                     }
                 });
             };
 
             window.zoomToLayer = function(layerId) {
                 let cb = document.querySelector(`.layer-toggle[value="${layerId}"]`);
-                if(cb && !cb.checked) {
-                    cb.checked = true;
-                    loadData();
-                }
-
+                if(cb && !cb.checked) { cb.checked = true; loadData(); }
                 Swal.fire({ title: 'Mencari Kordinat...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
 
                 fetch(`/map/layer-bounds/${layerId}`)
@@ -391,15 +347,9 @@
                     if(data.success && data.bbox) {
                         let tempLayer = L.geoJSON(data.bbox);
                         map.fitBounds(tempLayer.getBounds(), { padding: [20, 20], maxZoom: 18 });
-                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-                        Toast.fire({ icon: 'info', title: 'Peta difokuskan ke lokasi SHP' });
                     } else {
-                        Swal.fire('Informasi', 'Layer ini tidak memiliki data kordinat yang valid.', 'warning');
+                        Swal.fire('Informasi', 'Layer ini tidak memiliki kordinat valid.', 'warning');
                     }
-                })
-                .catch(err => {
-                    Swal.close();
-                    Swal.fire('Error', 'Gagal mencari kordinat layer dari server.', 'error');
                 });
             };
 

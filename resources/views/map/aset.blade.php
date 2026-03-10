@@ -21,13 +21,12 @@
                             <form action="{{ route('map.aset') }}" method="GET" class="flex items-center w-full md:w-auto">
                                 <label class="text-sm font-bold text-gray-700 mr-2 shrink-0">Pilih Layer Peta:</label>
                                 <select name="layer_id" onchange="this.form.submit()" class="border-gray-300 rounded-md text-sm focus:ring-indigo-500 w-full md:w-64 bg-gray-50 cursor-pointer">
-                                    @forelse($layers as $layer)
+                                    <option value="">-- Pilih Layer --</option>
+                                    @foreach($layers as $layer)
                                         <option value="{{ $layer->id }}" {{ ($selectedLayer && $selectedLayer->id == $layer->id) ? 'selected' : '' }}>
-                                            {{ $layer->nama_layer }}
+                                            {{ $layer->nama_layer }} ({{ ucfirst($layer->tipe_layer ?? 'Standar') }})
                                         </option>
-                                    @empty
-                                        <option value="">Belum ada Layer</option>
-                                    @endforelse
+                                    @endforeach
                                 </select>
                             </form>
                             
@@ -39,15 +38,15 @@
 
                     {{-- TABEL DATA ASET (DATATABLES) --}}
                     @if($selectedLayer)
-                        <div class="mb-3 text-sm font-bold text-indigo-700 bg-indigo-50 inline-block px-3 py-1 rounded">
-                            Menampilkan data dari: {{ $selectedLayer->nama_layer }}
+                        <div class="mb-3 text-sm font-bold text-indigo-700 bg-indigo-50 inline-block px-3 py-1 rounded border border-indigo-100">
+                            Menampilkan atribut tabel dari layer: {{ $selectedLayer->nama_layer }}
                         </div>
                         
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto mt-2">
                             <table id="asetTable" class="w-full text-sm text-left border-collapse">
                                 <thead class="bg-gray-100 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
                                     <tr>
-                                        <th class="px-4 py-3 border border-gray-200 w-10">No</th>
+                                        <th class="px-4 py-3 border border-gray-200 w-10 text-center">No</th>
                                         @foreach($columns as $col)
                                             <th class="px-4 py-3 border border-gray-200">{{ $col }}</th>
                                         @endforeach
@@ -66,10 +65,9 @@
                             </table>
                         </div>
                     @else
-                        <div class="text-center py-10 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                        <div class="text-center py-10 bg-gray-50 rounded-lg border border-dashed border-gray-300 mt-4">
                             <i class="fa-solid fa-file-circle-xmark text-4xl text-gray-400 mb-3"></i>
-                            <p class="text-gray-500 font-medium">Tidak ada data aset yang bisa ditampilkan.</p>
-                            <p class="text-sm text-gray-400">Silakan import file SHP terlebih dahulu di menu Peta Utama.</p>
+                            <p class="text-gray-500 font-medium">Silakan pilih layer peta untuk menampilkan data aset.</p>
                         </div>
                     @endif
 
