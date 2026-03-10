@@ -33,9 +33,9 @@
             
             <div class="space-y-3 mb-3">
                 <div>
-                    <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Pencarian (Nama/NIB)</label>
+                    <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Pencarian Cepat</label>
                     <div class="relative">
-                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik kata kunci...">
+                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik kata kunci (NIB/Desa)...">
                         <button onclick="document.getElementById('searchMap').value=''; loadData();" class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
@@ -76,11 +76,11 @@
                             </button>
                             
                             @if($tL == 'utama')
-                                <div class="w-5 h-5 rounded flex items-center justify-center bg-blue-100 text-[10px] font-bold text-blue-800 border border-blue-200" title="Layar Utama">U</div>
+                                <div class="w-5 h-5 rounded flex items-center justify-center bg-blue-100 text-[10px] font-bold text-blue-800 border border-blue-200" title="Utama">U</div>
                             @elseif($tL == 'khusus')
-                                <div class="w-5 h-5 rounded flex items-center justify-center bg-purple-100 text-[10px] font-bold text-purple-800 border border-purple-200" title="Layar Khusus">K</div>
+                                <div class="w-5 h-5 rounded flex items-center justify-center bg-purple-100 text-[10px] font-bold text-purple-800 border border-purple-200" title="Khusus">K</div>
                             @else
-                                <div class="w-5 h-5 rounded border border-gray-300 shrink-0 shadow-sm" style="background-color: {{ $layer->warna_standar ?? $layer->warna ?? '#3388ff' }}" title="Layar Standar"></div>
+                                <div class="w-5 h-5 rounded border border-gray-300 shrink-0 shadow-sm" style="background-color: {{ $layer->warna_standar ?? $layer->warna ?? '#3388ff' }}" title="Standar"></div>
                             @endif
                         </div>
                     </div>
@@ -97,7 +97,7 @@
             </div>
         </div>
 
-        {{-- LEGENDA UTAMA (SINKRON DENGAN WARNA BACKEND MAPCONTROLLER) --}}
+        {{-- LEGENDA UTAMA --}}
         <div class="absolute bottom-8 left-[15px] z-[1000] bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-lg border border-gray-200 w-48 transition-all">
             <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-[11px] uppercase tracking-wider flex items-center">
                 <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Tipe Hak
@@ -108,9 +108,14 @@
                 <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#17a2b8] border border-gray-300"></div> Hak Pakai (HP)</div>
                 <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#fd7e14] border border-gray-300"></div> HGU</div>
                 <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#6f42c1] border border-gray-300"></div> Tanah Wakaf</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#000000] border border-gray-300"></div> Default / Lainnya</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#cccccc] border border-gray-300"></div> Default / Lainnya</div>
             </div>
         </div>
+
+        {{-- TOMBOL LOKASI SAYA --}}
+        <button onclick="goToMyLocation()" class="absolute bottom-[240px] left-[15px] z-[1000] w-10 h-10 bg-white text-gray-700 rounded-lg shadow-[0_4px_10px_rgba(0,0,0,0.15)] flex items-center justify-center hover:bg-gray-50 hover:text-indigo-600 transition border border-gray-200" title="Cari Lokasi Saya">
+            <i class="fa-solid fa-crosshairs text-lg"></i>
+        </button>
 
         {{-- WADAH PETA UTAMA --}}
         <div id="main-map" style="width: 100%; height: 100%; z-index: 10;"></div>
@@ -127,19 +132,12 @@
                 </div>
                 <form action="{{ route('map.import') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
                     @csrf
-                    <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-lg border border-blue-200 flex items-start">
-                        <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-blue-500 text-base"></i>
-                        <div>
-                            Pastikan Anda mengunggah file <b>.ZIP</b> yang didalamnya berisi lengkap komponen Shapefile (.shp, .shx, .dbf, .prj).
-                        </div>
-                    </div>
-
                     <div>
-                        <label for="layer_id" class="block text-sm font-semibold text-gray-700 mb-1">Pilih Layer Tujuan <span class="text-red-500">*</span></label>
-                        <select id="layer_id" name="layer_id" class="w-full text-sm border-gray-300 rounded-md focus:ring-emerald-500" required>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Pilih Layer Tujuan <span class="text-red-500">*</span></label>
+                        <select name="layer_id" class="w-full text-sm border-gray-300 rounded-md focus:ring-emerald-500" required>
                             <option value="" disabled selected>-- Pilih Layer yang sudah dibuat --</option>
                             @foreach($layers as $layer)
-                                <option value="{{ $layer->id }}">{{ $layer->nama_layer }} ({{ ucfirst($layer->tipe_layer ?? 'standar') }})</option>
+                                <option value="{{ $layer->id }}">{{ $layer->nama_layer }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -147,11 +145,87 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Pilih File (.ZIP) <span class="text-red-500">*</span></label>
                         <input type="file" name="file_zip" accept=".zip" required class="w-full text-sm border border-gray-300 rounded-md p-1.5 bg-gray-50 cursor-pointer">
                     </div>
-                    
                     <div class="pt-5 border-t flex justify-end gap-3 mt-6">
                         <button type="button" onclick="tutupModal('modalUploadShp')" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 transition">Batal</button>
-                        <button type="submit" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin mr-2\'></i> Memproses...'; this.classList.add('opacity-70');" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition flex items-center">
-                            <i class="fa-solid fa-upload mr-2"></i> Proses Upload
+                        <button type="submit" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition">Proses Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL ATRIBUT (UNTUK MENGISI/MENGEDIT DATA SETELAH MENGGAMBAR) --}}
+    <div id="modalAtribut" class="fixed inset-0 z-[4000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all border border-gray-100">
+                <div class="bg-indigo-600 px-5 py-4 flex justify-between items-center text-white">
+                    <h3 class="font-bold text-lg" id="modalAtributTitle"><i class="fa-solid fa-pen-to-square mr-2"></i> Informasi Data Aset</h3>
+                    <button type="button" onclick="tutupModal('modalAtribut')" class="hover:text-indigo-200 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <form id="formAtribut" class="p-6 space-y-4">
+                    <input type="hidden" id="form_geometry">
+                    <input type="hidden" id="form_asset_id">
+                    <input type="hidden" id="form_mode" value="create">
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Simpan ke Layer <span class="text-red-500">*</span></label>
+                        <select id="form_layer_id" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500" required>
+                            @foreach($layers as $layer)
+                                <option value="{{ $layer->id }}">{{ $layer->nama_layer }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">NIB</label>
+                            <input type="text" id="form_nib" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipe Hak <span class="text-red-500">*</span></label>
+                            <select id="form_tipehak" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500" required>
+                                <option value="Hak Milik">Hak Milik</option>
+                                <option value="Hak Guna Bangunan">Hak Guna Bangunan (HGB)</option>
+                                <option value="Hak Pakai">Hak Pakai (HP)</option>
+                                <option value="Hak Guna Usaha">Hak Guna Usaha (HGU)</option>
+                                <option value="Hak Pengelolaan">Hak Pengelolaan (HPL)</option>
+                                <option value="Wakaf">Tanah Wakaf</option>
+                                <option value="Lainnya">Lainnya / Tidak Diketahui</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Luas (M²)</label>
+                            <input type="number" id="form_luas" step="0.01" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Penggunaan</label>
+                            <input type="text" id="form_penggunaan" placeholder="Ex: Sawah, Perumahan" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Desa / Kelurahan</label>
+                            <input type="text" id="form_kelurahan" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kecamatan</label>
+                            <input type="text" id="form_kecamatan" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Keterangan Tambahan</label>
+                        <textarea id="form_keterangan" rows="2" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500"></textarea>
+                    </div>
+                    
+                    <div class="pt-4 border-t flex justify-end gap-3 mt-4">
+                        <button type="button" onclick="tutupModal('modalAtribut')" class="px-5 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-bold hover:bg-gray-200 transition">Batal</button>
+                        <button type="button" onclick="simpanAtributAset()" class="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-bold hover:bg-indigo-700 transition">
+                            <i class="fa-solid fa-save mr-1"></i> Simpan Data
                         </button>
                     </div>
                 </form>
@@ -161,14 +235,21 @@
     @endif
 
     @push('scripts')
+    {{-- Leaflet JS & CSS --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    {{-- Geoman untuk Edit/Draw Peta --}}
+    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
+    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+    {{-- SweetAlert --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
         .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; margin-left: 15px !important; margin-top: 15px !important; }
         .leaflet-control-zoom a { color: #4f46e5 !important; }
         .leaflet-control-layers { border: none !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important; border-radius: 8px !important; margin-bottom: 25px !important; margin-left: 215px !important; }
@@ -178,15 +259,59 @@
         function bukaModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+        // Fitur Lokasi Saya
+        var userMarker = null;
+        window.goToMyLocation = function() {
+            if (navigator.geolocation) {
+                Swal.fire({ title: 'Mencari Lokasi...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+                
+                const options = {
+                    enableHighAccuracy: true, // Berusaha mencari GPS paling akurat
+                    timeout: 10000,           // Maksimal menunggu 10 detik
+                    maximumAge: 0             // Jangan gunakan cache lokasi lama
+                };
+
+                navigator.geolocation.getCurrentPosition(
+                    // Jika Sukses
+                    position => {
+                        Swal.close();
+                        var lat = position.coords.latitude;
+                        var lng = position.coords.longitude;
+                        map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 });
+                        
+                        if(userMarker) map.removeLayer(userMarker);
+                        userMarker = L.marker([lat, lng]).addTo(map)
+                            .bindPopup('<b class="text-indigo-600"><i class="fa-solid fa-street-view mr-1"></i> Lokasi Anda Saat Ini</b>')
+                            .openPopup();
+                    }, 
+                    // Jika Gagal
+                    error => {
+                        Swal.close();
+                        let pesanError = 'Tidak dapat mengakses lokasi. Pastikan GPS/Location aktif dan diizinkan di browser.';
+                        if (error.code === 1) pesanError = 'Akses lokasi ditolak oleh browser Anda. Silakan izinkan akses lokasi (klik ikon gembok di URL bar).';
+                        if (error.code === 2) pesanError = 'Sinyal GPS tidak ditemukan atau jaringan tidak mendukung pencarian lokasi.';
+                        if (error.code === 3) pesanError = 'Waktu pencarian lokasi habis (Timeout). Coba lagi di area terbuka.';
+                        
+                        Swal.fire('Gagal', pesanError, 'error');
+                    }, 
+                    options
+                );
+            } else {
+                Swal.fire('Informasi', 'Geolocation tidak didukung oleh browser Anda.', 'warning');
+            }
+        };
+
+        var map; // Global Map Var
+
         document.addEventListener('DOMContentLoaded', function () {
             
             @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}' }); @endif
             @if(session('error')) Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: '{!! session('error') !!}' }); @endif
 
-            var map = L.map('main-map', { 
+            map = L.map('main-map', { 
                 zoomControl: false, 
                 maxZoom: 22,
-                renderer: L.canvas() // Eksekusi render canvas untuk peforma terbaik
+                renderer: L.canvas() 
             }).setView([-7.8200, 112.0118], 13);
             
             L.control.zoom({ position: 'topleft' }).addTo(map);
@@ -198,12 +323,9 @@
 
             var currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
             
-            // FUNGSI WARNA YANG SANGAT RINGAN: Hanya mengambil variabel dari backend API
             function getColor(feature) {
-                if(feature.properties && feature.properties.layer_color) {
-                    return feature.properties.layer_color;
-                }
-                return '#3388ff'; // Warna default safety
+                if(feature.properties && feature.properties.layer_color) { return feature.properties.layer_color; }
+                return '#3388ff'; 
             }
 
             function highlightFeature(e) {
@@ -211,46 +333,135 @@
                 layer.setStyle({ weight: 3, color: '#111827', fillOpacity: 0.8 });
                 if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) layer.bringToFront();
             }
-
             function resetHighlight(e) { geoJsonLayer.resetStyle(e.target); }
 
+            // ==========================================
+            // KONTROL GEOMAN (DRAWING & EDITING TOOLS)
+            // ==========================================
+            @if($bisaKelolaLayer)
+            map.pm.addControls({
+                position: 'topleft',
+                drawPolygon: true,
+                drawMarker: false, drawPolyline: false, drawRectangle: false, drawCircle: false, drawCircleMarker: false, drawText: false,
+                editMode: true,
+                dragMode: true,
+                cutPolygon: false,
+                removalMode: true,
+            });
+
+            map.pm.setLang('id'); // Bahasa Indonesia
+
+            // Event 1: Selesai Menggambar Poligon Baru
+            map.on('pm:create', e => {
+                let layer = e.layer;
+                let geojson = layer.toGeoJSON();
+                
+                // Buka Modal Atribut
+                document.getElementById('form_mode').value = 'create';
+                document.getElementById('form_geometry').value = JSON.stringify(geojson.geometry);
+                document.getElementById('formAtribut').reset();
+                document.getElementById('modalAtributTitle').innerHTML = '<i class="fa-solid fa-plus-circle mr-2"></i> Tambah Aset Baru';
+                bukaModal('modalAtribut');
+
+                // Hapus layer smentara (akan dirender ulang oleh backend jika sukses simpan)
+                map.removeLayer(layer); 
+            });
+
+            // Event 2: Menghapus Poligon via Geoman Toolbar
+            map.on('pm:remove', e => {
+                let layer = e.layer;
+                if(layer.feature && layer.feature.properties && layer.feature.properties.id) {
+                    let assetId = layer.feature.properties.id;
+                    fetch(`/map/asset/${assetId}`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-HTTP-Method-Override': 'DELETE' } 
+                    }).then(res => res.json()).then(data => { 
+                        Swal.fire({toast:true, position:'top-end', showConfirmButton:false, timer:3000, icon:'success', title:'Aset dihapus!'});
+                    });
+                }
+            });
+            @endif
+
+            // ==========================================
+            // RENDER GEOJSON LAYER
+            // ==========================================
             var geoJsonLayer = L.geoJSON(null, {
                 style: function(feature) {
-                    return { 
-                        color: '#ffffff', 
-                        fillColor: getColor(feature), 
-                        weight: 1.5, 
-                        opacity: 1, 
-                        fillOpacity: currentOpacity 
-                    };
+                    return { color: '#ffffff', fillColor: getColor(feature), weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
                 },
                 onEachFeature: function(feature, layer) {
+                    // Beri ID pada layer leaflet agar geoman bisa mendeteksi saat diedit
+                    if(feature.properties && feature.properties.id) {
+                        layer.pm.setOptions({ assetId: feature.properties.id });
+                    }
+
+                    // Event 3: Deteksi jika poligon ini diedit (Digeser/Diubah bentuknya via Geoman)
+                    layer.on('pm:edit', e => {
+                        let newGeoJson = e.target.toGeoJSON();
+                        let assetId = feature.properties.id;
+                        
+                        // Kirim data update koordinat ke backend tanpa membuka form
+                        fetch(`/map/asset/${assetId}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-HTTP-Method-Override': 'PUT' },
+                            body: JSON.stringify({ geometry: JSON.stringify(newGeoJson.geometry) })
+                        }).then(res => res.json()).then(data => {
+                            Swal.fire({toast:true, position:'top-end', showConfirmButton:false, timer:2000, icon:'success', title:'Koordinat diupdate!'});
+                        });
+                    });
+
                     layer.on({ mouseover: highlightFeature, mouseout: resetHighlight });
                     
                     var p = feature.properties;
                     var raw = p.raw_data || p;
-                    var tipeHakTampil = p.kategori_hak || raw.TIPEHAK || raw.TIPE_HAK || '-';
+                    var tableRows = '';
+                    
+                    // Bikin Tabel Dinamis
+                    for (var key in raw) {
+                        if (raw.hasOwnProperty(key)) {
+                            var val = raw[key];
+                            if (val !== null && val !== '' && String(val).trim() !== '') {
+                                var displayKey = key.replace(/_/g, ' ').toUpperCase();
+                                tableRows += `
+                                    <tr class="border-b border-gray-100 last:border-0 hover:bg-indigo-50/50 transition-colors">
+                                        <td class="py-1.5 px-1 text-gray-500 font-bold text-[10px] w-2/5 align-top leading-tight break-words">${displayKey}</td>
+                                        <td class="py-1.5 px-1 text-gray-900 font-semibold text-[11px] align-top whitespace-normal break-words leading-tight"><span class="mr-1 text-gray-400">:</span> ${val}</td>
+                                    </tr>`;
+                            }
+                        }
+                    }
+                    if (tableRows === '') tableRows = '<tr><td colspan="2" class="text-center text-gray-400 py-3 text-xs italic">Tidak ada data atribut spasial</td></tr>';
 
+                    // HTML Popup dengan Tombol Edit & Hapus
                     var content = `
-                        <div class="p-1 min-w-[220px]">
-                            <h6 class="text-indigo-700 font-bold border-b border-gray-200 pb-1 mb-2">${p.name || 'Atribut Bidang'}</h6>
-                            <table class="w-full text-xs text-gray-700">
-                                <tr><td class="font-semibold py-1 w-1/3">Tipe Hak</td><td>: ${tipeHakTampil}</td></tr>
-                                <tr><td class="font-semibold py-1">Luas</td><td>: ${raw.LUASTERTUL || raw.LUAS || 0} m²</td></tr>
-                                <tr><td class="font-semibold py-1">Lokasi</td><td>: ${raw.KELURAHAN || raw.DESA || '-'}</td></tr>
-                            </table>
+                        <div class="p-1 min-w-[280px] max-w-[340px] font-sans">
+                            <div class="flex justify-between items-center border-b-2 border-indigo-500 pb-2 mb-2">
+                                <h6 class="text-indigo-700 font-extrabold uppercase text-[12px] tracking-wider m-0 flex items-center">
+                                    <i class="fa-solid fa-map-location-dot mr-2 text-indigo-500"></i> Informasi Aset
+                                </h6>
+                            </div>
+                            <div class="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                                <table class="w-full text-left border-collapse"><tbody>${tableRows}</tbody></table>
+                            </div>
                             @if($bisaKelolaLayer)
-                            <div class="mt-3 flex justify-end gap-1 border-t pt-2">
-                                <button class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-3 py-1 rounded transition" onclick="deleteAsset(${p.id})">
-                                    <i class="fa-solid fa-trash"></i> Hapus
+                            <div class="mt-3 pt-2.5 border-t border-gray-200 flex justify-between gap-2">
+                                <button class="bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick='editAtributAset(${JSON.stringify(raw)}, ${p.id}, ${p.layer_id})'>
+                                    <i class="fa-solid fa-pen mr-1.5"></i> Edit Data
+                                </button>
+                                <button class="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick="deleteAsset(${p.id})">
+                                    <i class="fa-solid fa-trash mr-1.5"></i> Hapus
                                 </button>
                             </div>
                             @endif
                         </div>`;
+                    
                     layer.bindPopup(content);
                 }
             }).addTo(map);
 
+            // ==========================================
+            // FUNGSI JAVASCRIPT GLOBAL
+            // ==========================================
             var abortController = null;
             var fetchTimeout = null;
 
@@ -269,7 +480,6 @@
                         zoom: map.getZoom(), 
                         search: document.getElementById('searchMap').value
                     });
-                    
                     selectedLayers.forEach(id => params.append('layers[]', id));
 
                     if (abortController) abortController.abort();
@@ -292,11 +502,10 @@
             document.getElementById('opacitySlider').addEventListener('input', function(e) {
                 currentOpacity = e.target.value;
                 document.getElementById('opacityVal').innerText = Math.round(currentOpacity * 100) + '%';
-                geoJsonLayer.eachLayer(function(layer) { 
-                    if (layer.setStyle) layer.setStyle({ fillOpacity: currentOpacity }); 
-                });
+                geoJsonLayer.eachLayer(function(layer) { if (layer.setStyle) layer.setStyle({ fillOpacity: currentOpacity }); });
             });
 
+            // Hapus via Popup
             window.deleteAsset = function(id) {
                 Swal.fire({ title: 'Hapus Aset?', text: "Bidang tanah akan dihapus permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
                     if (result.isConfirmed) {
@@ -307,6 +516,84 @@
                     }
                 });
             };
+
+            // Buka Modal Edit Atribut via Popup
+            window.editAtributAset = function(raw, id, layerId) {
+                document.getElementById('form_mode').value = 'update';
+                document.getElementById('form_asset_id').value = id;
+                
+                // Isi Form
+                document.getElementById('form_layer_id').value = layerId || '';
+                
+                // Pencarian keys yang tidak sensitif huruf (case-insensitive mapping)
+                let r = {};
+                for(let key in raw) r[key.toUpperCase()] = raw[key];
+
+                document.getElementById('form_nib').value = r['NIB'] || '';
+                
+                let th = r['TIPEHAK'] || r['HAK'] || r['STATUS'] || 'Lainnya';
+                let selectTipe = document.getElementById('form_tipehak');
+                let optionExists = Array.from(selectTipe.options).some(o => o.value.toLowerCase() === th.toLowerCase());
+                selectTipe.value = optionExists ? Array.from(selectTipe.options).find(o => o.value.toLowerCase() === th.toLowerCase()).value : 'Lainnya';
+                
+                document.getElementById('form_luas').value = r['LUAS'] || r['LUASTERTUL'] || '';
+                document.getElementById('form_penggunaan').value = r['PENGGUNAAN'] || '';
+                document.getElementById('form_kelurahan').value = r['KELURAHAN'] || r['DESA'] || '';
+                document.getElementById('form_kecamatan').value = r['KECAMATAN'] || '';
+                document.getElementById('form_keterangan').value = r['KETERANGAN'] || '';
+
+                document.getElementById('modalAtributTitle').innerHTML = '<i class="fa-solid fa-pen mr-2"></i> Edit Data Atribut';
+                bukaModal('modalAtribut');
+            }
+
+            // Aksi Tombol Simpan di Modal
+            window.simpanAtributAset = function() {
+                let mode = document.getElementById('form_mode').value;
+                let payload = {
+                    layer_id: document.getElementById('form_layer_id').value,
+                    nib: document.getElementById('form_nib').value,
+                    tipehak: document.getElementById('form_tipehak').value,
+                    luas: document.getElementById('form_luas').value,
+                    penggunaan: document.getElementById('form_penggunaan').value,
+                    kelurahan: document.getElementById('form_kelurahan').value,
+                    kecamatan: document.getElementById('form_kecamatan').value,
+                    keterangan: document.getElementById('form_keterangan').value,
+                };
+
+                let url = '';
+                let method = 'POST';
+
+                if (mode === 'create') {
+                    url = '/map/store-draw';
+                    payload.geometry = document.getElementById('form_geometry').value;
+                } else {
+                    let id = document.getElementById('form_asset_id').value;
+                    url = `/map/asset/${id}`;
+                    payload.is_attribute_update = true;
+                    payload._method = 'PUT'; // Laravel override
+                }
+
+                // Tampilkan Loading
+                let btn = document.querySelector('#formAtribut button.bg-indigo-600');
+                let originHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+                btn.disabled = true;
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify(payload)
+                }).then(res => res.json()).then(data => {
+                    tutupModal('modalAtribut');
+                    Swal.fire('Berhasil!', data.message, 'success');
+                    loadData(); // Render ulang peta
+                }).catch(err => {
+                    Swal.fire('Gagal', 'Terjadi kesalahan sistem.', 'error');
+                }).finally(() => {
+                    btn.innerHTML = originHtml;
+                    btn.disabled = false;
+                });
+            }
 
             window.zoomToLayer = function(layerId) {
                 let cb = document.querySelector(`.layer-toggle[value="${layerId}"]`);
@@ -326,7 +613,7 @@
                 });
             };
 
-            loadData();
+            loadData(); // Inisialisasi peta pertama kali
         });
     </script>
     @endpush

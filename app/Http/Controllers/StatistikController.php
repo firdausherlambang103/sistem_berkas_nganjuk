@@ -3,57 +3,116 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Berkas;
-use App\Models\JenisPermohonan;
 use Illuminate\Support\Facades\DB;
 
 class StatistikController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $tahun = date('Y');
+        // 1. Ambil semua properties dari tabel spatial_features
+        $features = DB::connection('pgsql')->table('spatial_features')->select('properties')->get();
 
-        // 1. Data Grafik Berkas per Bulan (Tahun Berjalan)
-        $berkasPerBulan = Berkas::select(DB::raw('EXTRACT(MONTH FROM created_at) as bulan'), DB::raw('count(*) as total'))
-            ->whereYear('created_at', $tahun)
-            ->groupBy('bulan')
-            ->pluck('total', 'bulan')
-            ->toArray();
-
-        $bulanLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-        $dataBerkasBulan = [];
-        for ($i = 1; $i <= 12; $i++) {
-            // Cocokkan data bulan, jika kosong isi 0
-            $dataBerkasBulan[] = $berkasPerBulan[$i] ?? 0;
-        }
-
-        // 2. Data Grafik Berdasarkan Status Berkas
-        $statusBerkas = Berkas::select('status', DB::raw('count(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status')
-            ->toArray();
+        $totalLuas = 0;
+        $totalSertipikat = 0;
         
-        $labelStatus = array_keys($statusBerkas);
-        $dataStatus = array_values($statusBerkas);
+        $kecamatanSet = [];
+        $desaSet = [];
 
-        // 3. Data Grafik Jenis Permohonan
-        $jenisPermohonan = Berkas::select('jenis_permohonan_id', DB::raw('count(*) as total'))
-            ->with('jenisPermohonan')
-            ->groupBy('jenis_permohonan_id')
-            ->get();
+        $luasPerHak = [];
+        $bidangPerPenggunaan = [];
+        $asetPerDesa = [];
 
-        $labelJenis = [];
-        $dataJenis = [];
-        foreach($jenisPermohonan as $jp) {
-            $labelJenis[] = $jp->jenisPermohonan->nama_jenis ?? 'Lainnya'; // Sesuaikan dengan field nama di JenisPermohonan
-            $dataJenis[] = $jp->total;
+        // Parameter Filter dari URL
+        $filterKecamatan = $request->get('kecamatan');
+        $filterDesa = $request->get('desa');
+
+        $allKecamatan = [];
+        $allDesa = [];
+
+        $filteredFeatures = [];
+
+        // LOOPING 1: Kumpulkan daftar Kecamatan & Desa untuk Dropdown
+        foreach ($features as $f) {
+            $props = is_string($f->properties) ? json_decode($f->properties, true) : $f->properties;
+            $raw = $props['raw_data'] ?? $props ?? [];
+            
+            // Ubah semua key array menjadi huruf kecil agar pencarian kebal terhadap perbedaan huruf SHP
+            $rawLower = array_change_key_case($raw, CASE_LOWER);
+
+            // Cari nilai Kecamatan & Desa (Ambil dari key: kecamatan, kelurahan, atau desa)
+            $kec = strtoupper(trim($rawLower['kecamatan'] ?? $rawLower['kec'] ?? 'TIDAK DIKETAHUI'));
+            $desa = strtoupper(trim($rawLower['kelurahan'] ?? $rawLower['desa'] ?? 'TIDAK DIKETAHUI'));
+
+            // Masukkan ke array filter jika datanya valid
+            if ($kec !== 'TIDAK DIKETAHUI') $allKecamatan[$kec] = true;
+            if ($desa !== 'TIDAK DIKETAHUI') $allDesa[$desa] = true;
+
+            // Jika sedang menggunakan filter, lewati data yang tidak cocok
+            if ($filterKecamatan && $kec !== $filterKecamatan) continue;
+            if ($filterDesa && $desa !== $filterDesa) continue;
+
+            // Simpan rawLower untuk perhitungan statistik (agar tidak perlu array_change_key_case 2x)
+            $filteredFeatures[] = $rawLower;
         }
 
-        return view('statistik.index', compact(
-            'bulanLabels', 'dataBerkasBulan', 
-            'labelStatus', 'dataStatus', 
-            'labelJenis', 'dataJenis', 
-            'tahun'
-        ));
+        // LOOPING 2: Hitung Statistik hanya dari data yang lolos filter
+        foreach ($filteredFeatures as $rawLower) {
+            $totalSertipikat++; 
+
+            // Hitung Luas (Prioritaskan luastertul, jika tidak ada pakai luaspeta)
+            $luas = (float) ($rawLower['luastertul'] ?? $rawLower['luaspeta'] ?? $rawLower['luas'] ?? 0);
+            $totalLuas += $luas;
+
+            // Dapatkan kembali nama Kecamatan & Desa untuk Kartu
+            $kec = strtoupper(trim($rawLower['kecamatan'] ?? $rawLower['kec'] ?? 'TIDAK DIKETAHUI'));
+            $desa = strtoupper(trim($rawLower['kelurahan'] ?? $rawLower['desa'] ?? 'TIDAK DIKETAHUI'));
+            
+            $kecamatanSet[$kec] = true;
+            $desaSet[$desa] = true;
+
+            // Proporsi Luas Per Hak
+            $tipeHak = strtoupper(trim($rawLower['tipehak'] ?? $rawLower['hak'] ?? $rawLower['status'] ?? 'TIDAK DIKETAHUI'));
+            if (!isset($luasPerHak[$tipeHak])) $luasPerHak[$tipeHak] = 0;
+            $luasPerHak[$tipeHak] += $luas;
+
+            // Bidang Per Penggunaan
+            $penggunaan = strtoupper(trim($rawLower['penggunaan'] ?? 'TIDAK DIKETAHUI'));
+            if (!isset($bidangPerPenggunaan[$penggunaan])) $bidangPerPenggunaan[$penggunaan] = 0;
+            $bidangPerPenggunaan[$penggunaan]++;
+
+            // Sebaran Desa
+            if (!isset($asetPerDesa[$desa])) $asetPerDesa[$desa] = 0;
+            $asetPerDesa[$desa]++;
+        }
+
+        // Sorting grafik dari yang terbesar
+        arsort($luasPerHak);
+        arsort($bidangPerPenggunaan);
+        arsort($asetPerDesa);
+
+        // Sorting dropdown list Sesuai Abjad (A-Z)
+        $allKecamatanList = array_keys($allKecamatan);
+        $allDesaList = array_keys($allDesa);
+        sort($allKecamatanList);
+        sort($allDesaList);
+
+        return view('statistik.index', [
+            'totalSertipikat' => number_format($totalSertipikat, 0, ',', '.'),
+            'totalLuas' => number_format($totalLuas, 2, ',', '.'),
+            'totalKecamatan' => count(array_filter(array_keys($kecamatanSet), fn($v) => $v !== 'TIDAK DIKETAHUI')),
+            'totalDesa' => count(array_filter(array_keys($desaSet), fn($v) => $v !== 'TIDAK DIKETAHUI')),
+            
+            'labelHak' => array_keys($luasPerHak),
+            'dataHak' => array_values($luasPerHak),
+            'labelPenggunaan' => array_keys($bidangPerPenggunaan),
+            'dataPenggunaan' => array_values($bidangPerPenggunaan),
+            'labelDesa' => array_keys($asetPerDesa),
+            'dataDesa' => array_values($asetPerDesa),
+
+            'allKecamatan' => $allKecamatanList, 
+            'allDesa' => $allDesaList,           
+            'filterKecamatan' => $filterKecamatan,
+            'filterDesa' => $filterDesa,
+        ]);
     }
 }
