@@ -19,6 +19,7 @@ use App\Http\Controllers\SensusWakafController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\StatistikController; // <-- TAMBAHAN IMPORT CONTROLLER STATISTIK
+use App\Http\Controllers\KwitansiController;
 
 // Import Controller Khusus Mitra
 use App\Http\Controllers\Mitra\AuthController as MitraAuthController;
@@ -71,6 +72,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/jatuh-tempo', [DashboardController::class, 'showJatuhTempo'])->name('dashboard.jatuh-tempo');
     Route::get('/dashboard/ditutup', [DashboardController::class, 'showDitutup'])->name('dashboard.ditutup');
     
+    // Aksi Bayar
+    Route::post('/berkas/{id}/bayar', [KwitansiController::class, 'tandaiDibayar'])->name('berkas.bayar');
+    
+    // Menu Kwitansi
+    Route::get('/kwitansi', [KwitansiController::class, 'index'])->name('kwitansi.index');
+    Route::post('/kwitansi/{id}/serahkan', [KwitansiController::class, 'serahkanKwitansi'])->name('kwitansi.serahkan');
+
     // Ruang Kerja Internal
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
 

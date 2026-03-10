@@ -571,4 +571,22 @@ class MapController extends Controller
 
         return back()->with('success', 'Layer "' . $layer->nama_layer . '" dan seluruh aset di dalamnya berhasil dihapus!');
     }
+
+    // Tambahkan di MapController.php
+    public function findBerkasLink(Request $request)
+    {
+        $noBerkas = $request->get('no_berkas');
+        
+        // Cari berkas berdasarkan nomor berkas
+        $berkas = DB::table('berkas')->where('nomer_berkas', $noBerkas)->first();
+        
+        if ($berkas) {
+            return response()->json([
+                'success' => true,
+                'url' => route('berkas.show', $berkas->id)
+            ]);
+        }
+        
+        return response()->json(['success' => false]);
+    }
 }

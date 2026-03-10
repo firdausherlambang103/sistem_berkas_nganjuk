@@ -207,11 +207,10 @@
                         <div class="col-span-1 md:col-span-2 mt-8 pt-6 border-t border-gray-200">
                             <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-cloud-arrow-up mr-2 text-indigo-600"></i>Data Pendukung & Lokasi Objek</h3>
                             
-                            {{-- Container diubah menjadi space-y-8 agar elemen tersusun atas-bawah --}}
                             <div class="space-y-8">
                                 
-                                {{-- Area Upload File (Berada di Atas, Full Width Kanan-Kiri dibagi 2 kolom) --}}
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {{-- Area Upload File (Dibagi menjadi 3 kolom: Sertipikat, Pendukung, Foto Kamera) --}}
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div class="p-4 bg-gray-50 border border-gray-200 rounded-md">
                                         <x-input-label for="file_sertipikat" value="Upload Sertipikat (Format PDF, Maks 5MB)" class="font-bold" />
                                         <input type="file" id="file_sertipikat" name="file_sertipikat" accept="application/pdf" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 focus:outline-none" required />
@@ -222,24 +221,41 @@
                                         <input type="file" id="file_data_pendukung" name="file_data_pendukung" accept="application/pdf" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 focus:outline-none" required />
                                         <x-input-error :messages="$errors->get('file_data_pendukung')" class="mt-2" />
                                     </div>
+                                    
+                                    {{-- KAMERA LOKASI LANGSUNG (Menggunakan capture="environment") --}}
+                                    <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-md">
+                                        <x-input-label for="foto_lokasi" value="Foto Lokasi (Kamera HP)" class="font-bold text-indigo-800" />
+                                        <input type="file" id="foto_lokasi" name="foto_lokasi" accept="image/*" capture="environment" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 focus:outline-none cursor-pointer" required />
+                                        <p class="text-[10px] text-gray-500 mt-1.5 leading-tight">*Wajib mengambil foto langsung dari lokasi lahan / objek.</p>
+                                        <img id="preview_foto" class="mt-3 hidden w-full h-32 object-cover rounded-md border border-gray-300 shadow-sm" alt="Preview Foto Lokasi"/>
+                                        <x-input-error :messages="$errors->get('foto_lokasi')" class="mt-2" />
+                                    </div>
                                 </div>
 
-                                {{-- Area Peta (Berada di Bawah Upload, Full Width) --}}
+                                {{-- Area Peta --}}
                                 <div class="space-y-4">
-                                    <x-input-label value="Cari dan Pilih Titik Lokasi Objek Tanah di Peta" class="font-bold" />
-                                    <div id="map" class="w-full h-[400px] rounded-md border border-gray-300 z-10 shadow-inner"></div>
-                                    <p class="text-[11px] text-gray-500 italic">*Gunakan kolom pencarian di peta, atau geser Pin Biru pada peta, atau klik sembarang titik untuk menentukan koordinat secara akurat.</p>
+                                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2">
+                                        <x-input-label value="Cari dan Pilih Titik Lokasi Objek Tanah di Peta" class="font-bold" />
+                                        
+                                        {{-- TOMBOL LOKASI SAYA --}}
+                                        <button type="button" onclick="goToMyLocation()" class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition flex items-center w-max">
+                                            <i class="fa-solid fa-location-crosshairs mr-1.5"></i> Gunakan Lokasi Saya
+                                        </button>
+                                    </div>
                                     
-                                    {{-- Koordinat diletakkan di bawah peta --}}
+                                    <div id="map" class="w-full h-[400px] rounded-md border border-gray-300 z-10 shadow-inner"></div>
+                                    <p class="text-[11px] text-gray-500 italic">*Gunakan tombol lokasi saya, kolom pencarian, atau geser Pin Biru pada peta secara manual untuk menentukan koordinat.</p>
+                                    
+                                    {{-- Koordinat --}}
                                     <div class="grid grid-cols-2 gap-4 pt-2">
                                         <div>
                                             <x-input-label for="latitude" value="Latitude" />
-                                            <x-text-input id="latitude" name="latitude" type="text" class="mt-1 block w-full bg-gray-100 cursor-not-allowed" :value="old('latitude')" readonly required />
+                                            <x-text-input id="latitude" name="latitude" type="text" class="mt-1 block w-full bg-gray-100 cursor-not-allowed text-sm" :value="old('latitude')" readonly required />
                                             <x-input-error :messages="$errors->get('latitude')" class="mt-2" />
                                         </div>
                                         <div>
                                             <x-input-label for="longitude" value="Longitude" />
-                                            <x-text-input id="longitude" name="longitude" type="text" class="mt-1 block w-full bg-gray-100 cursor-not-allowed" :value="old('longitude')" readonly required />
+                                            <x-text-input id="longitude" name="longitude" type="text" class="mt-1 block w-full bg-gray-100 cursor-not-allowed text-sm" :value="old('longitude')" readonly required />
                                             <x-input-error :messages="$errors->get('longitude')" class="mt-2" />
                                         </div>
                                     </div>
@@ -258,7 +274,7 @@
 
                     {{-- Tombol Aksi --}}
                     <div class="flex items-center justify-end mt-8">
-                        <a href="{{ route('ruang-kerja') }}" class="text-sm text-gray-600 hover:text-gray-900 mr-4">Batal</a>
+                        <a href="{{ route('ruang-kerja') }}" class="text-sm text-gray-600 hover:text-gray-900 mr-4 font-bold">Batal</a>
                         <x-primary-button><i class="fa-solid fa-floppy-disk mr-2"></i>{{ __('Simpan Berkas') }}</x-primary-button>
                     </div>
                 </form>
@@ -267,83 +283,100 @@
     </div>
 
     @push('scripts')
+    {{-- Library Maps --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    
+    {{-- SweetAlert2 untuk notifikasi pencarian GPS --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
             @if($isMitra)
-            // ================= INISIALISASI PETA (LEAFLET.JS) =================
-            // Default center diatur ke Kabupaten Kediri (bisa disesuaikan)
+            
+            // ================================================================
+            // LOGIKA FOTO LOKASI (Preview Gambar)
+            // ================================================================
+            const fotoInput = document.getElementById('foto_lokasi');
+            const previewImg = document.getElementById('preview_foto');
+            if(fotoInput) {
+                fotoInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if(file) {
+                        previewImg.src = URL.createObjectURL(file);
+                        previewImg.classList.remove('hidden');
+                    }
+                });
+            }
+
+            // ================================================================
+            // INISIALISASI PETA (LEAFLET.JS)
+            // ================================================================
             var defaultLat = -7.8200;
             var defaultLng = 112.0118;
 
-            // 1. Definisi Base Layers (Peta Standar dan Mode Satelit)
-            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            });
+            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+            var googleSatLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
 
-            var googleSatLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-                maxZoom: 20,
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '&copy; Google Satellite'
-            });
+            var map = L.map('map', { center: [defaultLat, defaultLng], zoom: 12, layers: [osmLayer] });
+            L.control.layers({ "Peta Jalan (OSM)": osmLayer, "Satelit (Google)": googleSatLayer }).addTo(map);
 
-            // Inisialisasi Peta
-            var map = L.map('map', {
-                center: [defaultLat, defaultLng],
-                zoom: 12,
-                layers: [osmLayer] // Layer default saat pertama kali dimuat
-            });
-
-            // 2. Tambahkan Control Layer untuk mengganti mode peta (Pojok Kanan Atas)
-            var baseMaps = {
-                "Peta Jalan (OSM)": osmLayer,
-                "Satelit (Google)": googleSatLayer
-            };
-            L.control.layers(baseMaps).addTo(map);
-
-            // 3. Tambahkan Fitur Pencarian (Geocoder) di Peta
-            L.Control.geocoder({
-                defaultMarkGeocode: false,
-                placeholder: "Cari daerah, desa, jalan..."
-            })
+            L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "Cari daerah, desa, jalan..." })
             .on('markgeocode', function(e) {
                 var center = e.geocode.center;
-                
-                // Pindahkan marker dan peta ke hasil pencarian
                 map.setView(center, 16);
                 marker.setLatLng(center);
-                
-                // Update input longitude & latitude
                 document.getElementById('latitude').value = center.lat.toFixed(7);
                 document.getElementById('longitude').value = center.lng.toFixed(7);
-            })
-            .addTo(map);
+            }).addTo(map);
 
-            // Inisialisasi Marker Draggable
             var marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
 
-            // Update Input jika marker digeser manual
             marker.on('dragend', function (e) {
                 var latLng = e.target.getLatLng();
                 document.getElementById('latitude').value = latLng.lat.toFixed(7);
                 document.getElementById('longitude').value = latLng.lng.toFixed(7);
             });
 
-            // Pindah marker jika peta diklik manual
             map.on('click', function (e) {
                 marker.setLatLng(e.latlng);
                 document.getElementById('latitude').value = e.latlng.lat.toFixed(7);
                 document.getElementById('longitude').value = e.latlng.lng.toFixed(7);
             });
 
-            // Fix masalah load peta saat render UI
             setTimeout(function(){ map.invalidateSize(); }, 500);
+
+            // ================================================================
+            // LOGIKA LOKASI SAYA (GEOLOCATION GPS)
+            // ================================================================
+            window.goToMyLocation = function() {
+                if (navigator.geolocation) {
+                    Swal.fire({ title: 'Mencari Lokasi GPS...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+                    
+                    navigator.geolocation.getCurrentPosition(position => {
+                        Swal.close();
+                        var lat = position.coords.latitude;
+                        var lng = position.coords.longitude;
+                        var newLatLng = new L.LatLng(lat, lng);
+                        
+                        map.setView(newLatLng, 18);
+                        marker.setLatLng(newLatLng);
+                        
+                        document.getElementById('latitude').value = lat.toFixed(7);
+                        document.getElementById('longitude').value = lng.toFixed(7);
+
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Lokasi Anda ditemukan!', showConfirmButton: false, timer: 3000 });
+                    }, error => {
+                        Swal.close();
+                        Swal.fire('Gagal', 'Tidak dapat mengakses lokasi GPS. Pastikan GPS/Location aktif dan diizinkan pada browser/HP Anda.', 'error');
+                    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+                } else {
+                    Swal.fire('Informasi', 'Geolocation tidak didukung oleh browser Anda.', 'warning');
+                }
+            };
             @endif
             
             // ================================================================
@@ -449,7 +482,7 @@
                                 selectKuasa.add(newOption, undefined);
                                 selectKuasa.value = result.data.id;
                                 selectKuasa.dispatchEvent(new Event('change'));
-                                alert('Kuasa ditambahkan!');
+                                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Kuasa berhasil ditambahkan!', showConfirmButton: false, timer: 3000 });
                             }
                         })
                         .catch(error => {

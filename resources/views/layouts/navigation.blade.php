@@ -51,6 +51,11 @@
                                 {{ __('Ruang Kerja') }}
                             </x-nav-link>
                         @endif
+
+                        {{-- [DITAMBAHKAN] MENU KWITANSI --}}
+                        <x-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
+                            {{ __('Kwitansi') }}
+                        </x-nav-link>
                         
                         {{-- ======================================================== --}}
                         {{-- MENU PETA WEBGIS (DROPDOWN / SUB-MENU)                   --}}
@@ -84,7 +89,6 @@
                                         
                                         {{-- Sub Menu 3: Statistik (Cek RBAC) --}}
                                         @if($isAdmin || in_array('Statistik', $aksesMenuArray))
-                                            {{-- [PERBAIKAN] Menggunakan x-dropdown-link agar formatnya sama --}}
                                             <x-dropdown-link :href="route('statistik.index')">
                                                 <i class="fa-solid fa-chart-pie w-5 text-center mr-2 text-gray-600"></i> {{ __('Statistik') }}
                                             </x-dropdown-link>
@@ -270,6 +274,11 @@
                         {{ __('Ruang Kerja') }}
                     </x-responsive-nav-link>
                 @endif
+
+                {{-- [DITAMBAHKAN] MENU KWITANSI --}}
+                <x-responsive-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
+                    {{ __('Kwitansi') }}
+                </x-responsive-nav-link>
                 
                 {{-- ======================================================== --}}
                 {{-- MENU PETA WEBGIS MOBILE (SUB-MENU)                       --}}
@@ -348,7 +357,7 @@
                     </x-responsive-nav-link>
                 </form>
 
-                {{-- Responsive Admin Menu (Hanya muncul jika admin & bukan Mitra) --}}
+                {{-- Responsive Admin Menu --}}
                 @if(!$isMitra && $isAdmin)
                     <div class="border-t border-gray-200 mt-3 pt-3">
                         <div class="px-4 font-medium text-base text-gray-800 bg-gray-50 py-2">Administrasi</div>

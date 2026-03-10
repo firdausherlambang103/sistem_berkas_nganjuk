@@ -19,10 +19,14 @@ class RuangKerjaController extends Controller
         $currentUser = Auth::user();
         $currentUserId = $currentUser->id;
 
-        // Mengambil input pencarian untuk setiap tabel dari request
+        // Cek Role apakah Petugas Loket Pembayaran
+        $isLoketPembayaran = optional($currentUser->jabatan)->nama_jabatan === 'Petugas Loket Pembayaran';
+
+        // Mengambil input pencarian & filter dari request
         $searchMasuk = $request->input('search_masuk');
         $searchDiMeja = $request->input('search_di_meja');
         $searchDitunda = $request->input('search_ditunda');
+        $filterPembayaran = $request->input('filter_pembayaran'); // [BARU] Filter status pembayaran
 
         // --- 1. Query untuk Berkas Masuk ---
         // Menampilkan berkas yang dikirim ke user ini tapi belum diterima
@@ -51,6 +55,15 @@ class RuangKerjaController extends Controller
             ->where('status_pengiriman', 'Diterima')
             // [OPTIMASI] Load relasi pendukung agar query lebih cepat (mengurangi N+1 Query)
             ->with(['jenisPermohonan', 'waLogs', 'penerimaKuasa', 'peminjamanBukuTanah']);
+
+        // [BARU] Logika Filter Pembayaran (Hanya berfungsi jika user adalah Petugas Loket Pembayaran)
+        if ($isLoketPembayaran && $filterPembayaran) {
+            if ($filterPembayaran === 'belum') {
+                $berkasDiMejaQuery->whereNull('tgl_bayar');
+            } elseif ($filterPembayaran === 'sudah') {
+                $berkasDiMejaQuery->whereNotNull('tgl_bayar');
+            }
+        }
 
         if ($searchDiMeja) {
             $searchTerms = array_filter(array_map('trim', explode(',', $searchDiMeja)));
@@ -118,6 +131,7 @@ class RuangKerjaController extends Controller
             'berkasDiMeja' => $berkasDiMejaQuery->latest('updated_at')->get(),
             'berkasDitunda' => $berkasDitundaQuery->latest('updated_at')->get(),
             'daftarUserTujuan' => $daftarUserTujuan,
+            'isLoketPembayaran' => $isLoketPembayaran, // [BARU] Melempar variabel role ke view
         ]);
     }
 }

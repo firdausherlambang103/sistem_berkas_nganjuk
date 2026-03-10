@@ -89,15 +89,32 @@
             {{-- 2. BAGIAN BERKAS DI MEJA SAYA (Utama) --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border-l-4 border-blue-500">
                 <div class="p-6">
-                    {{-- Header & Search --}}
-                    <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                    {{-- Header & Search & Filter --}}
+                    <div class="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
                         <h3 class="text-lg font-bold text-gray-800 flex items-center">
                             <span class="bg-blue-100 text-blue-600 p-2 rounded-full mr-3"><i class="fa-solid fa-file-signature"></i></span>
                             Berkas di Meja Saya
                         </h3>
-                        <form action="{{ route('ruang-kerja') }}" method="GET" class="relative">
-                            <input type="text" name="search_di_meja" placeholder="Cari No. Berkas / Pemohon..." class="pl-10 pr-4 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-full shadow-sm text-sm w-72" value="{{ request('search_di_meja') }}">
-                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                        
+                        <form action="{{ route('ruang-kerja') }}" method="GET" class="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
+                            
+                            {{-- FILTER KHUSUS LOKET PEMBAYARAN --}}
+                            @if(isset($isLoketPembayaran) && $isLoketPembayaran)
+                                <select name="filter_pembayaran" onchange="this.form.submit()" class="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-full shadow-sm text-sm w-full sm:w-auto bg-gray-50 font-semibold text-gray-700">
+                                    <option value="">-- Status Pembayaran --</option>
+                                    <option value="belum" {{ request('filter_pembayaran') == 'belum' ? 'selected' : '' }} class="text-red-600 font-bold">🔴 Belum Dibayar</option>
+                                    <option value="sudah" {{ request('filter_pembayaran') == 'sudah' ? 'selected' : '' }} class="text-green-600 font-bold">🟢 Sudah Dibayar</option>
+                                </select>
+                            @endif
+
+                            {{-- PENCARIAN DEFAULT --}}
+                            <div class="relative w-full sm:w-auto">
+                                <input type="text" name="search_di_meja" placeholder="Cari No. Berkas / Pemohon..." class="pl-10 pr-4 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-full shadow-sm text-sm w-full lg:w-72" value="{{ request('search_di_meja') }}">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                            </div>
+                            
+                            {{-- Hidden submit button untuk Enter key --}}
+                            <button type="submit" class="hidden"></button>
                         </form>
                     </div>
 
@@ -219,6 +236,19 @@
                                         <td class="px-4 py-4 text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 
+                                                {{-- TOMBOL SUDAH DIBAYAR KHUSUS LOKET PEMBAYARAN --}}
+                                                @if(isset($isLoketPembayaran) && $isLoketPembayaran)
+                                                    @if(is_null($berkas->tgl_bayar))
+                                                        <button type="button" class="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition border border-transparent hover:border-green-200" title="Tandai Sudah Dibayar" onclick="bukaModalBayar({{ $berkas->id }}, '{{ $berkas->nomer_berkas }}')">
+                                                            <i class="fa-solid fa-money-bill-wave"></i>
+                                                        </button>
+                                                    @else
+                                                        <span class="px-2 py-1 text-[10px] font-bold text-green-700 bg-green-100 rounded-full border border-green-200 self-center" title="Lunas tgl: {{ \Carbon\Carbon::parse($berkas->tgl_bayar)->format('d/m/Y') }}">
+                                                            Lunas
+                                                        </span>
+                                                    @endif
+                                                @endif
+
                                                 {{-- TOMBOL UPDATE STATUS KHUSUS --}}
                                                 <button type="button" class="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded transition" title="Update Status Khusus" onclick="bukaModalUpdateStatus({{ $berkas->id }}, '{{ $berkas->nomer_berkas }}')">
                                                     <i class="fa-solid fa-flag"></i>
@@ -323,6 +353,28 @@
         </div>
     </div>
 
+    {{-- MODAL PEMBAYARAN --}}
+    <div id="modalBayar" class="fixed inset-0 z-50 hidden bg-gray-900 bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-money-bill-wave text-green-600 mr-2"></i> Konfirmasi Pembayaran</h2>
+                <button type="button" onclick="tutupModalBayar()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="formBayar" method="POST">
+                @csrf
+                <p class="text-sm text-gray-600 mb-4">Tandai berkas <strong id="text-nomer-berkas-bayar" class="text-indigo-600"></strong> sebagai sudah dibayar. <br><br><b>Argo (SLA) akan mulai dihitung secara resmi dari tanggal ini.</b></p>
+                <div class="mb-4">
+                    <label for="tgl_bayar" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Bayar</label>
+                    <input type="date" name="tgl_bayar" id="tgl_bayar" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" value="{{ date('Y-m-d') }}" required>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="tutupModalBayar()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md text-sm font-bold text-gray-700 transition">Batal</button>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md text-sm font-bold text-white transition shadow-sm"><i class="fa-solid fa-check mr-1"></i> Simpan & Mulai Argo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     {{-- MODAL PILIH TEMPLATE WA --}}
     <div id="waModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -405,7 +457,6 @@
                         <div>
                             <x-input-label for="status_baru" value="Pilih Status Baru" />
                             @php
-                                // Tarik data status dinamis dari database (jika tabel sudah di-migrate)
                                 $masterStatuses = [];
                                 if(Illuminate\Support\Facades\Schema::hasTable('master_statuses')) {
                                     $masterStatuses = \App\Models\MasterStatus::all();
@@ -419,7 +470,6 @@
                                         {{ $ms->nama_status }}
                                     </option>
                                 @empty
-                                    {{-- Data Fallback sementara jika tabel Master Status belum diisi admin --}}
                                     <option value="Diproses" data-waktu="no">Diproses</option>
                                     <option value="Pengumuman" data-waktu="yes">Pengumuman (Butuh Waktu)</option>
                                     <option value="Berkas Kembali" data-waktu="no">Berkas Kembali / Ditolak</option>
@@ -429,14 +479,12 @@
                             </select>
                         </div>
 
-                        {{-- Form Dinamis: Akan muncul otomatis jika status di setting butuh hari --}}
                         <div id="div-hari-pengumuman" style="display: none;" class="p-3 bg-yellow-50 border border-yellow-300 rounded-md">
                             <x-input-label for="hari_pengumuman" value="Berapa Hari?" />
                             <x-text-input id="hari_pengumuman" name="hari_pengumuman" type="number" min="1" class="mt-1 block w-full" placeholder="Contoh: 30" />
                             <p class="text-xs text-gray-500 mt-1">*Silakan tentukan jumlah hari untuk status ini.</p>
                         </div>
 
-                        {{-- Keterangan --}}
                         <div>
                             <x-input-label for="keterangan_status" value="Keterangan / Catatan Aksi" />
                             <textarea id="keterangan_status" name="keterangan" rows="3" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md" placeholder="Masukkan alasan perubahan status..." required></textarea>
@@ -454,36 +502,40 @@
     
     @push('scripts')
     <script>
-        // TOKEN CSRF untuk request AJAX
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const STORAGE_KEY = 'selected_berkas_ids';
 
+        // --- JS MODAL BAYAR ---
+        function bukaModalBayar(idBerkas, nomerBerkas) {
+            document.getElementById('formBayar').action = '/berkas/' + idBerkas + '/bayar';
+            document.getElementById('text-nomer-berkas-bayar').innerText = nomerBerkas;
+            document.getElementById('modalBayar').classList.remove('hidden');
+        }
+
+        function tutupModalBayar() {
+            document.getElementById('modalBayar').classList.add('hidden');
+        }
+
         // ==========================================
-        // 1. LOGIKA PERSISTENSI CHECKBOX (FIX)
+        // 1. LOGIKA PERSISTENSI CHECKBOX
         // ==========================================
-        
-        // Helper: Ambil IDs dari session storage
         function getStoredIds() {
             const stored = sessionStorage.getItem(STORAGE_KEY);
             return stored ? JSON.parse(stored) : [];
         }
 
-        // Helper: Simpan IDs ke session storage
         function saveStoredIds(ids) {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-            updateSelectAllStatus(); // Update status "Select All" di header
+            updateSelectAllStatus(); 
         }
 
-        // Helper: Update status "Select All" berdasarkan checkbox yg terlihat
         function updateSelectAllStatus() {
             const allVisible = Array.from(document.querySelectorAll('.berkas-checkbox'));
             const selectAll = document.getElementById('select-all-checkbox');
             
             if(allVisible.length === 0 || !selectAll) return;
 
-            // Cek apakah semua yg terlihat itu checked?
             const allChecked = allVisible.every(cb => cb.checked);
-            // Cek apakah ada yg checked (tapi tidak semua)?
             const someChecked = allVisible.some(cb => cb.checked);
             
             selectAll.checked = allChecked;
@@ -492,23 +544,18 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             
-            // --- A. Restore State saat Load ---
             let storedIds = getStoredIds();
             const berkasCheckboxes = document.querySelectorAll('.berkas-checkbox');
             const selectAllCheckbox = document.getElementById('select-all-checkbox');
 
             berkasCheckboxes.forEach(cb => {
-                // Jika ID ada di storage, centang
-                if (storedIds.includes(cb.value)) {
-                    cb.checked = true;
-                }
+                if (storedIds.includes(cb.value)) { cb.checked = true; }
             });
             updateSelectAllStatus();
 
-            // --- B. Listener Checkbox Satuan ---
             berkasCheckboxes.forEach(cb => {
                 cb.addEventListener('change', function() {
-                    storedIds = getStoredIds(); // Refresh data terbaru
+                    storedIds = getStoredIds(); 
                     if (this.checked) {
                         if (!storedIds.includes(this.value)) storedIds.push(this.value);
                     } else {
@@ -518,7 +565,6 @@
                 });
             });
 
-            // --- C. Listener Select All ---
             if (selectAllCheckbox) {
                 selectAllCheckbox.addEventListener('change', function () {
                     storedIds = getStoredIds();
@@ -534,13 +580,11 @@
                 });
             }
 
-            // --- D. Handle Form Kirim (Bulk) ---
             const bulkKirimForm = document.getElementById('bulk-kirim-form');
             const berkasIdsInput = document.getElementById('berkas-ids-input');
             
             if (bulkKirimForm) {
                 bulkKirimForm.addEventListener('submit', function (e) {
-                    // Ambil ID dari storage (bukan hanya yg terlihat di DOM)
                     const finalIds = getStoredIds();
 
                     if (finalIds.length === 0) {
@@ -554,12 +598,10 @@
                         return;
                     }
                     
-                    // Masukkan ke hidden input
                     berkasIdsInput.value = finalIds.join(',');
                 });
             }
 
-            // --- E. Hapus Storage jika Sukses ---
             @if(session('success'))
                 sessionStorage.removeItem(STORAGE_KEY);
             @endif
@@ -752,7 +794,6 @@
         }
 
         function cekStatusPengumuman(selectElement) {
-            // Cek apakah opsi yang dipilih butuh input hari (berdasarkan atribut data-waktu)
             var selectedOption = selectElement.options[selectElement.selectedIndex];
             var butuhWaktu = selectedOption.getAttribute('data-waktu');
             
@@ -761,11 +802,11 @@
             
             if (butuhWaktu === 'yes') {
                 divHari.style.display = 'block';
-                inputHari.setAttribute('required', 'required'); // Jadikan Wajib
+                inputHari.setAttribute('required', 'required'); 
             } else {
                 divHari.style.display = 'none';
-                inputHari.removeAttribute('required'); // Copot Wajib
-                inputHari.value = ''; // Kosongkan nilainya
+                inputHari.removeAttribute('required'); 
+                inputHari.value = ''; 
             }
         }
     </script>

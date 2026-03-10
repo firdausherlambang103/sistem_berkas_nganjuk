@@ -68,9 +68,10 @@ class BerkasController extends Controller
             'catatan' => 'nullable|string',
             'status_buku_tanah' => 'required|in:Sertipikat Elektronik,Sertipikat Analog,Belum Sertipikat', 
             
-            // [DITAMBAHKAN] Validasi File & Lokasi
+            // Validasi File, Foto Lokasi & Koordinat
             'file_sertipikat' => 'nullable|mimes:pdf|max:5120', 
             'file_data_pendukung' => 'nullable|mimes:pdf|max:5120',
+            'foto_lokasi' => 'nullable|image|max:5120', // Validasi foto lokasi (maksimal 5MB)
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
@@ -81,7 +82,7 @@ class BerkasController extends Controller
             DB::transaction(function () use ($request, $validatedData, &$berkas) {
                 $currentUser = Auth::user();
 
-                // [DITAMBAHKAN] Proses Upload File jika ada
+                // Proses Upload File jika ada
                 $pathSertipikat = null;
                 if ($request->hasFile('file_sertipikat')) {
                     $pathSertipikat = $request->file('file_sertipikat')->store('berkas/sertipikat', 'public');
@@ -90,6 +91,12 @@ class BerkasController extends Controller
                 $pathDataPendukung = null;
                 if ($request->hasFile('file_data_pendukung')) {
                     $pathDataPendukung = $request->file('file_data_pendukung')->store('berkas/data_pendukung', 'public');
+                }
+
+                // Proses Upload Foto Lokasi (Mitra)
+                $pathFotoLokasi = null;
+                if ($request->hasFile('foto_lokasi')) {
+                    $pathFotoLokasi = $request->file('foto_lokasi')->store('berkas/foto_lokasi', 'public');
                 }
 
                 // 2. Buat Data Berkas
@@ -114,9 +121,10 @@ class BerkasController extends Controller
                     'pengirim_id' => $currentUser->id, // Pengirim awal adalah pembuat
                     'waktu_mulai_proses' => null, 
                     
-                    // [DITAMBAHKAN] Simpan Data File dan Lokasi ke tabel
+                    // Simpan Data File dan Lokasi ke tabel
                     'file_sertipikat' => $pathSertipikat,
                     'file_data_pendukung' => $pathDataPendukung,
+                    'foto_lokasi' => $pathFotoLokasi, // Simpan path foto lokasi
                     'latitude' => $validatedData['latitude'] ?? null,
                     'longitude' => $validatedData['longitude'] ?? null,
                 ]);
@@ -150,8 +158,8 @@ class BerkasController extends Controller
             'riwayat.keUser.jabatan', 
             'posisiSekarang.jabatan', 
             'jenisPermohonan',
-            'dataDesa',       // Pastikan relasi ini ada di Model Berkas
-            'dataKecamatan',  // Pastikan relasi ini ada di Model Berkas
+            'dataDesa',       
+            'dataKecamatan',  
             'penerimaKuasa'
         ]);
         
@@ -264,8 +272,10 @@ class BerkasController extends Controller
                 $pengirim = Auth::user();
                 
                 $jabatanPengirim = optional($pengirim->jabatan)->nama_jabatan;
+                
+                // [PENTING] Petugas Loket Pembayaran DIHAPUS dari pemicu Timer Pengiriman
+                // Karena Timer Argo SLA sudah pindah ke fungsi "Sudah Dibayar" (KwitansiController)
                 $jabatanPemicuTimer = [
-                    'Petugas Loket Pembayaran', 
                     'Petugas Loket Alih Media'
                 ];
 
@@ -284,6 +294,7 @@ class BerkasController extends Controller
                     $berkas->pengirim_id = $pengirim->id;
                     $berkas->penerima_id = $request->tujuan_user_id;
                     
+                    // Trigger Argo Timer jika sesuai role & argo belum jalan
                     if (in_array($jabatanPengirim, $jabatanPemicuTimer) && is_null($berkas->waktu_mulai_proses)) {
                         $berkas->waktu_mulai_proses = now();
                     }
@@ -449,11 +460,10 @@ class BerkasController extends Controller
     }
 
     /**
-     * [DITAMBAHKAN] Menangani Aksi Update Status Khusus (Pengumuman, Berkas Kembali, Selesai) dari Modal.
+     * Menangani Aksi Update Status Khusus (Pengumuman, Berkas Kembali, Selesai) dari Modal.
      */
     public function updateStatusKhusus(Request $request, Berkas $berkas): RedirectResponse
     {
-        // 1. Validasi dibuat dinamis (hanya mengecek apakah status berbentuk teks/string)
         $request->validate([
             'status' => 'required|string|max:255',
             'keterangan' => 'required|string',
@@ -469,19 +479,16 @@ class BerkasController extends Controller
 
         $tambahanKeterangan = '';
 
-        // Jika ada input hari pengumuman, masukkan ke dalam catatan
         if ($request->filled('hari_pengumuman')) {
             $tambahanKeterangan = " (Menunggu waktu: {$request->hari_pengumuman} Hari).";
         } 
         
-        // Jika status mengandung kata 'selesai', hentikan timer
         if (strtolower($request->status) === 'selesai') {
             $berkas->waktu_selesai_proses = now();
         }
 
         $berkas->save();
 
-        // Tambahkan ke Riwayat Perjalanan Berkas
         RiwayatBerkas::create([
             'berkas_id' => $berkas->id,
             'dari_user_id' => Auth::id(),
@@ -493,9 +500,6 @@ class BerkasController extends Controller
         return redirect()->back()->with('success', 'Status berkas berhasil diperbarui menjadi: ' . $request->status);
     }
 
-    /**
-     * Menyimpan data Kuasa Baru via Ajax (dipanggil dari Modal).
-     */
     public function storeKuasaAjax(Request $request)
     {
         $request->validate([
