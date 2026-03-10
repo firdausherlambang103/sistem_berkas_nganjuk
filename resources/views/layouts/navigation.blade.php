@@ -84,9 +84,9 @@
                                         
                                         {{-- Sub Menu 3: Statistik (Cek RBAC) --}}
                                         @if($isAdmin || in_array('Statistik', $aksesMenuArray))
-                                            <x-dropdown-link href="#" onclick="alert('Halaman Grafik Statistik belum diintegrasikan.')">
-                                                <i class="fa-solid fa-chart-pie w-5 text-center mr-1 text-orange-500"></i> {{ __('Statistik Peta') }}
-                                            </x-dropdown-link>
+                                            <x-nav-link :href="route('statistik.index')" :active="request()->routeIs('statistik.*')">
+                                                <i class="fa-solid fa-chart-pie mr-2"></i> {{ __('Statistik') }}
+                                            </x-nav-link>
                                         @endif
 
                                         <x-dropdown-link :href="route('map.master.layer')">
@@ -290,9 +290,9 @@
                             @endif
 
                             @if($isAdmin || in_array('Statistik', $aksesMenuArray))
-                                <x-responsive-nav-link href="#" onclick="alert('Halaman Statistik belum tersedia')" class="pl-8">
-                                    <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Statistik Peta') }}
-                                </x-responsive-nav-link>
+                            <x-responsive-nav-link :href="route('statistik.index')" :active="request()->routeIs('statistik.*')">
+                                <i class="fa-solid fa-chart-pie mr-2"></i> {{ __('Statistik') }}
+                            </x-responsive-nav-link>
                             @endif
 
                             <x-responsive-nav-link :href="route('map.master.layer')" :active="request()->routeIs('map.master.layer')" class="pl-8">

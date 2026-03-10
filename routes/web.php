@@ -18,6 +18,7 @@ use App\Http\Controllers\SuratTugasController;
 use App\Http\Controllers\SensusWakafController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
 use App\Http\Controllers\MapController;
+use App\Http\Controllers\StatistikController;
 
 // Import Controller Khusus Mitra
 use App\Http\Controllers\Mitra\AuthController as MitraAuthController;
@@ -87,7 +88,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/master-layer/store', 'storeLayer')->name('layer.store'); 
         Route::post('/master-layer/{id}/update-warna', 'updateWarna')->name('layer.updateWarna');
         Route::delete('/master-layer/{id}', 'destroyLayer')->name('layer.destroy');
-        
+        Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik.index');
         // API Peta & CRUD Aset
         Route::get('/api/data', 'apiData')->name('api');
         Route::post('/import', 'import')->name('import');
