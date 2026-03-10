@@ -17,16 +17,32 @@ use RecursiveDirectoryIterator;
 class MapController extends Controller
 {
     // ========================================================
-    // HELPER: Cek Hak Akses
+    // HELPER: Cek Hak Akses Sub-Menu
     // ========================================================
     private function cekAkses($hakAksesDibutuhkan)
     {
         $aksesMenu = is_array(auth()->user()->akses_menu) ? auth()->user()->akses_menu : json_decode(auth()->user()->akses_menu, true) ?? [];
         $isAdmin = optional(auth()->user()->jabatan)->is_admin;
         if (!$isAdmin && !in_array($hakAksesDibutuhkan, $aksesMenu)) {
-            abort(403, "Akses Ditolak!");
+            abort(403, "Akses Ditolak! Anda tidak memiliki izin untuk membuka menu ini.");
         }
         return true;
+    }
+
+    // ========================================================
+    // HELPER: Ambil Layer yang Diizinkan Saja
+    // ========================================================
+    private function getAllowedLayers()
+    {
+        $user = auth()->user();
+        $isAdmin = optional($user->jabatan)->is_admin;
+        
+        if ($isAdmin) {
+            return MapLayer::orderBy('nama_layer')->get(); // Admin bisa lihat semua layer
+        }
+
+        $aksesLayer = is_array($user->akses_layer) ? $user->akses_layer : json_decode($user->akses_layer, true) ?? [];
+        return MapLayer::whereIn('id', $aksesLayer)->orderBy('nama_layer')->get(); // User biasa hanya melihat layer yang dicentang
     }
 
     private function deleteDirectory($dir) {
@@ -56,15 +72,18 @@ class MapController extends Controller
     // ========================================================
     public function index()
     {
-        $this->cekAkses('WebGIS');
-        $layers = MapLayer::all();
+        $this->cekAkses('WebGIS'); // Cek Akses Menu Peta Utama
+        
+        $layers = $this->getAllowedLayers(); // Hanya load layer yang diizinkan
+
         $aksesMenu = is_array(auth()->user()->akses_menu) ? auth()->user()->akses_menu : json_decode(auth()->user()->akses_menu, true) ?? [];
         $bisaKelolaLayer = optional(auth()->user()->jabatan)->is_admin || in_array('Kelola Layer', $aksesMenu);
+        
         return view('map.index', compact('layers', 'bisaKelolaLayer'));
     }
 
     // ========================================================
-    // 2. API UNTUK LEAFLET (SUPER OPTIMIZED)
+    // 2. API UNTUK LEAFLET (DENGAN FILTER HAK AKSES LAYER)
     // ========================================================
     public function apiData(Request $request)
     {
@@ -81,11 +100,24 @@ class MapController extends Controller
             
             $search = $request->input('search');
             $hak = $request->input('hak');
-            $layerIds = $request->input('layers'); 
+            
+            // --- FILTER KEAMANAN LAYER ---
+            $requestedLayers = $request->input('layers', []); 
+            $user = auth()->user();
+            $isAdmin = optional($user->jabatan)->is_admin;
+            
+            // Jika bukan admin, pastikan layer yang di-request benar-benar ada di daftar akses layernya
+            if (!$isAdmin) {
+                $aksesLayer = is_array($user->akses_layer) ? $user->akses_layer : json_decode($user->akses_layer, true) ?? [];
+                $layerIds = array_intersect($requestedLayers, $aksesLayer);
+            } else {
+                $layerIds = $requestedLayers;
+            }
 
             if (empty($layerIds)) {
                 return response()->json(['type'=>'FeatureCollection', 'features'=>[]]);
             }
+            // -----------------------------
 
             $polygonWKT = "SRID=4326;POLYGON(($w $s, $e $s, $e $n, $w $n, $w $s))";
             $keywords = $this->getHakKeywords($hak);
@@ -138,7 +170,6 @@ class MapController extends Controller
                     $finalColor = $defaultColor;
                     $tipeLayer = $layer->tipe_layer ?? 'Standar';
 
-                    // Cari Tipe Hak di dalam properties (Mendukung beberapa variasi penamaan kolom SHP)
                     $tipeHak = '';
                     $raw_data = $props['raw_data'] ?? $props;
                     
@@ -149,7 +180,6 @@ class MapController extends Controller
                         }
                     }
 
-                    // LOGIKA PEWARNAAN UTAMA (Sesuai Hak)
                     if ($tipeLayer === 'Utama' && $layer) {
                         if (str_contains($tipeHak, 'milik') || $tipeHak === 'hm') {
                             $finalColor = $layer->color_hm ?? '#28a745';
@@ -162,7 +192,7 @@ class MapController extends Controller
                         } elseif (str_contains($tipeHak, 'wakaf')) {
                             $finalColor = $layer->color_wakaf ?? '#6f42c1';
                         } else {
-                            $finalColor = '#cccccc'; // Warna abu-abu untuk bidang yg tidak diketahui haknya
+                            $finalColor = '#cccccc'; 
                         }
                     }
 
@@ -216,7 +246,6 @@ class MapController extends Controller
             'tipe_layer' => $request->tipe_layer,
             'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99),
             'warna' => $request->warna,
-            // Injeksi warna default jika tidak diset
             'color_hm' => '#28a745',
             'color_hgb' => '#ffc107',
             'color_hp' => '#17a2b8',
@@ -343,9 +372,8 @@ class MapController extends Controller
             $geometryJson = $request->geometry;
             $layerId = $request->layer_id;
             
-            // Susun data atribut ke dalam raw_data
             $rawData = [
-                'NOMER_BERKAS' => $request->nomer_berkas ?? '', // <--- PERBAIKAN DISINI
+                'NOMER_BERKAS' => $request->nomer_berkas ?? '', 
                 'NIB' => $request->nib ?? '-',
                 'TIPEHAK' => $request->tipehak ?? 'Tidak Diketahui',
                 'LUAS' => $request->luas ?? 0,
@@ -355,7 +383,6 @@ class MapController extends Controller
                 'KETERANGAN' => $request->keterangan ?? '-'
             ];
 
-            // Tentukan nama properti berdasarkan Nomer Berkas / NIB
             $featureName = $request->nomer_berkas ?: ($request->nib ?? 'Aset Baru');
 
             DB::connection('pgsql')->table('spatial_features')->insert([
@@ -386,19 +413,16 @@ class MapController extends Controller
 
             $updateData = ['updated_at' => now()];
 
-            // Jika update berasal dari tarikan/edit poligon di peta (perubahan geometri)
             if ($request->has('geometry')) {
                 $geomJson = $request->geometry;
                 $updateData['geom'] = DB::raw("ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON('$geomJson'), 4326))");
             }
 
-            // Jika update berasal dari form edit atribut
             if ($request->has('is_attribute_update')) {
                 $props = is_string($asset->properties) ? json_decode($asset->properties, true) : [];
                 $raw = $props['raw_data'] ?? [];
                 
-                // Update nilai array
-                $raw['NOMER_BERKAS'] = $request->nomer_berkas ?? ''; // <--- PERBAIKAN DISINI
+                $raw['NOMER_BERKAS'] = $request->nomer_berkas ?? ''; 
                 $raw['NIB'] = $request->nib;
                 $raw['TIPEHAK'] = $request->tipehak;
                 $raw['LUAS'] = $request->luas;
@@ -409,8 +433,6 @@ class MapController extends Controller
 
                 $props['raw_data'] = $raw;
                 $updateData['properties'] = json_encode($props);
-                
-                // Set name dari Nomer Berkas, lalu NIB
                 $updateData['name'] = $request->nomer_berkas ?: ($request->nib ?? 'Aset');
                 
                 if($request->has('layer_id')) {
@@ -427,7 +449,6 @@ class MapController extends Controller
     }
 
     public function showAsset($id) {
-        // Ambil data aset beserta Geometrinya (di-convert ke GeoJSON)
         $item = DB::connection('pgsql')->table('spatial_features')
             ->where('id', $id)
             ->select('id', 'name', 'layer_id', 'properties', DB::raw("ST_AsGeoJSON(geom) as geometry"))
@@ -435,7 +456,6 @@ class MapController extends Controller
             
         if (!$item) return response()->json(['error' => 'Data tidak ditemukan'], 404);
         
-        // Decode JSON geometry agar bisa dibaca langsung oleh Javascript Peta
         if ($item->geometry) {
             $item->geometry = json_decode($item->geometry);
         }
@@ -468,26 +488,32 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 6. HALAMAN TABEL DATA ASET (DENGAN PAGINATION & OPTIMASI)
+    // 6. HALAMAN TABEL DATA ASET
     // ========================================================
     public function aset(Request $request)
     {
-        $this->cekAkses('Data Aset');
-        $layers = MapLayer::all();
+        $this->cekAkses('Data Aset'); // Cek Akses Menu Data Aset
+
+        $layers = $this->getAllowedLayers(); // Hanya load layer yang diizinkan
         
-        // Tangkap parameter filter
         $selectedLayerId = $request->get('layer_id');
         $filterDesa = $request->get('desa');
         $filterSumber = $request->get('sumber');
 
-        $selectedLayer = $selectedLayerId ? MapLayer::find($selectedLayerId) : $layers->first();
+        // Pastikan layer yang dipilih ada di dalam array $layers yang diizinkan
+        $selectedLayer = null;
+        if ($selectedLayerId) {
+            $selectedLayer = $layers->firstWhere('id', $selectedLayerId);
+        }
+        if (!$selectedLayer) {
+            $selectedLayer = $layers->first();
+        }
         
         $features = [];
         $allDesaList = [];
         $paginator = null;
 
         if ($selectedLayer) {
-            // 1. Ekstrak Daftar Desa untuk Dropdown (Hanya panggil 'properties' biar ringan)
             $allProps = DB::connection('pgsql')->table('spatial_features')
                 ->where('layer_id', $selectedLayer->id)
                 ->select('properties')
@@ -506,10 +532,9 @@ class MapController extends Controller
             $allDesaList = array_keys($allDesa);
             sort($allDesaList);
 
-            // 2. Query Utama dengan Server-Side Pagination
             $query = DB::connection('pgsql')->table('spatial_features')
                 ->where('layer_id', $selectedLayer->id)
-                ->select('id', 'name', 'properties', 'layer_id'); // [PENTING] KITA TIDAK SELECT 'geom' AGAR TIDAK LAG
+                ->select('id', 'name', 'properties', 'layer_id'); 
 
             if ($filterSumber == 'Manual') {
                 $query->where('properties', 'ILIKE', '%Manual%');
@@ -518,14 +543,11 @@ class MapController extends Controller
             }
 
             if ($filterDesa) {
-                // ILIKE akan mencari teks desa di dalam JSON properties
                 $query->where('properties', 'ILIKE', '%' . $filterDesa . '%');
             }
 
-            // Paginasi: Tampilkan 50 data per halaman
             $paginator = $query->orderBy('id', 'desc')->paginate(50)->withQueryString();
 
-            // 3. Format Data untuk View (Hanya memformat 50 data yang aktif)
             foreach($paginator->items() as $d) {
                 $props = is_string($d->properties) ? json_decode($d->properties, true) : $d->properties;
                 $raw = $props['raw_data'] ?? [];
@@ -579,12 +601,10 @@ class MapController extends Controller
         return back()->with('success', 'Layer "' . $layer->nama_layer . '" dan seluruh aset di dalamnya berhasil dihapus!');
     }
 
-    // Tambahkan di MapController.php
     public function findBerkasLink(Request $request)
     {
         $noBerkas = $request->get('no_berkas');
         
-        // Cari berkas berdasarkan nomor berkas
         $berkas = DB::table('berkas')->where('nomer_berkas', $noBerkas)->first();
         
         if ($berkas) {

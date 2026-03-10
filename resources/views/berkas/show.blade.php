@@ -95,7 +95,7 @@
                     {{-- Area Peta --}}
                     @if(isset($geojsonGeometry) && $geojsonGeometry)
                         {{-- Skenario 1: Jika data terhubung ke WebGIS (Punya Poligon) --}}
-                        <div class="w-full h-[350px] rounded-md border border-gray-300 z-10 shadow-inner" id="map-detail"></div>
+                        <div class="w-full h-[350px] rounded-md border border-gray-300 z-10 shadow-inner relative" id="map-detail" style="min-height: 350px;"></div>
                         <div class="mt-3 text-sm text-green-700 bg-green-50 p-2.5 rounded-md border border-green-200 flex items-center font-semibold">
                             <i class="fa-solid fa-circle-check text-green-600 mr-2 text-lg"></i>
                             Bidang tanah ini berhasil di-link dari Peta WebGIS.
@@ -103,7 +103,7 @@
 
                     @elseif($berkas->latitude && $berkas->longitude)
                         {{-- Skenario 2: Jika hanya punya titik koordinat manual (Tidak ada poligon) --}}
-                        <div class="w-full h-[350px] rounded-md border border-gray-300 z-10 shadow-inner" id="map-detail"></div>
+                        <div class="w-full h-[350px] rounded-md border border-gray-300 z-10 shadow-inner relative" id="map-detail" style="min-height: 350px;"></div>
                         <div class="mt-3 text-sm text-gray-600 flex justify-between bg-gray-50 p-2 rounded border border-gray-200">
                             <span><b class="text-indigo-600">Latitude:</b> {{ $berkas->latitude }}</span>
                             <span><b class="text-indigo-600">Longitude:</b> {{ $berkas->longitude }}</span>
@@ -214,15 +214,18 @@
                         }
                     }).addTo(map);
 
-                    // Fit (Zoom) otomatis ke dalam ukuran poligon
-                    map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 20 });
-
                     layer.bindPopup(`
                         <div class="text-center font-sans">
-                            <b class="text-indigo-700 text-[10px] uppercase tracking-wider block mb-1">Lokasi Aset</b>
+                            <b class="text-indigo-700 text-[10px] uppercase tracking-wider block mb-1">Lokasi Aset Terhubung</b>
                             <span class="font-extrabold text-gray-800 text-sm">{{ $berkas->nomer_berkas }}</span>
                         </div>
                     `).openPopup();
+
+                    // Tunggu sedikit agar container peta selesai render, baru eksekusi zoom
+                    setTimeout(function(){ 
+                        map.invalidateSize(); 
+                        map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 20 });
+                    }, 500);
 
                 @elseif($berkas->latitude && $berkas->longitude)
                     // ===============================================
@@ -241,9 +244,9 @@
                             </div>
                         `)
                         .openPopup();
+                        
+                    setTimeout(function(){ map.invalidateSize(); }, 500);
                 @endif
-
-                setTimeout(function(){ map.invalidateSize(); }, 600);
             });
         </script>
     @endif

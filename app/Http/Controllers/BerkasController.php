@@ -147,7 +147,7 @@ class BerkasController extends Controller
                          ->with('success', 'Berkas baru berhasil dibuat!');
     }
     
-    /**
+/**
      * Menampilkan detail dan riwayat berkas.
      */
     public function show(Berkas $berkas): View
@@ -162,8 +162,19 @@ class BerkasController extends Controller
             'dataKecamatan',  
             'penerimaKuasa'
         ]);
+
+        // [PERBAIKAN] Pencarian atribut dibuat menjadi ILIKE text agar tidak error tipe JSON
+        // Ini memastikan nomer berkas terbaca apapun format key-nya
+        $spatialFeature = DB::connection('pgsql')->table('spatial_features')
+            ->where('name', $berkas->nomer_berkas)
+            ->orWhereRaw("properties::text ILIKE ?", ['%"' . $berkas->nomer_berkas . '"%'])
+            ->select(DB::raw("ST_AsGeoJSON(geom) as geometry"))
+            ->first();
+
+        // Jika ketemu, simpan geometrinya. Jika tidak, set null.
+        $geojsonGeometry = $spatialFeature ? $spatialFeature->geometry : null;
         
-        return view('berkas.show', compact('berkas'));
+        return view('berkas.show', compact('berkas', 'geojsonGeometry'));
     }
 
     /**

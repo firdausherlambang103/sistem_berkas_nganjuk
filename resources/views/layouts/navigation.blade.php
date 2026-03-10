@@ -2,10 +2,12 @@
     // Cek apakah user yang login adalah Mitra (PPAT / Freelance)
     $isMitra = Auth::user()->jabatan && in_array(Auth::user()->jabatan->nama_jabatan, ['PPAT', 'Freelance']);
     
-    // Cek Akses Khusus WebGIS (Admin otomatis bisa, atau user yang dicentang akses WebGIS-nya)
+    // Cek Akses Khusus
     $aksesMenuArray = is_array(Auth::user()->akses_menu) ? Auth::user()->akses_menu : (json_decode(Auth::user()->akses_menu, true) ?? []);
     $isAdmin = Auth::user()->jabatan && Auth::user()->jabatan->is_admin;
+    
     $bisaWebGIS = $isAdmin || in_array('WebGIS', $aksesMenuArray);
+    $bisaDataAset = $isAdmin || in_array('Data Aset', $aksesMenuArray);
 @endphp
 
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100 shadow-sm relative z-[9999]">
@@ -32,6 +34,39 @@
                             {{ __('Ruang Kerja Mitra') }}
                         </x-nav-link>
 
+                        {{-- ======================================================== --}}
+                        {{-- MENU PETA WEBGIS (HANYA MUNCUL JIKA MITRA PUNYA AKSES)   --}}
+                        {{-- ======================================================== --}}
+                        @if($bisaWebGIS || $bisaDataAset)
+                            <div class="hidden sm:flex sm:items-center sm:ms-8">
+                                <x-dropdown align="left" width="48">
+                                    <x-slot name="trigger">
+                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('map.*') ? 'border-indigo-400 text-gray-900 focus:border-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:text-gray-700 focus:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out h-16 bg-transparent">
+                                            <div><i class="fa-solid fa-map-location-dot text-indigo-600 mr-1.5"></i> WebGIS</div>
+                                            <div class="ms-1">
+                                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        </button>
+                                    </x-slot>
+                                    <x-slot name="content">
+                                        @if($bisaWebGIS)
+                                            <x-dropdown-link :href="route('map.index')">
+                                                <i class="fa-solid fa-map w-5 text-center mr-2 text-indigo-600"></i> {{ __('Peta Utama') }}
+                                            </x-dropdown-link>
+                                        @endif
+                                        
+                                        @if($bisaDataAset)
+                                            <x-dropdown-link :href="route('map.aset')">
+                                                <i class="fa-solid fa-table-list w-5 text-center mr-2 text-blue-500"></i> {{ __('Data Aset (Tabular)') }}
+                                            </x-dropdown-link>
+                                        @endif
+                                    </x-slot>
+                                </x-dropdown>
+                            </div>
+                        @endif
+
                     @else
                         {{-- ========================================== --}}
                         {{-- MENU INTERNAL (PEGAWAI & ADMIN)            --}}
@@ -52,13 +87,12 @@
                             </x-nav-link>
                         @endif
 
-                        {{-- [DITAMBAHKAN] MENU KWITANSI --}}
                         <x-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
                             {{ __('Kwitansi') }}
                         </x-nav-link>
                         
                         {{-- ======================================================== --}}
-                        {{-- MENU PETA WEBGIS (DROPDOWN / SUB-MENU)                   --}}
+                        {{-- MENU PETA WEBGIS (DROPDOWN / SUB-MENU) INTERNAL          --}}
                         {{-- ======================================================== --}}
                         @if($bisaWebGIS)
                             <div class="hidden sm:flex sm:ms-8 sm:-my-px">
@@ -74,12 +108,10 @@
                                         </button>
                                     </x-slot>
                                     <x-slot name="content">
-                                        {{-- Sub Menu 1: Peta Utama --}}
                                         <x-dropdown-link :href="route('map.index')">
                                             <i class="fa-solid fa-map w-5 text-center mr-2 text-indigo-600"></i> {{ __('Peta Utama') }}
                                         </x-dropdown-link>
                                         
-                                        {{-- Sub Menu 2: Data Aset (Cek RBAC) --}}
                                         @if($isAdmin || in_array('Data Aset', $aksesMenuArray))
                                             <div class="border-t border-gray-100 my-1"></div>
                                                 <x-dropdown-link :href="route('map.aset')">
@@ -87,7 +119,6 @@
                                                 </x-dropdown-link>
                                         @endif
                                         
-                                        {{-- Sub Menu 3: Statistik (Cek RBAC) --}}
                                         @if($isAdmin || in_array('Statistik', $aksesMenuArray))
                                             <x-dropdown-link :href="route('statistik.index')">
                                                 <i class="fa-solid fa-chart-pie w-5 text-center mr-2 text-gray-600"></i> {{ __('Statistik') }}
@@ -245,6 +276,7 @@
         </div>
     </div>
 
+    {{-- MENU MOBILE --}}
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
             
@@ -257,6 +289,27 @@
                 <x-responsive-nav-link :href="route('mitra.ruang-kerja')" :active="request()->routeIs('mitra.ruang-kerja')">
                     {{ __('Ruang Kerja Mitra') }}
                 </x-responsive-nav-link>
+
+                {{-- MENU WEBGIS MOBILE (HANYA MITRA YANG PUNYA AKSES) --}}
+                @if($bisaWebGIS || $bisaDataAset)
+                    <div class="pt-2 pb-1 border-t border-gray-200 mt-2">
+                        <div class="px-4 font-bold text-sm text-indigo-700 bg-indigo-50 py-2 rounded-r-full mr-4 ml-1 mb-1">
+                            <i class="fa-solid fa-map-location-dot mr-2"></i> Modul WebGIS
+                        </div>
+                        <div class="mt-1 space-y-1">
+                            @if($bisaWebGIS)
+                                <x-responsive-nav-link :href="route('map.index')" :active="request()->routeIs('map.index')" class="pl-8">
+                                    <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Peta Utama') }}
+                                </x-responsive-nav-link>
+                            @endif
+                            @if($bisaDataAset)
+                                <x-responsive-nav-link :href="route('map.aset')" :active="request()->routeIs('map.aset')" class="pl-8">
+                                    <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Data Aset (Tabular)') }}
+                                </x-responsive-nav-link>
+                            @endif
+                        </div>
+                    </div>
+                @endif
             @else
                 {{-- MENU INTERNAL MOBILE --}}
                 <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
@@ -275,14 +328,10 @@
                     </x-responsive-nav-link>
                 @endif
 
-                {{-- [DITAMBAHKAN] MENU KWITANSI --}}
                 <x-responsive-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
                     {{ __('Kwitansi') }}
                 </x-responsive-nav-link>
                 
-                {{-- ======================================================== --}}
-                {{-- MENU PETA WEBGIS MOBILE (SUB-MENU)                       --}}
-                {{-- ======================================================== --}}
                 @if($bisaWebGIS)
                     <div class="pt-2 pb-1 border-t border-gray-200 mt-2">
                         <div class="px-4 font-bold text-sm text-indigo-700 bg-indigo-50 py-2 rounded-r-full mr-4 ml-1 mb-1">
@@ -318,7 +367,6 @@
                     </x-responsive-nav-link>
                 @endif
 
-                {{-- PENJADWALAN UKUR MOBILE --}}
                 @if(Auth::user()->hasMenuAccess('penjadwalan_ukur'))
                     <div class="pt-2 pb-1 border-t border-gray-200 mt-2">
                         <div class="px-4 font-bold text-sm text-indigo-700 bg-indigo-50 py-2 rounded-r-full mr-4 ml-1 mb-1">
@@ -357,7 +405,6 @@
                     </x-responsive-nav-link>
                 </form>
 
-                {{-- Responsive Admin Menu --}}
                 @if(!$isMitra && $isAdmin)
                     <div class="border-t border-gray-200 mt-3 pt-3">
                         <div class="px-4 font-medium text-base text-gray-800 bg-gray-50 py-2">Administrasi</div>

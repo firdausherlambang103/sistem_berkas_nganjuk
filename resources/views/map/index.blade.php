@@ -27,7 +27,7 @@
     <div class="relative w-full bg-gray-200 overflow-hidden" style="height: calc(100vh - 140px); min-height: 600px;">
         
         {{-- LOADING INDICATOR --}}
-        <div id="map-loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white/95 px-6 py-3 rounded-full font-bold shadow-2xl text-gray-700 flex items-center border border-gray-100 backdrop-blur-sm">
+        <div id="map-loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[4000] bg-white/95 px-6 py-3 rounded-full font-bold shadow-2xl text-gray-700 flex items-center border border-gray-100 backdrop-blur-sm">
             <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 text-xl mr-3"></i> 
             <span id="loading-text">Memuat Data Spasial...</span>
         </div>
@@ -42,7 +42,7 @@
                 <div>
                     <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Pencarian Cepat</label>
                     <div class="relative">
-                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik NIB/No Berkas...">
+                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik NIB / No Berkas...">
                         <button onclick="document.getElementById('searchMap').value=''; loadData();" class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
@@ -184,9 +184,9 @@
                     </div>
 
                     {{-- DROPDOWN LINK NOMER BERKAS --}}
-                    <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                    <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
                         <label class="block text-xs font-bold text-indigo-700 uppercase mb-1"><i class="fa-solid fa-link mr-1"></i> Link Nomor Berkas</label>
-                        <select id="form_no_berkas" class="w-full text-sm border-indigo-200 rounded-md focus:ring-indigo-500 bg-white font-semibold text-gray-700 shadow-sm cursor-pointer">
+                        <select id="form_no_berkas" class="w-full text-sm border-indigo-300 rounded-md focus:ring-indigo-500 bg-white font-semibold text-gray-800 shadow-sm cursor-pointer">
                             <option value="">-- Tidak di-link / Pilih Berkas di Meja Saya --</option>
                             @foreach($berkasDiMeja as $b)
                                 <option value="{{ $b->nomer_berkas }}">{{ $b->nomer_berkas }} - {{ Str::limit($b->nama_pemohon, 25) }}</option>
@@ -276,9 +276,11 @@
 
     <script>
         // ==========================================
-        // VARIABEL GLOBAL PENTING (DILARANG DIHAPUS)
+        // VARIABEL GLOBAL PENTING
         // ==========================================
-        var map, geoJsonLayer, userMarker;
+        var map; 
+        var geoJsonLayer;
+        var userMarker = null;
         var currentOpacity = 0.6;
         var abortController = null; 
         var fetchTimeout = null;    
@@ -326,6 +328,7 @@
             @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}' }); @endif
             @if(session('error')) Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: '{!! session('error') !!}' }); @endif
 
+            // Inisialisasi Peta
             map = L.map('main-map', { 
                 zoomControl: false, 
                 maxZoom: 22,
@@ -348,10 +351,13 @@
 
             function highlightFeature(e) {
                 var layer = e.target;
-                layer.setStyle({ weight: 3, color: '#111827', fillOpacity: 0.8 });
+                layer.setStyle({ weight: 4, color: '#facc15', fillOpacity: 0.8 }); // Hover Kuning
                 if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) layer.bringToFront();
             }
-            function resetHighlight(e) { geoJsonLayer.resetStyle(e.target); }
+            
+            function resetHighlight(e) { 
+                geoJsonLayer.resetStyle(e.target); 
+            }
 
             // ==========================================
             // KONTROL GEOMAN (DRAWING & EDITING TOOLS)
@@ -397,11 +403,32 @@
             @endif
 
             // ==========================================
-            // RENDER GEOJSON LAYER & MENDETEKSI LINK
+            // RENDER GEOJSON LAYER & POPUP ASET
             // ==========================================
             geoJsonLayer = L.geoJSON(null, {
                 style: function(feature) {
-                    return { color: '#ffffff', fillColor: getColor(feature), weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
+                    let p = feature.properties;
+                    let raw = p.raw_data || p;
+                    let isLinked = false;
+
+                    // [PERBAIKAN 1] Cek status tautan HANYA melalui no_berkas
+                    for (let key in raw) {
+                        if (raw.hasOwnProperty(key)) {
+                            let lk = key.toLowerCase();
+                            if ((lk === 'no_berkas' || lk === 'nomer_berkas') && raw[key] && String(raw[key]).trim() !== '' && String(raw[key]).trim() !== '-') {
+                                isLinked = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    return { 
+                        color: isLinked ? '#10b981' : '#ffffff', // Garis hijau tebal jika sudah ditautkan
+                        fillColor: getColor(feature), 
+                        weight: isLinked ? 3 : 1.5, 
+                        opacity: 1, 
+                        fillOpacity: currentOpacity 
+                    };
                 },
                 onEachFeature: function(feature, layer) {
                     if(feature.properties && feature.properties.id) {
@@ -431,15 +458,15 @@
                     for (var key in raw) {
                         if (raw.hasOwnProperty(key)) {
                             var val = raw[key];
-                            
-                            // Deteksi jika key berhubungan dengan Nomor Berkas 
                             let lowerKey = key.toLowerCase();
+                            
+                            // [PERBAIKAN 2] Hanya baca Nomer Berkas, Abaikan NIB untuk tombol Link
                             if (lowerKey === 'no_berkas' || lowerKey === 'nomer_berkas') {
-                                if (val !== null && val !== '' && String(val).trim() !== '') {
+                                if (val !== null && val !== '' && String(val).trim() !== '' && String(val).trim() !== '-') {
                                     noBerkas = val;
                                 }
                             }
-
+                            
                             if (val !== null && val !== '' && String(val).trim() !== '') {
                                 var displayKey = key.replace(/_/g, ' ').toUpperCase();
                                 tableRows += `
@@ -452,6 +479,15 @@
                     }
                     if (tableRows === '') tableRows = '<tr><td colspan="2" class="text-center text-gray-400 py-3 text-xs italic">Tidak ada data atribut spasial</td></tr>';
 
+                    // [PERBAIKAN 3] Label Status Terhubung
+                    let statusBadge = noBerkas 
+                        ? `<div class="bg-green-100 text-green-700 border border-green-300 px-2 py-1.5 rounded-md text-[11px] font-bold mb-3 flex items-center justify-center shadow-sm">
+                               <i class="fa-solid fa-link mr-1.5"></i> STATUS: TERTAUT (${noBerkas})
+                           </div>`
+                        : `<div class="bg-orange-50 text-orange-600 border border-orange-200 px-2 py-1.5 rounded-md text-[11px] font-bold mb-3 flex items-center justify-center shadow-sm">
+                               <i class="fa-solid fa-link-slash mr-1.5"></i> STATUS: BELUM TERTAUT
+                           </div>`;
+
                     var content = `
                         <div class="p-1 min-w-[280px] max-w-[340px] font-sans">
                             <div class="flex justify-between items-center border-b-2 border-indigo-500 pb-2 mb-2">
@@ -459,25 +495,28 @@
                                     <i class="fa-solid fa-map-location-dot mr-2 text-indigo-500"></i> Informasi Aset
                                 </h6>
                             </div>
-                            <div class="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                            
+                            ${statusBadge}
+
+                            <div class="max-h-[180px] overflow-y-auto pr-2 custom-scrollbar">
                                 <table class="w-full text-left border-collapse"><tbody>${tableRows}</tbody></table>
                             </div>
                             
                             <div class="mt-3 pt-2.5 border-t border-gray-200 flex flex-col gap-2">
                                 ${noBerkas ? `
-                                    <a href="/berkas/search-link?no=${noBerkas}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-3 py-2.5 rounded-md font-bold transition-all flex items-center justify-center shadow-sm w-full">
+                                    <a href="/berkas/search-link?no=${noBerkas}" target="_blank" style="color: #ffffff !important;" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] px-3 py-2.5 rounded-md font-bold transition-all flex items-center justify-center shadow-sm w-full">
                                         <i class="fa-solid fa-file-contract mr-2"></i> LIHAT DETAIL BERKAS
                                     </a>
                                 ` : `
-                                    <div class="text-[10px] text-orange-600 bg-orange-50 p-1.5 rounded text-center border border-orange-100 mb-1">
-                                        <i class="fa-solid fa-circle-exclamation mr-1"></i> Aset belum di-link. Silakan Edit Data.
-                                    </div>
+                                    <button onclick='editAtributAset(${JSON.stringify(raw)}, ${p.id}, ${p.layer_id})' class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] px-3 py-2.5 rounded-md font-bold transition-all flex items-center justify-center shadow-sm w-full">
+                                        <i class="fa-solid fa-link mr-2"></i> TAUTKAN BERKAS SEKARANG
+                                    </button>
                                 `}
                                 
                                 @if($bisaKelolaLayer)
-                                <div class="flex justify-between gap-2">
-                                    <button class="bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick='editAtributAset(${JSON.stringify(raw)}, ${p.id}, ${p.layer_id})'>
-                                        <i class="fa-solid fa-link mr-1.5"></i> Link / Edit Data
+                                <div class="flex justify-between gap-2 mt-1">
+                                    <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick='editAtributAset(${JSON.stringify(raw)}, ${p.id}, ${p.layer_id})'>
+                                        <i class="fa-solid fa-pen mr-1.5"></i> Edit Data
                                     </button>
                                     <button class="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick="deleteAsset(${p.id})">
                                         <i class="fa-solid fa-trash mr-1.5"></i> Hapus
@@ -492,10 +531,11 @@
             }).addTo(map);
 
             // ==========================================
-            // FUNGSI JAVASCRIPT GLOBAL (DIPERBAIKI)
+            // FUNGSI LOAD DATA AJAX
             // ==========================================
             window.loadData = function() {
-                clearTimeout(fetchTimeout);
+                clearTimeout(fetchTimeout); 
+                
                 fetchTimeout = setTimeout(function() {
                     var loading = document.getElementById('map-loading');
                     if(loading) loading.classList.remove('hidden');
@@ -511,7 +551,9 @@
                     });
                     selectedLayers.forEach(id => params.append('layers[]', id));
 
-                    if (abortController) abortController.abort();
+                    if (abortController) {
+                        abortController.abort();
+                    }
                     abortController = new AbortController();
 
                     fetch(`/map/api/data?${params.toString()}`, { signal: abortController.signal })
@@ -521,8 +563,12 @@
                             if(data.features && data.features.length > 0) geoJsonLayer.addData(data);
                             if(loading) loading.classList.add('hidden');
                         })
-                        .catch(err => { if (err.name !== 'AbortError' && loading) loading.classList.add('hidden'); });
-                }, 350);
+                        .catch(err => { 
+                            if (err.name !== 'AbortError' && loading) {
+                                loading.classList.add('hidden'); 
+                            }
+                        });
+                }, 300);
             };
 
             map.on('moveend', loadData); 
@@ -534,30 +580,17 @@
                 geoJsonLayer.eachLayer(function(layer) { if (layer.setStyle) layer.setStyle({ fillOpacity: currentOpacity }); });
             });
 
-            window.deleteAsset = function(id) {
-                Swal.fire({ title: 'Hapus Aset?', text: "Bidang tanah akan dihapus permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
-                    if (result.isConfirmed) {
-                        fetch(`/map/asset/${id}`, { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-HTTP-Method-Override': 'DELETE' } 
-                        }).then(res => res.json()).then(data => { Swal.fire('Terhapus!', data.message, 'success'); loadData(); });
-                    }
-                });
-            };
-
             // ==========================================
             // LOGIKA MODAL ATRIBUT & LINK BERKAS
             // ==========================================
             window.editAtributAset = function(raw, id, layerId) {
                 document.getElementById('form_mode').value = 'update';
                 document.getElementById('form_asset_id').value = id;
-                
                 document.getElementById('form_layer_id').value = layerId || '';
                 
                 let r = {};
                 for(let key in raw) r[key.toUpperCase()] = raw[key];
 
-                // LOGIKA AUTO-SELECT Nomer Berkas Link
                 let noBerkasVal = r['NOMER_BERKAS'] || r['NO_BERKAS'] || '';
                 let selectNoBerkas = document.getElementById('form_no_berkas');
                 
@@ -565,8 +598,7 @@
                 if (optionExists) {
                     selectNoBerkas.value = noBerkasVal;
                 } else if (noBerkasVal !== '') {
-                    // Jika ada nomor berkas tapi tidak ada di pilihan "Meja Saya", tambahkan sebagai opsi sementara
-                    let newOption = new Option(noBerkasVal + ' (Riwayat / Diluar Meja)', noBerkasVal);
+                    let newOption = new Option(noBerkasVal + ' (Telah Tertaut)', noBerkasVal);
                     selectNoBerkas.add(newOption);
                     selectNoBerkas.value = noBerkasVal;
                 } else {
@@ -594,7 +626,7 @@
                 let mode = document.getElementById('form_mode').value;
                 let payload = {
                     layer_id: document.getElementById('form_layer_id').value,
-                    nomer_berkas: document.getElementById('form_no_berkas').value, // <-- MENYIMPAN HASIL DROPDOWN
+                    nomer_berkas: document.getElementById('form_no_berkas').value,
                     nib: document.getElementById('form_nib').value,
                     tipehak: document.getElementById('form_tipehak').value,
                     luas: document.getElementById('form_luas').value,
@@ -655,12 +687,12 @@
                 });
             };
 
-            loadData(); // Inisialisasi peta pertama kali
+            loadData(); 
 
             // ==========================================
             // DETEKSI AUTO ZOOM DARI HALAMAN DATA ASET
             // ==========================================
-            const urlParams = new URLSearchParams(window.location.search); // [PERBAIKAN TYPO DISINI]
+            const urlParams = new URLSearchParams(window.location.search);
             const zoomAssetId = urlParams.get('zoom_asset');
 
             if (zoomAssetId) {

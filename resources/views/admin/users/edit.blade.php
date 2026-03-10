@@ -1,114 +1,138 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            <i class="fa-solid fa-user-pen mr-2"></i>
-            Edit Pengguna: {{ $user->name }}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
+            <a href="{{ route('admin.users.index') }}" class="mr-3 text-gray-400 hover:text-gray-600 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            {{ __('Edit Pengguna') }}: <span class="ml-2 text-indigo-600">{{ $user->name }}</span>
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-12 bg-gray-50 min-h-screen">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                <form action="{{ route('admin.users.update', $user) }}" method="POST" class="p-6 lg:p-8">
+            <div class="bg-white overflow-hidden shadow-xl sm:rounded-xl border border-gray-200">
+                
+                @if ($errors->any())
+                    <div class="bg-red-50 p-4 border-b border-red-200">
+                        <ul class="list-disc list-inside text-sm text-red-600 font-medium">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form action="{{ route('admin.users.update', $user->id) }}" method="POST" class="p-6 sm:p-8">
                     @csrf
                     @method('PATCH')
 
-                    <div>
-                        <x-input-label for="name" :value="__('Nama Lengkap')" />
-                        <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name', $user->name)" required autofocus />
-                        <x-input-error :messages="$errors->get('name')" class="mt-2" />
-                    </div>
+                    {{-- INFORMASI DASAR PENGGUNA --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{-- Nama --}}
+                        <div>
+                            <label for="name" class="block text-sm font-bold text-gray-700 mb-1">Nama Lengkap <span class="text-red-500">*</span></label>
+                            <input type="text" name="name" id="name" value="{{ old('name', $user->name) }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
+                        </div>
 
-                    <div class="mt-4">
-                        <x-input-label for="email" :value="__('Email')" />
-                        <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $user->email)" required />
-                        <x-input-error :messages="$errors->get('email')" class="mt-2" />
-                    </div>
+                        {{-- Email --}}
+                        <div>
+                            <label for="email" class="block text-sm font-bold text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
+                            <input type="email" name="email" id="email" value="{{ old('email', $user->email) }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
+                        </div>
 
-                    <div class="mt-4">
-                        <x-input-label for="jabatan_id" :value="__('Jabatan')" />
-                        <select id="jabatan_id" name="jabatan_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
-                            @foreach ($jabatans as $jabatan)
-                                <option value="{{ $jabatan->id }}" {{ old('jabatan_id', $user->jabatan_id) == $jabatan->id ? 'selected' : '' }}>
-                                    {{ $jabatan->nama_jabatan }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('jabatan_id')" class="mt-2" />
-                    </div>
+                        {{-- Password --}}
+                        <div>
+                            <label for="password" class="block text-sm font-bold text-gray-700 mb-1">Password Baru</label>
+                            <input type="password" name="password" id="password" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-50" placeholder="Biarkan kosong jika tidak diubah">
+                            <p class="text-[10px] text-gray-500 mt-1 italic">*Isi hanya jika Anda ingin mereset password pengguna ini.</p>
+                        </div>
 
-                    <div class="mt-6 p-5 border border-gray-200 rounded-md bg-gray-50">
-                        <h3 class="text-lg font-medium text-gray-900 mb-1">Hak Akses Menu & Fitur (Untuk Non-Admin)</h3>
-                        <p class="text-sm text-gray-500 mb-4">Centang menu di bawah ini untuk memberikan izin akses kepada user. (Abaikan jika user ini menjabat sebagai Admin).</p>
-                        
-                        @php 
-                            // Pastikan data bisa dibaca baik sebagai array langsung maupun JSON string
-                            $akses = is_array($user->akses_menu) ? $user->akses_menu : json_decode($user->akses_menu, true) ?? []; 
-                        @endphp
-                        
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="akses_menu[]" value="laporan_rinci" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('laporan_rinci', $akses) ? 'checked' : '' }}>
-                                <span class="ml-2 text-sm text-gray-700">Laporan Rinci</span>
-                            </label>
-
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="akses_menu[]" value="ruang_kerja" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('ruang_kerja', $akses) ? 'checked' : '' }}>
-                                <span class="ml-2 text-sm text-gray-700">Ruang Kerja Internal</span>
-                            </label>
-
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="akses_menu[]" value="silabus" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('silabus', $akses) ? 'checked' : '' }}>
-                                <span class="ml-2 text-sm text-gray-700">Silabus (Buku Tanah)</span>
-                            </label>
-
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="akses_menu[]" value="penjadwalan_ukur" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('penjadwalan_ukur', $akses) ? 'checked' : '' }}>
-                                <span class="ml-2 text-sm text-gray-700">Penjadwalan Ukur</span>
-                            </label>
-
-                            {{-- Checkbox Hak Akses Membuat Berkas Baru --}}
-                            <label class="inline-flex items-center bg-indigo-50 p-2 rounded border border-indigo-100 mt-2 sm:mt-0">
-                                <input type="checkbox" name="akses_menu[]" value="buat_berkas" class="rounded border-indigo-500 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('buat_berkas', $akses) ? 'checked' : '' }}>
-                                <span class="ml-2 text-sm font-bold text-indigo-700">Fitur: Buat Berkas Baru</span>
-                            </label>
-
-                            {{-- [BARU] Checkbox Hak Akses WebGIS --}}
-                            <label class="inline-flex items-center mt-2 sm:mt-0">
-                                <input type="checkbox" name="akses_menu[]" value="WebGIS" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('WebGIS', $akses) ? 'checked' : '' }}>
-                                <span class="ml-2 text-sm text-gray-700 font-semibold">WebGIS (Melihat Peta)</span>
-                            </label>
-
-                            {{-- [BARU] Checkbox Hak Akses Kelola Layer Peta --}}
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="akses_menu[]" value="Kelola Layer" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ in_array('Kelola Layer', $akses) ? 'checked' : '' }}>
-                                <span class="ml-2 text-sm text-gray-700">Kelola Layer (Import SHP & Warna)</span>
-                            </label>
+                        {{-- Jabatan --}}
+                        <div>
+                            <label for="jabatan_id" class="block text-sm font-bold text-gray-700 mb-1">Jabatan / Role <span class="text-red-500">*</span></label>
+                            <select name="jabatan_id" id="jabatan_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-semibold" required>
+                                <option value="" disabled>-- Pilih Jabatan --</option>
+                                @foreach(\App\Models\Jabatan::orderBy('nama_jabatan')->get() as $jab)
+                                    <option value="{{ $jab->id }}" {{ (old('jabatan_id', $user->jabatan_id) == $jab->id) ? 'selected' : '' }}>
+                                        {{ $jab->nama_jabatan }} {{ $jab->is_mitra ? '(Mitra)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
-                    
-                    <hr class="my-6 border-gray-200">
-                    <p class="text-sm text-gray-600 mb-4">Kosongkan bagian password di bawah ini jika Anda <b>tidak ingin mengubahnya</b>.</p>
 
-                    <div class="mt-4">
-                        <x-input-label for="password" :value="__('Password Baru (Opsional)')" />
-                        <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" autocomplete="new-password" />
-                        <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                    <hr class="my-8 border-gray-200">
+
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-shield-halved mr-2 text-indigo-600"></i> Pengaturan Hak Akses
+                    </h3>
+
+                    {{-- 1. AKSES MENU (SUB-MENU) --}}
+                    <div class="mb-6 bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <label class="block text-sm font-bold text-gray-700 mb-3"><i class="fa-solid fa-bars mr-1.5 text-gray-400"></i> Hak Akses Menu Aplikasi</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            @php
+                                $userAksesMenu = is_array($user->akses_menu) ? $user->akses_menu : json_decode($user->akses_menu, true) ?? [];
+                                
+                                // Silakan sesuaikan array ini dengan daftar menu yang ada di sidebar Anda
+                                $listMenu = [
+                                    'Dashboard', 'Ruang Kerja', 'Kwitansi', 'Peminjaman BT', 
+                                    'Jadwal Ukur', 'Surat Tugas', 'Laporan', 'WebGIS', 
+                                    'Data Aset', 'Kelola Layer', 'Manajemen Pengguna', 'Data Master'
+                                ];
+                            @endphp
+                            
+                            @foreach($listMenu as $menu)
+                            <label class="inline-flex items-center bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer transition">
+                                <input type="checkbox" name="akses_menu[]" value="{{ $menu }}" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" {{ in_array($menu, $userAksesMenu) ? 'checked' : '' }}>
+                                <span class="ml-2 text-xs font-bold text-gray-700 select-none">{{ $menu }}</span>
+                            </label>
+                            @endforeach
+                        </div>
                     </div>
 
-                    <div class="mt-4">
-                        <x-input-label for="password_confirmation" :value="__('Konfirmasi Password Baru')" />
-                        <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation" autocomplete="new-password" />
-                        <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                    {{-- 2. AKSES LAYER PETA (KHUSUS WEBGIS) --}}
+                    <div class="mb-6 p-5 bg-indigo-50 border border-indigo-100 rounded-xl shadow-sm">
+                        <label class="block text-sm font-bold text-indigo-800 mb-1">
+                            <i class="fa-solid fa-layer-group mr-1.5"></i> Akses Layer Peta (WebGIS)
+                        </label>
+                        <p class="text-xs text-indigo-600/80 mb-4 font-medium">Beri centang pada layer yang boleh dilihat oleh pengguna/mitra ini di dalam Peta.</p>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            @php
+                                $allLayers = \App\Models\MapLayer::orderBy('nama_layer')->get();
+                                $userAksesLayer = is_array($user->akses_layer) ? $user->akses_layer : json_decode($user->akses_layer, true) ?? [];
+                            @endphp
+                            
+                            @foreach($allLayers as $layer)
+                            <label class="inline-flex items-center p-2.5 bg-white rounded-lg border border-indigo-200 shadow-sm hover:bg-indigo-100 hover:border-indigo-300 cursor-pointer transition group">
+                                <input type="checkbox" name="akses_layer[]" value="{{ $layer->id }}" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" {{ in_array($layer->id, $userAksesLayer) ? 'checked' : '' }}>
+                                <span class="ml-2 text-xs font-bold text-gray-700 truncate select-none group-hover:text-indigo-800" title="{{ $layer->nama_layer }}">{{ Str::limit($layer->nama_layer, 25) }}</span>
+                            </label>
+                            @endforeach
+                            
+                            @if($allLayers->isEmpty())
+                                <div class="col-span-full text-xs text-gray-500 italic bg-white p-3 rounded-lg border border-dashed border-gray-300 text-center">Belum ada layer peta yang dibuat di Master Layer.</div>
+                            @endif
+                        </div>
                     </div>
 
-                    <div class="flex items-center justify-end mt-6">
-                        <a href="{{ route('admin.users.index') }}" class="text-sm text-gray-600 hover:text-gray-900 mr-4">
-                            Batal
-                        </a>
-                        <x-primary-button>
-                            {{ __('Simpan Perubahan') }}
-                        </x-primary-button>
+                    {{-- 3. STATUS AKUN --}}
+                    <div class="mb-6 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="hidden" name="is_approved" value="0">
+                            <input type="checkbox" name="is_approved" value="1" class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-5 h-5" {{ $user->is_approved ? 'checked' : '' }}>
+                            <span class="ml-3 text-sm font-bold text-gray-800 select-none">Akun Disetujui (Approved) & Aktif</span>
+                        </label>
+                        <p class="text-[11px] text-gray-500 mt-1 ml-8">Hapus centang untuk menonaktifkan pengguna ini agar tidak bisa melakukan Login.</p>
+                    </div>
+
+                    {{-- TOMBOL AKSI --}}
+                    <div class="flex items-center justify-end mt-8 border-t border-gray-200 pt-6">
+                        <a href="{{ route('admin.users.index') }}" class="text-sm font-bold text-gray-500 hover:text-gray-800 mr-4 transition">Batal</a>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition flex items-center">
+                            <i class="fa-solid fa-save mr-2"></i> Simpan Perubahan
+                        </button>
                     </div>
                 </form>
             </div>

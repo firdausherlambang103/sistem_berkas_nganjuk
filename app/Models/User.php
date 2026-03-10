@@ -27,6 +27,7 @@ class User extends Authenticatable
         'jabatan_id',
         'is_approved',
         'akses_menu', // [BARU] Tambahkan ini agar bisa disimpan ke database
+        'akses_layer',
     ];
 
     /**
@@ -49,6 +50,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'is_approved' => 'boolean',
         'akses_menu' => 'array', // [BARU] Ubah otomatis dari JSON ke Array PHP
+        'akses_layer' => 'array',
     ];
 
     // [BARU] Fungsi untuk mengecek hak akses menu/fitur dari checkbox Admin

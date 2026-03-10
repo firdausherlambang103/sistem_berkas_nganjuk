@@ -14,35 +14,34 @@ class UserController extends Controller
     /**
      * Menampilkan daftar semua pengguna (disetujui dan menunggu).
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Mengambil pengguna yang belum disetujui
-        $pendingUsers = User::where('is_approved', false)
-                            ->orderBy('created_at', 'desc')
-                            ->get();
-        
-        // Mengambil pengguna yang SUDAH disetujui beserta jabatannya
-        $approvedUsers = User::where('is_approved', true)
-                             ->with('jabatan') 
-                             ->orderBy('name', 'asc')
-                             ->get();
+        $search = $request->input('search');
 
-        // Pisahkan pengguna INTERNAL (Pegawai/Admin) dan kelompokkan per jabatan
-        $internalUsers = $approvedUsers->filter(function($user) {
-            return empty($user->jabatan) || !$user->jabatan->is_mitra;
-        })->groupBy(function($user) {
-            return $user->jabatan->nama_jabatan ?? 'Tanpa Jabatan';
-        })->sortKeys();
+        // Query dasar untuk semua user dengan relasi jabatan
+        $baseQuery = \App\Models\User::with('jabatan');
 
-        // Pisahkan pengguna MITRA (PPAT/Freelance) dan kelompokkan per jabatan
-        $mitraUsers = $approvedUsers->filter(function($user) {
-            return !empty($user->jabatan) && $user->jabatan->is_mitra;
-        })->groupBy(function($user) {
-            return $user->jabatan->nama_jabatan;
-        })->sortKeys();
-                                
-        // Mengirimkan ketiga variabel ke view
-        return view('admin.users.index', compact('pendingUsers', 'internalUsers', 'mitraUsers'));
+        // Logika Pencarian
+        if ($search) {
+            $baseQuery->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Ambil Data Pengguna Internal (Pegawai yang bukan Mitra, atau yang belum punya jabatan)
+        $internalUsers = (clone $baseQuery)->where(function($q) {
+            $q->whereHas('jabatan', function($q2) {
+                $q2->where('is_mitra', false)->orWhereNull('is_mitra');
+            })->orWhereNull('jabatan_id');
+        })->orderBy('name')->get();
+
+        // Ambil Data Mitra (Hanya yang jabatannya di-set sebagai Mitra)
+        $mitraUsers = (clone $baseQuery)->whereHas('jabatan', function($q) {
+            $q->where('is_mitra', true);
+        })->orderBy('name')->get();
+
+        return view('admin.users.index', compact('internalUsers', 'mitraUsers', 'search'));
     }
 
     /**
