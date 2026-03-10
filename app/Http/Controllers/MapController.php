@@ -345,6 +345,7 @@ class MapController extends Controller
             
             // Susun data atribut ke dalam raw_data
             $rawData = [
+                'NOMER_BERKAS' => $request->nomer_berkas ?? '', // <--- PERBAIKAN DISINI
                 'NIB' => $request->nib ?? '-',
                 'TIPEHAK' => $request->tipehak ?? 'Tidak Diketahui',
                 'LUAS' => $request->luas ?? 0,
@@ -354,8 +355,11 @@ class MapController extends Controller
                 'KETERANGAN' => $request->keterangan ?? '-'
             ];
 
+            // Tentukan nama properti berdasarkan Nomer Berkas / NIB
+            $featureName = $request->nomer_berkas ?: ($request->nib ?? 'Aset Baru');
+
             DB::connection('pgsql')->table('spatial_features')->insert([
-                'name' => $request->nib ?? 'Aset Baru',
+                'name' => $featureName,
                 'layer_id' => $layerId,
                 'properties' => json_encode([
                     'type' => 'Manual_Draw',
@@ -394,6 +398,7 @@ class MapController extends Controller
                 $raw = $props['raw_data'] ?? [];
                 
                 // Update nilai array
+                $raw['NOMER_BERKAS'] = $request->nomer_berkas ?? ''; // <--- PERBAIKAN DISINI
                 $raw['NIB'] = $request->nib;
                 $raw['TIPEHAK'] = $request->tipehak;
                 $raw['LUAS'] = $request->luas;
@@ -404,7 +409,9 @@ class MapController extends Controller
 
                 $props['raw_data'] = $raw;
                 $updateData['properties'] = json_encode($props);
-                $updateData['name'] = $request->nib;
+                
+                // Set name dari Nomer Berkas, lalu NIB
+                $updateData['name'] = $request->nomer_berkas ?: ($request->nib ?? 'Aset');
                 
                 if($request->has('layer_id')) {
                     $updateData['layer_id'] = $request->layer_id;

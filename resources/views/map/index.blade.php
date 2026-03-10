@@ -27,7 +27,7 @@
     <div class="relative w-full bg-gray-200 overflow-hidden" style="height: calc(100vh - 140px); min-height: 600px;">
         
         {{-- LOADING INDICATOR --}}
-        <div id="map-loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[4000] bg-white/95 px-6 py-3 rounded-full font-bold shadow-2xl text-gray-700 flex items-center border border-gray-100 backdrop-blur-sm">
+        <div id="map-loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white/95 px-6 py-3 rounded-full font-bold shadow-2xl text-gray-700 flex items-center border border-gray-100 backdrop-blur-sm">
             <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 text-xl mr-3"></i> 
             <span id="loading-text">Memuat Data Spasial...</span>
         </div>
@@ -42,7 +42,7 @@
                 <div>
                     <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Pencarian Cepat</label>
                     <div class="relative">
-                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik NIB / No Berkas...">
+                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik NIB/No Berkas...">
                         <button onclick="document.getElementById('searchMap').value=''; loadData();" class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
@@ -109,18 +109,18 @@
             <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-[11px] uppercase tracking-wider flex items-center">
                 <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Tipe Hak
             </h6>
-            <div class="space-y-2 text-[11px] text-gray-700 font-medium">
-                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#28a745] border border-gray-300 shadow-sm"></div> Hak Milik (HM)</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#ffc107] border border-gray-300 shadow-sm"></div> HGB</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#17a2b8] border border-gray-300 shadow-sm"></div> Hak Pakai (HP)</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#fd7e14] border border-gray-300 shadow-sm"></div> HGU</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#6f42c1] border border-gray-300 shadow-sm"></div> Tanah Wakaf</div>
-                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#cccccc] border border-gray-300 shadow-sm"></div> Default / Lainnya</div>
+            <div class="space-y-1.5 text-[11px] text-gray-700 font-medium">
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#28a745] border border-gray-300"></div> Hak Milik (HM)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#ffc107] border border-gray-300"></div> HGB</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#17a2b8] border border-gray-300"></div> Hak Pakai (HP)</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#fd7e14] border border-gray-300"></div> HGU</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#6f42c1] border border-gray-300"></div> Tanah Wakaf</div>
+                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#cccccc] border border-gray-300"></div> Default / Lainnya</div>
             </div>
         </div>
 
         {{-- TOMBOL LOKASI SAYA --}}
-        <button onclick="goToMyLocation()" class="absolute bottom-[260px] left-[15px] z-[1000] w-10 h-10 bg-white text-gray-700 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 hover:text-indigo-600 transition border border-gray-200" title="Cari Lokasi Saya">
+        <button onclick="goToMyLocation()" class="absolute bottom-[240px] left-[15px] z-[1000] w-10 h-10 bg-white text-gray-700 rounded-lg shadow-[0_4px_10px_rgba(0,0,0,0.15)] flex items-center justify-center hover:bg-gray-50 hover:text-indigo-600 transition border border-gray-200" title="Cari Lokasi Saya">
             <i class="fa-solid fa-crosshairs text-lg"></i>
         </button>
 
@@ -161,7 +161,7 @@
         </div>
     </div>
 
-    {{-- MODAL ATRIBUT (UNTUK MENGISI/MENGEDIT DATA SETELAH MENGGAMBAR ATAU LINK) --}}
+    {{-- MODAL ATRIBUT (UNTUK MENGISI/MENGEDIT DATA SETELAH MENGGAMBAR) --}}
     <div id="modalAtribut" class="fixed inset-0 z-[4000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
         <div class="flex items-center justify-center min-h-screen px-4 py-8">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all border border-gray-100">
@@ -280,8 +280,8 @@
         // ==========================================
         var map, geoJsonLayer, userMarker;
         var currentOpacity = 0.6;
-        var abortController = null; // Menghindari error JS
-        var fetchTimeout = null;    // Menghindari error JS
+        var abortController = null; 
+        var fetchTimeout = null;    
 
         function bukaModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -291,7 +291,11 @@
             if (navigator.geolocation) {
                 Swal.fire({ title: 'Mencari Lokasi...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
                 
-                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+                const options = {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                };
 
                 navigator.geolocation.getCurrentPosition(
                     position => {
@@ -322,7 +326,6 @@
             @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}' }); @endif
             @if(session('error')) Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: '{!! session('error') !!}' }); @endif
 
-            // Inisialisasi Peta
             map = L.map('main-map', { 
                 zoomControl: false, 
                 maxZoom: 22,
@@ -335,6 +338,8 @@
             var googleSatLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{ maxNativeZoom: 20, maxZoom: 22 });
             osmLayer.addTo(map);
             L.control.layers({ "Peta Jalan (OSM)": osmLayer, "Satelit (Google)": googleSatLayer }, null, { position: 'bottomleft' }).addTo(map);
+
+            currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
             
             function getColor(feature) {
                 if(feature.properties && feature.properties.layer_color) { return feature.properties.layer_color; }
@@ -346,10 +351,7 @@
                 layer.setStyle({ weight: 3, color: '#111827', fillOpacity: 0.8 });
                 if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) layer.bringToFront();
             }
-            
-            function resetHighlight(e) { 
-                geoJsonLayer.resetStyle(e.target); 
-            }
+            function resetHighlight(e) { geoJsonLayer.resetStyle(e.target); }
 
             // ==========================================
             // KONTROL GEOMAN (DRAWING & EDITING TOOLS)
@@ -395,7 +397,7 @@
             @endif
 
             // ==========================================
-            // RENDER GEOJSON LAYER & POPUP ASET
+            // RENDER GEOJSON LAYER & MENDETEKSI LINK
             // ==========================================
             geoJsonLayer = L.geoJSON(null, {
                 style: function(feature) {
@@ -490,11 +492,10 @@
             }).addTo(map);
 
             // ==========================================
-            // FUNGSI PENGAMBILAN DATA (AJAX)
+            // FUNGSI JAVASCRIPT GLOBAL (DIPERBAIKI)
             // ==========================================
             window.loadData = function() {
-                clearTimeout(fetchTimeout); // Debounce requests
-                
+                clearTimeout(fetchTimeout);
                 fetchTimeout = setTimeout(function() {
                     var loading = document.getElementById('map-loading');
                     if(loading) loading.classList.remove('hidden');
@@ -510,10 +511,7 @@
                     });
                     selectedLayers.forEach(id => params.append('layers[]', id));
 
-                    // Membatalkan request lama jika belum selesai
-                    if (abortController) {
-                        abortController.abort();
-                    }
+                    if (abortController) abortController.abort();
                     abortController = new AbortController();
 
                     fetch(`/map/api/data?${params.toString()}`, { signal: abortController.signal })
@@ -523,12 +521,8 @@
                             if(data.features && data.features.length > 0) geoJsonLayer.addData(data);
                             if(loading) loading.classList.add('hidden');
                         })
-                        .catch(err => { 
-                            if (err.name !== 'AbortError' && loading) {
-                                loading.classList.add('hidden'); 
-                            }
-                        });
-                }, 300);
+                        .catch(err => { if (err.name !== 'AbortError' && loading) loading.classList.add('hidden'); });
+                }, 350);
             };
 
             map.on('moveend', loadData); 
@@ -557,6 +551,7 @@
             window.editAtributAset = function(raw, id, layerId) {
                 document.getElementById('form_mode').value = 'update';
                 document.getElementById('form_asset_id').value = id;
+                
                 document.getElementById('form_layer_id').value = layerId || '';
                 
                 let r = {};
@@ -570,7 +565,7 @@
                 if (optionExists) {
                     selectNoBerkas.value = noBerkasVal;
                 } else if (noBerkasVal !== '') {
-                    // Jika ada nomor berkas tapi tidak ada di pilihan "Meja Saya", tambahkan opsi sementara
+                    // Jika ada nomor berkas tapi tidak ada di pilihan "Meja Saya", tambahkan sebagai opsi sementara
                     let newOption = new Option(noBerkasVal + ' (Riwayat / Diluar Meja)', noBerkasVal);
                     selectNoBerkas.add(newOption);
                     selectNoBerkas.value = noBerkasVal;
@@ -599,7 +594,7 @@
                 let mode = document.getElementById('form_mode').value;
                 let payload = {
                     layer_id: document.getElementById('form_layer_id').value,
-                    nomer_berkas: document.getElementById('form_no_berkas').value, // <-- MENYIMPAN HASIL DROPDOWN LINK
+                    nomer_berkas: document.getElementById('form_no_berkas').value, // <-- MENYIMPAN HASIL DROPDOWN
                     nib: document.getElementById('form_nib').value,
                     tipehak: document.getElementById('form_tipehak').value,
                     luas: document.getElementById('form_luas').value,
@@ -665,7 +660,7 @@
             // ==========================================
             // DETEKSI AUTO ZOOM DARI HALAMAN DATA ASET
             // ==========================================
-            const urlParams = newSearchParams(window.location.search);
+            const urlParams = new URLSearchParams(window.location.search); // [PERBAIKAN TYPO DISINI]
             const zoomAssetId = urlParams.get('zoom_asset');
 
             if (zoomAssetId) {

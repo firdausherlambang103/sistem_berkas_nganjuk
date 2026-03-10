@@ -30,7 +30,7 @@
             <div class="md:col-span-1 space-y-6">
                 
                 {{-- 1. INFORMASI BERKAS --}}
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
+                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 border border-gray-200">
                     <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fa-solid fa-circle-info mr-2 text-indigo-500"></i>Informasi Berkas</h3>
                     <dl class="space-y-4">
                         <div>
@@ -43,7 +43,10 @@
                         </div>
                         <div>
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis & No. Hak</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ $berkas->jenis_alas_hak }} - {{ $berkas->nomer_hak }}</dd>
+                            <dd class="mt-1 text-sm text-gray-900 font-medium">
+                                <span class="bg-gray-100 px-2 py-0.5 rounded border border-gray-300">{{ $berkas->jenis_alas_hak }}</span>
+                                <span class="ml-1 text-indigo-600 font-mono">{{ $berkas->nomer_hak }}</span>
+                            </dd>
                         </div>
                         <div>
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis Permohonan</dt>
@@ -51,7 +54,7 @@
                         </div>
                          <div>
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Posisi Saat Ini</dt>
-                            <dd class="mt-1 text-sm font-semibold text-green-600 flex items-center">
+                            <dd class="mt-1 text-sm font-semibold text-green-600 flex items-center bg-green-50 p-2 rounded-md border border-green-200">
                                 <i class="fa-solid fa-user-check mr-2"></i> {{ $berkas->posisiSekarang->name ?? 'N/A' }}
                             </dd>
                         </div>
@@ -63,7 +66,7 @@
             <div class="md:col-span-2 space-y-6">
                 
                 {{-- 3. DATA PENDUKUNG & PETA LOKASI --}}
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
+                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 border border-gray-200">
                     <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fa-solid fa-map-location-dot mr-2 text-indigo-500"></i>Lampiran & Lokasi Peta</h3>
                     
                     {{-- Area Tombol Download PDF --}}
@@ -90,22 +93,38 @@
                     </div>
 
                     {{-- Area Peta --}}
-                    @if($berkas->latitude && $berkas->longitude)
+                    @if(isset($geojsonGeometry) && $geojsonGeometry)
+                        {{-- Skenario 1: Jika data terhubung ke WebGIS (Punya Poligon) --}}
                         <div class="w-full h-[350px] rounded-md border border-gray-300 z-10 shadow-inner" id="map-detail"></div>
-                        <div class="mt-2 text-sm text-gray-600 flex justify-between bg-gray-50 p-2 rounded border border-gray-200">
+                        <div class="mt-3 text-sm text-green-700 bg-green-50 p-2.5 rounded-md border border-green-200 flex items-center font-semibold">
+                            <i class="fa-solid fa-circle-check text-green-600 mr-2 text-lg"></i>
+                            Bidang tanah ini berhasil di-link dari Peta WebGIS.
+                        </div>
+
+                    @elseif($berkas->latitude && $berkas->longitude)
+                        {{-- Skenario 2: Jika hanya punya titik koordinat manual (Tidak ada poligon) --}}
+                        <div class="w-full h-[350px] rounded-md border border-gray-300 z-10 shadow-inner" id="map-detail"></div>
+                        <div class="mt-3 text-sm text-gray-600 flex justify-between bg-gray-50 p-2 rounded border border-gray-200">
                             <span><b class="text-indigo-600">Latitude:</b> {{ $berkas->latitude }}</span>
                             <span><b class="text-indigo-600">Longitude:</b> {{ $berkas->longitude }}</span>
                         </div>
+                        <p class="text-[11px] text-gray-500 mt-2 italic">*Hanya berupa titik referensi (belum di-link dengan poligon WebGIS).</p>
+
                     @else
-                        <div class="w-full h-40 bg-gray-50 rounded-md border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500 p-4 text-center">
-                            <i class="fa-solid fa-location-dot text-3xl mb-3 text-gray-300"></i>
-                            <p class="text-sm font-medium">Data koordinat / peta tidak dilampirkan.</p>
+                        {{-- Skenario 3: Sama sekali tidak punya data lokasi --}}
+                        <div class="w-full h-[250px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500 p-4 text-center">
+                            <i class="fa-solid fa-map-location-dot text-4xl mb-3 text-gray-300"></i>
+                            <p class="text-sm font-bold text-gray-600">Belum ada data spasial (Peta) yang terhubung.</p>
+                            <p class="text-[11px] mt-1 text-gray-500 max-w-sm">Silakan link-kan Nomer Berkas ini melalui fitur Link Data di menu <b>WebGIS > Peta Utama</b> agar bidang tanah dapat dilihat.</p>
+                            <a href="{{ route('map.index') }}" class="mt-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-5 py-2 rounded-md text-xs font-bold transition shadow-sm">
+                                <i class="fa-solid fa-map mr-1"></i> Buka WebGIS
+                            </a>
                         </div>
                     @endif
                 </div>
 
                 {{-- 4. LINIMASA RIWAYAT --}}
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
+                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 border border-gray-200">
                     <h3 class="text-lg font-bold text-gray-800 mb-6 border-b pb-2"><i class="fa-solid fa-clock-rotate-left mr-2 text-indigo-500"></i>Linimasa Riwayat</h3>
                     <div class="relative border-l-2 border-gray-200 ml-3">
                         @forelse ($berkas->riwayat->sortByDesc('created_at') as $item)
@@ -117,7 +136,7 @@
                                         <i class="fa-solid fa-arrow-right-arrow-left text-blue-600"></i>
                                     @endif
                                 </span>
-                                <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                                     <div class="items-center justify-between sm:flex mb-2">
                                         <time class="mb-1 text-xs font-normal text-gray-500 sm:order-last sm:mb-0">{{ $item->created_at->isoFormat('dddd, D MMMM YYYY - HH:mm') }}</time>
                                         <p class="text-sm font-semibold text-gray-800">
@@ -132,7 +151,7 @@
                                         </p>
                                     </div>
                                     @if($item->catatan_pengiriman)
-                                    <div class="p-3 mt-2 text-xs italic text-gray-800 bg-yellow-50 rounded-lg border border-yellow-200">
+                                    <div class="p-3 mt-2 text-xs italic text-gray-800 bg-yellow-50 rounded-md border border-yellow-200">
                                         Catatan: "{{ $item->catatan_pengiriman }}"
                                     </div>
                                     @endif
@@ -150,43 +169,81 @@
     </div>
 
     @push('scripts')
-    @if($berkas->latitude && $berkas->longitude)
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    {{-- Hanya render script peta jika data lokasi/polygon tersedia --}}
+    @if((isset($geojsonGeometry) && $geojsonGeometry) || ($berkas->latitude && $berkas->longitude))
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                var lat = {{ $berkas->latitude }};
-                var lng = {{ $berkas->longitude }};
+                
+                // Base Layers
+                var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 22 });
+                var googleSatLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', { maxNativeZoom: 20, maxZoom: 22 });
 
-                var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap'
-                });
-
-                var googleSatLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-                    maxZoom: 20,
-                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                    attribution: '&copy; Google Satellite'
-                });
-
+                // Inisialisasi Peta
                 var map = L.map('map-detail', {
-                    center: [lat, lng],
-                    zoom: 16,
-                    layers: [googleSatLayer] // Tampilan default mode satelit untuk detail
+                    zoomControl: true,
+                    maxZoom: 22,
+                    layers: [googleSatLayer] // Default mode satelit
                 });
 
-                var baseMaps = {
+                L.control.layers({
                     "Satelit (Google)": googleSatLayer,
                     "Peta Jalan (OSM)": osmLayer
-                };
-                L.control.layers(baseMaps).addTo(map);
+                }).addTo(map);
 
-                // Tambahkan Marker
-                L.marker([lat, lng]).addTo(map)
-                    .bindPopup('<b>Lokasi Objek Berkas:</b><br>{{ $berkas->nomer_berkas }}')
-                    .openPopup();
+                @if(isset($geojsonGeometry) && $geojsonGeometry)
+                    // ===============================================
+                    // LOGIKA RENDER POLIGON (DATA DARI WEBGIS)
+                    // ===============================================
+                    var geojsonFeature = {
+                        "type": "Feature",
+                        "properties": {},
+                        "geometry": {!! $geojsonGeometry !!}
+                    };
 
-                setTimeout(function(){ map.invalidateSize(); }, 500);
+                    var layer = L.geoJSON(geojsonFeature, {
+                        style: function (feature) {
+                            return {
+                                color: '#ef4444',       // Pinggiran merah
+                                weight: 4,              // Ketebalan garis
+                                fillColor: '#ef4444',   // Isian merah
+                                fillOpacity: 0.45       // Transparansi isian
+                            };
+                        }
+                    }).addTo(map);
+
+                    // Fit (Zoom) otomatis ke dalam ukuran poligon
+                    map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 20 });
+
+                    layer.bindPopup(`
+                        <div class="text-center font-sans">
+                            <b class="text-indigo-700 text-[10px] uppercase tracking-wider block mb-1">Lokasi Aset</b>
+                            <span class="font-extrabold text-gray-800 text-sm">{{ $berkas->nomer_berkas }}</span>
+                        </div>
+                    `).openPopup();
+
+                @elseif($berkas->latitude && $berkas->longitude)
+                    // ===============================================
+                    // LOGIKA RENDER MARKER TITIK (JIKA TIDAK ADA POLIGON)
+                    // ===============================================
+                    var lat = {{ $berkas->latitude }};
+                    var lng = {{ $berkas->longitude }};
+                    
+                    map.setView([lat, lng], 18);
+
+                    L.marker([lat, lng]).addTo(map)
+                        .bindPopup(`
+                            <div class="text-center font-sans">
+                                <b class="text-indigo-700 text-[10px] uppercase tracking-wider block mb-1">Titik Referensi</b>
+                                <span class="font-extrabold text-gray-800 text-sm">{{ $berkas->nomer_berkas }}</span>
+                            </div>
+                        `)
+                        .openPopup();
+                @endif
+
+                setTimeout(function(){ map.invalidateSize(); }, 600);
             });
         </script>
     @endif
