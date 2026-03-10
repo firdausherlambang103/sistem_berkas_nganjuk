@@ -18,7 +18,7 @@ use App\Http\Controllers\SuratTugasController;
 use App\Http\Controllers\SensusWakafController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
 use App\Http\Controllers\MapController;
-use App\Http\Controllers\StatistikController;
+use App\Http\Controllers\StatistikController; // <-- TAMBAHAN IMPORT CONTROLLER STATISTIK
 
 // Import Controller Khusus Mitra
 use App\Http\Controllers\Mitra\AuthController as MitraAuthController;
@@ -83,12 +83,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/aset', 'aset')->name('aset');
         
-        // Master Layer Management (DITAMBAHKAN ROUTE STORE & DESTROY)
+        // Master Layer Management
         Route::get('/master-layer', 'masterLayer')->name('master.layer');
         Route::post('/master-layer/store', 'storeLayer')->name('layer.store'); 
         Route::post('/master-layer/{id}/update-warna', 'updateWarna')->name('layer.updateWarna');
         Route::delete('/master-layer/{id}', 'destroyLayer')->name('layer.destroy');
-        Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik.index');
+        
         // API Peta & CRUD Aset
         Route::get('/api/data', 'apiData')->name('api');
         Route::post('/import', 'import')->name('import');
@@ -106,6 +106,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/monitor', 'monitor')->name('monitor');
         Route::get('/user/{user}', 'showBerkasByUser')->name('berkas_by_user');
     });
+
+    // --- GRAFIK STATISTIK ---
+    // <-- TAMBAHAN ROUTE UNTUK STATISTIK ADA DI SINI
+    Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik.index');
     
     // --- PROFIL ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
