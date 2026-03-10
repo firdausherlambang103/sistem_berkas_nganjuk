@@ -12,12 +12,12 @@ class MapLayer extends Model
     // [PENTING] Paksa model ini menggunakan database PostgreSQL
     protected $connection = 'pgsql';
 
-    // WAJIB: Masukkan SEMUA nama kolom agar bisa disimpan dari Form
+    // WAJIB: Daftarkan semua kolom agar bisa disimpan (Insert/Update)
     protected $fillable = [
         'nama_layer', 
         'tabel_db', 
         'warna',
-        'tipe_layer', // INI YANG MEMBUAT TIPE LAYER BISA TERSIMPAN
+        'tipe_layer',
         'color_hm',
         'color_hgb',
         'color_hp',

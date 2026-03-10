@@ -138,7 +138,7 @@ class MapController extends Controller
                     $finalColor = $defaultColor;
                     $tipeLayer = $layer->tipe_layer ?? 'Standar';
 
-                    // Cari Tipe Hak di dalam properties
+                    // Cari Tipe Hak di dalam properties (Mendukung beberapa variasi penamaan kolom SHP)
                     $tipeHak = '';
                     $raw_data = $props['raw_data'] ?? $props;
                     
@@ -149,7 +149,7 @@ class MapController extends Controller
                         }
                     }
 
-                    // LOGIKA PEWARNAAN UTAMA (Warna Sesuai Legenda)
+                    // LOGIKA PEWARNAAN UTAMA (Sesuai Hak)
                     if ($tipeLayer === 'Utama' && $layer) {
                         if (str_contains($tipeHak, 'milik') || $tipeHak === 'hm') {
                             $finalColor = $layer->color_hm ?? '#28a745';
@@ -162,7 +162,7 @@ class MapController extends Controller
                         } elseif (str_contains($tipeHak, 'wakaf')) {
                             $finalColor = $layer->color_wakaf ?? '#6f42c1';
                         } else {
-                            $finalColor = '#cccccc'; // Warna abu-abu untuk hak tak dikenal
+                            $finalColor = '#cccccc'; // Warna abu-abu untuk bidang yg tidak diketahui haknya
                         }
                     }
 
@@ -207,7 +207,7 @@ class MapController extends Controller
         
         $request->validate([
             'nama_layer' => 'required|string',
-            'tipe_layer' => 'required|string|in:Standar,Utama',
+            'tipe_layer' => 'required|string',
             'warna' => 'required|string'
         ]);
 
@@ -216,7 +216,7 @@ class MapController extends Controller
             'tipe_layer' => $request->tipe_layer,
             'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99),
             'warna' => $request->warna,
-            // Injeksi warna default jika memilih layer Utama
+            // Injeksi warna default jika tidak diset
             'color_hm' => '#28a745',
             'color_hgb' => '#ffc107',
             'color_hp' => '#17a2b8',
