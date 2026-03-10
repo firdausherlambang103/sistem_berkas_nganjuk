@@ -333,40 +333,106 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 5. MANUAL DRAW & CRUD
+    // 5. MANUAL DRAW & CRUD ASET DARI PETA
     // ========================================================
     public function storeDraw(Request $request)
     {
         $this->cekAkses('Kelola Layer');
+        
         try {
             $geometryJson = $request->geometry;
-            $layerId = $request->input('layer_id');
+            $layerId = $request->layer_id;
             
+            // Susun data atribut ke dalam raw_data
+            $rawData = [
+                'NIB' => $request->nib ?? '-',
+                'TIPEHAK' => $request->tipehak ?? 'Tidak Diketahui',
+                'LUAS' => $request->luas ?? 0,
+                'PENGGUNAAN' => $request->penggunaan ?? '-',
+                'KELURAHAN' => $request->kelurahan ?? '-',
+                'KECAMATAN' => $request->kecamatan ?? '-',
+                'KETERANGAN' => $request->keterangan ?? '-'
+            ];
+
             DB::connection('pgsql')->table('spatial_features')->insert([
-                'name' => $request->name,
+                'name' => $request->nib ?? 'Aset Baru',
                 'layer_id' => $layerId,
                 'properties' => json_encode([
-                    'type' => 'Manual',
-                    'raw_data' => [
-                        'TIPEHAK' => $request->status, 
-                        'KECAMATAN' => $request->kecamatan ?? '-', 
-                        'KELURAHAN' => $request->desa ?? '-',
-                        'PENGGUNAAN' => $request->description
-                    ],
-                    'color' => $request->color
+                    'type' => 'Manual_Draw',
+                    'raw_data' => $rawData
                 ]),
                 'geom' => DB::raw("ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON('$geometryJson'), 4326))"),
-                'created_at' => now(), 'updated_at' => now()
+                'created_at' => now(), 
+                'updated_at' => now()
             ]);
-            return response()->json(['status' => 'success', 'message' => 'Data bidang berhasil disimpan!']);
+
+            return response()->json(['status' => 'success', 'message' => 'Aset bidang berhasil digambar dan disimpan!']);
         } catch (\Exception $e) { 
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500); 
         }
     }
 
+    public function updateAsset(Request $request, $id)
+    {
+        $this->cekAkses('Kelola Layer');
+        
+        try {
+            $asset = DB::connection('pgsql')->table('spatial_features')->where('id', $id)->first();
+            if (!$asset) return response()->json(['status' => 'error', 'message' => 'Aset tidak ditemukan'], 404);
+
+            $updateData = ['updated_at' => now()];
+
+            // Jika update berasal dari tarikan/edit poligon di peta (perubahan geometri)
+            if ($request->has('geometry')) {
+                $geomJson = $request->geometry;
+                $updateData['geom'] = DB::raw("ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON('$geomJson'), 4326))");
+            }
+
+            // Jika update berasal dari form edit atribut
+            if ($request->has('is_attribute_update')) {
+                $props = is_string($asset->properties) ? json_decode($asset->properties, true) : [];
+                $raw = $props['raw_data'] ?? [];
+                
+                // Update nilai array
+                $raw['NIB'] = $request->nib;
+                $raw['TIPEHAK'] = $request->tipehak;
+                $raw['LUAS'] = $request->luas;
+                $raw['PENGGUNAAN'] = $request->penggunaan;
+                $raw['KELURAHAN'] = $request->kelurahan;
+                $raw['KECAMATAN'] = $request->kecamatan;
+                $raw['KETERANGAN'] = $request->keterangan;
+
+                $props['raw_data'] = $raw;
+                $updateData['properties'] = json_encode($props);
+                $updateData['name'] = $request->nib;
+                
+                if($request->has('layer_id')) {
+                    $updateData['layer_id'] = $request->layer_id;
+                }
+            }
+
+            DB::connection('pgsql')->table('spatial_features')->where('id', $id)->update($updateData);
+
+            return response()->json(['status' => 'success', 'message' => 'Data aset berhasil diperbarui!']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500); 
+        }
+    }
+
     public function showAsset($id) {
-        $item = DB::connection('pgsql')->table('spatial_features')->where('id', $id)->first();
+        // Ambil data aset beserta Geometrinya (di-convert ke GeoJSON)
+        $item = DB::connection('pgsql')->table('spatial_features')
+            ->where('id', $id)
+            ->select('id', 'name', 'layer_id', 'properties', DB::raw("ST_AsGeoJSON(geom) as geometry"))
+            ->first();
+            
         if (!$item) return response()->json(['error' => 'Data tidak ditemukan'], 404);
+        
+        // Decode JSON geometry agar bisa dibaca langsung oleh Javascript Peta
+        if ($item->geometry) {
+            $item->geometry = json_decode($item->geometry);
+        }
+        
         return response()->json($item);
     }
     
@@ -395,27 +461,91 @@ class MapController extends Controller
     }
 
     // ========================================================
-    // 6. HALAMAN TABEL DATA ASET
+    // 6. HALAMAN TABEL DATA ASET (DENGAN PAGINATION & OPTIMASI)
     // ========================================================
     public function aset(Request $request)
     {
         $this->cekAkses('Data Aset');
         $layers = MapLayer::all();
+        
+        // Tangkap parameter filter
         $selectedLayerId = $request->get('layer_id');
+        $filterDesa = $request->get('desa');
+        $filterSumber = $request->get('sumber');
+
         $selectedLayer = $selectedLayerId ? MapLayer::find($selectedLayerId) : $layers->first();
         
         $features = [];
+        $allDesaList = [];
+        $paginator = null;
+
         if ($selectedLayer) {
-            $data = DB::connection('pgsql')->table('spatial_features')->where('layer_id', $selectedLayer->id)->limit(1000)->get();
-            foreach($data as $d) {
+            // 1. Ekstrak Daftar Desa untuk Dropdown (Hanya panggil 'properties' biar ringan)
+            $allProps = DB::connection('pgsql')->table('spatial_features')
+                ->where('layer_id', $selectedLayer->id)
+                ->select('properties')
+                ->get();
+
+            $allDesa = [];
+            foreach($allProps as $d) {
                 $props = is_string($d->properties) ? json_decode($d->properties, true) : $d->properties;
                 $raw = $props['raw_data'] ?? [];
-                $features[] = (object) array_merge(['id' => $d->id, 'name' => $d->name], $raw);
+                $rawLower = array_change_key_case($raw, CASE_LOWER);
+                $desa = strtoupper(trim($rawLower['kelurahan'] ?? $rawLower['desa'] ?? 'TIDAK DIKETAHUI'));
+                if ($desa !== 'TIDAK DIKETAHUI') {
+                    $allDesa[$desa] = true;
+                }
+            }
+            $allDesaList = array_keys($allDesa);
+            sort($allDesaList);
+
+            // 2. Query Utama dengan Server-Side Pagination
+            $query = DB::connection('pgsql')->table('spatial_features')
+                ->where('layer_id', $selectedLayer->id)
+                ->select('id', 'name', 'properties', 'layer_id'); // [PENTING] KITA TIDAK SELECT 'geom' AGAR TIDAK LAG
+
+            if ($filterSumber == 'Manual') {
+                $query->where('properties', 'ILIKE', '%Manual%');
+            } elseif ($filterSumber == 'Import') {
+                $query->where('properties', 'ILIKE', '%Imported%');
+            }
+
+            if ($filterDesa) {
+                // ILIKE akan mencari teks desa di dalam JSON properties
+                $query->where('properties', 'ILIKE', '%' . $filterDesa . '%');
+            }
+
+            // Paginasi: Tampilkan 50 data per halaman
+            $paginator = $query->orderBy('id', 'desc')->paginate(50)->withQueryString();
+
+            // 3. Format Data untuk View (Hanya memformat 50 data yang aktif)
+            foreach($paginator->items() as $d) {
+                $props = is_string($d->properties) ? json_decode($d->properties, true) : $d->properties;
+                $raw = $props['raw_data'] ?? [];
+
+                $jenisSumber = $props['type'] ?? 'Imported';
+                $isManual = in_array(strtolower($jenisSumber), ['manual', 'manual_draw']);
+
+                $rawLower = array_change_key_case($raw, CASE_LOWER);
+                $desa = strtoupper(trim($rawLower['kelurahan'] ?? $rawLower['desa'] ?? 'TIDAK DIKETAHUI'));
+
+                $features[] = (object) [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'nib' => $rawLower['nib'] ?? '-',
+                    'tipe_hak' => strtoupper($rawLower['tipehak'] ?? $rawLower['hak'] ?? $rawLower['status'] ?? '-'),
+                    'luas' => $rawLower['luastertul'] ?? $rawLower['luas'] ?? $rawLower['luaspeta'] ?? 0,
+                    'penggunaan' => strtoupper($rawLower['penggunaan'] ?? '-'),
+                    'desa' => $desa,
+                    'kecamatan' => strtoupper($rawLower['kecamatan'] ?? $rawLower['kec'] ?? '-'),
+                    'sumber' => $isManual ? 'Manual' : 'Import',
+                    'layer_id' => $selectedLayer->id,
+                    'raw_data' => json_encode($raw)
+                ];
             }
         }
         
-        $columns = count($features) > 0 ? array_keys((array) $features[0]) : [];
-        return view('map.aset', compact('layers', 'selectedLayer', 'features', 'columns'));
+        return view('map.aset', compact('layers', 'selectedLayer', 'features', 'paginator', 'allDesaList', 'filterDesa', 'filterSumber'));
     }
 
     // ========================================================

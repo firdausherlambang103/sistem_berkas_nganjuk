@@ -59,7 +59,7 @@
                             <div class="hidden sm:flex sm:ms-8 sm:-my-px">
                                 <x-dropdown align="left" width="48">
                                     <x-slot name="trigger">
-                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('map.*') ? 'border-indigo-400 text-gray-900 focus:border-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:text-gray-700 focus:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out h-16 bg-transparent">
+                                        <button class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('map.*') || request()->routeIs('statistik.*') ? 'border-indigo-400 text-gray-900 focus:border-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:text-gray-700 focus:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out h-16 bg-transparent">
                                             <div><i class="fa-solid fa-map-location-dot text-indigo-600 mr-1.5"></i> WebGIS</div>
                                             <div class="ms-1">
                                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -71,26 +71,27 @@
                                     <x-slot name="content">
                                         {{-- Sub Menu 1: Peta Utama --}}
                                         <x-dropdown-link :href="route('map.index')">
-                                            <i class="fa-solid fa-map w-5 text-center mr-1 text-indigo-600"></i> {{ __('Peta Utama') }}
+                                            <i class="fa-solid fa-map w-5 text-center mr-2 text-indigo-600"></i> {{ __('Peta Utama') }}
                                         </x-dropdown-link>
                                         
                                         {{-- Sub Menu 2: Data Aset (Cek RBAC) --}}
                                         @if($isAdmin || in_array('Data Aset', $aksesMenuArray))
                                             <div class="border-t border-gray-100 my-1"></div>
                                                 <x-dropdown-link :href="route('map.aset')">
-                                                    <i class="fa-solid fa-table-list w-5 text-center mr-1 text-blue-500"></i> {{ __('Data Aset (Tabular)') }}
+                                                    <i class="fa-solid fa-table-list w-5 text-center mr-2 text-blue-500"></i> {{ __('Data Aset (Tabular)') }}
                                                 </x-dropdown-link>
                                         @endif
                                         
                                         {{-- Sub Menu 3: Statistik (Cek RBAC) --}}
                                         @if($isAdmin || in_array('Statistik', $aksesMenuArray))
-                                            <x-nav-link :href="route('statistik.index')" :active="request()->routeIs('statistik.*')">
-                                                <i class="fa-solid fa-chart-pie mr-2"></i> {{ __('Statistik') }}
-                                            </x-nav-link>
+                                            {{-- [PERBAIKAN] Menggunakan x-dropdown-link agar formatnya sama --}}
+                                            <x-dropdown-link :href="route('statistik.index')">
+                                                <i class="fa-solid fa-chart-pie w-5 text-center mr-2 text-gray-600"></i> {{ __('Statistik') }}
+                                            </x-dropdown-link>
                                         @endif
 
                                         <x-dropdown-link :href="route('map.master.layer')">
-                                            <i class="fa-solid fa-layer-group w-5 text-center mr-1 text-purple-500"></i> {{ __('Master Layer') }}
+                                            <i class="fa-solid fa-layer-group w-5 text-center mr-2 text-purple-500"></i> {{ __('Master Layer') }}
                                         </x-dropdown-link>
                                     </x-slot>
                                 </x-dropdown>
@@ -290,8 +291,8 @@
                             @endif
 
                             @if($isAdmin || in_array('Statistik', $aksesMenuArray))
-                            <x-responsive-nav-link :href="route('statistik.index')" :active="request()->routeIs('statistik.*')">
-                                <i class="fa-solid fa-chart-pie mr-2"></i> {{ __('Statistik') }}
+                            <x-responsive-nav-link :href="route('statistik.index')" :active="request()->routeIs('statistik.*')" class="pl-8">
+                                <i class="fa-solid fa-caret-right text-gray-400 mr-2 text-xs"></i> {{ __('Statistik') }}
                             </x-responsive-nav-link>
                             @endif
 

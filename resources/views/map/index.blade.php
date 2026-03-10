@@ -266,13 +266,12 @@
                 Swal.fire({ title: 'Mencari Lokasi...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
                 
                 const options = {
-                    enableHighAccuracy: true, // Berusaha mencari GPS paling akurat
-                    timeout: 10000,           // Maksimal menunggu 10 detik
-                    maximumAge: 0             // Jangan gunakan cache lokasi lama
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
                 };
 
                 navigator.geolocation.getCurrentPosition(
-                    // Jika Sukses
                     position => {
                         Swal.close();
                         var lat = position.coords.latitude;
@@ -284,14 +283,12 @@
                             .bindPopup('<b class="text-indigo-600"><i class="fa-solid fa-street-view mr-1"></i> Lokasi Anda Saat Ini</b>')
                             .openPopup();
                     }, 
-                    // Jika Gagal
                     error => {
                         Swal.close();
                         let pesanError = 'Tidak dapat mengakses lokasi. Pastikan GPS/Location aktif dan diizinkan di browser.';
                         if (error.code === 1) pesanError = 'Akses lokasi ditolak oleh browser Anda. Silakan izinkan akses lokasi (klik ikon gembok di URL bar).';
                         if (error.code === 2) pesanError = 'Sinyal GPS tidak ditemukan atau jaringan tidak mendukung pencarian lokasi.';
                         if (error.code === 3) pesanError = 'Waktu pencarian lokasi habis (Timeout). Coba lagi di area terbuka.';
-                        
                         Swal.fire('Gagal', pesanError, 'error');
                     }, 
                     options
@@ -349,25 +346,21 @@
                 removalMode: true,
             });
 
-            map.pm.setLang('id'); // Bahasa Indonesia
+            map.pm.setLang('id');
 
-            // Event 1: Selesai Menggambar Poligon Baru
             map.on('pm:create', e => {
                 let layer = e.layer;
                 let geojson = layer.toGeoJSON();
                 
-                // Buka Modal Atribut
                 document.getElementById('form_mode').value = 'create';
                 document.getElementById('form_geometry').value = JSON.stringify(geojson.geometry);
                 document.getElementById('formAtribut').reset();
                 document.getElementById('modalAtributTitle').innerHTML = '<i class="fa-solid fa-plus-circle mr-2"></i> Tambah Aset Baru';
                 bukaModal('modalAtribut');
 
-                // Hapus layer smentara (akan dirender ulang oleh backend jika sukses simpan)
                 map.removeLayer(layer); 
             });
 
-            // Event 2: Menghapus Poligon via Geoman Toolbar
             map.on('pm:remove', e => {
                 let layer = e.layer;
                 if(layer.feature && layer.feature.properties && layer.feature.properties.id) {
@@ -390,17 +383,14 @@
                     return { color: '#ffffff', fillColor: getColor(feature), weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
                 },
                 onEachFeature: function(feature, layer) {
-                    // Beri ID pada layer leaflet agar geoman bisa mendeteksi saat diedit
                     if(feature.properties && feature.properties.id) {
                         layer.pm.setOptions({ assetId: feature.properties.id });
                     }
 
-                    // Event 3: Deteksi jika poligon ini diedit (Digeser/Diubah bentuknya via Geoman)
                     layer.on('pm:edit', e => {
                         let newGeoJson = e.target.toGeoJSON();
                         let assetId = feature.properties.id;
                         
-                        // Kirim data update koordinat ke backend tanpa membuka form
                         fetch(`/map/asset/${assetId}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-HTTP-Method-Override': 'PUT' },
@@ -416,7 +406,6 @@
                     var raw = p.raw_data || p;
                     var tableRows = '';
                     
-                    // Bikin Tabel Dinamis
                     for (var key in raw) {
                         if (raw.hasOwnProperty(key)) {
                             var val = raw[key];
@@ -432,7 +421,6 @@
                     }
                     if (tableRows === '') tableRows = '<tr><td colspan="2" class="text-center text-gray-400 py-3 text-xs italic">Tidak ada data atribut spasial</td></tr>';
 
-                    // HTML Popup dengan Tombol Edit & Hapus
                     var content = `
                         <div class="p-1 min-w-[280px] max-w-[340px] font-sans">
                             <div class="flex justify-between items-center border-b-2 border-indigo-500 pb-2 mb-2">
@@ -505,7 +493,6 @@
                 geoJsonLayer.eachLayer(function(layer) { if (layer.setStyle) layer.setStyle({ fillOpacity: currentOpacity }); });
             });
 
-            // Hapus via Popup
             window.deleteAsset = function(id) {
                 Swal.fire({ title: 'Hapus Aset?', text: "Bidang tanah akan dihapus permanen!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
                     if (result.isConfirmed) {
@@ -517,15 +504,12 @@
                 });
             };
 
-            // Buka Modal Edit Atribut via Popup
             window.editAtributAset = function(raw, id, layerId) {
                 document.getElementById('form_mode').value = 'update';
                 document.getElementById('form_asset_id').value = id;
                 
-                // Isi Form
                 document.getElementById('form_layer_id').value = layerId || '';
                 
-                // Pencarian keys yang tidak sensitif huruf (case-insensitive mapping)
                 let r = {};
                 for(let key in raw) r[key.toUpperCase()] = raw[key];
 
@@ -546,7 +530,6 @@
                 bukaModal('modalAtribut');
             }
 
-            // Aksi Tombol Simpan di Modal
             window.simpanAtributAset = function() {
                 let mode = document.getElementById('form_mode').value;
                 let payload = {
@@ -561,7 +544,6 @@
                 };
 
                 let url = '';
-                let method = 'POST';
 
                 if (mode === 'create') {
                     url = '/map/store-draw';
@@ -570,10 +552,9 @@
                     let id = document.getElementById('form_asset_id').value;
                     url = `/map/asset/${id}`;
                     payload.is_attribute_update = true;
-                    payload._method = 'PUT'; // Laravel override
+                    payload._method = 'PUT'; 
                 }
 
-                // Tampilkan Loading
                 let btn = document.querySelector('#formAtribut button.bg-indigo-600');
                 let originHtml = btn.innerHTML;
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
@@ -586,7 +567,7 @@
                 }).then(res => res.json()).then(data => {
                     tutupModal('modalAtribut');
                     Swal.fire('Berhasil!', data.message, 'success');
-                    loadData(); // Render ulang peta
+                    loadData(); 
                 }).catch(err => {
                     Swal.fire('Gagal', 'Terjadi kesalahan sistem.', 'error');
                 }).finally(() => {
@@ -614,6 +595,47 @@
             };
 
             loadData(); // Inisialisasi peta pertama kali
+
+            // ==========================================
+            // DETEKSI AUTO ZOOM DARI HALAMAN DATA ASET
+            // ==========================================
+            const urlParams = new URLSearchParams(window.location.search);
+            const zoomAssetId = urlParams.get('zoom_asset');
+
+            if (zoomAssetId) {
+                Swal.fire({ title: 'Mencari Lokasi Aset...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+                
+                fetch(`/map/asset/${zoomAssetId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        Swal.close();
+                        if(data.geometry) {
+                            let cbLayer = document.querySelector(`.layer-toggle[value="${data.layer_id}"]`);
+                            if(cbLayer && !cbLayer.checked) { 
+                                cbLayer.checked = true; 
+                                loadData(); 
+                            }
+
+                            let tempLayer = L.geoJSON(data.geometry);
+                            map.fitBounds(tempLayer.getBounds(), { padding: [50, 50], maxZoom: 20 });
+
+                            let highlightLayer = L.geoJSON(data.geometry, {
+                                style: { color: '#ef4444', weight: 5, fillColor: '#ef4444', fillOpacity: 0.6 }
+                            }).addTo(map);
+
+                            highlightLayer.bindPopup('<b class="text-red-600"><i class="fa-solid fa-crosshairs mr-1"></i> Aset yang Anda cari</b>').openPopup();
+
+                            setTimeout(() => { 
+                                map.removeLayer(highlightLayer); 
+                            }, 5000);
+                        }
+                    })
+                    .catch(err => {
+                        Swal.close();
+                        console.error('Gagal mengambil kordinat aset');
+                    });
+            }
+
         });
     </script>
     @endpush

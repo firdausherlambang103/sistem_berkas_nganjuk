@@ -8,9 +8,9 @@
     <div class="py-8 bg-gray-50 min-h-screen">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             
-            {{-- BAGIAN FILTER --}}
+            {{-- BAGIAN FILTER BERLAPIS --}}
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-                <form action="{{ route('map.aset') }}" method="GET" class="flex flex-col md:flex-row gap-4 items-end">
+                <form action="{{ route('map.aset') }}" method="GET" class="flex flex-col lg:flex-row gap-4 items-end">
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Filter Layer Peta</label>
                         <select name="layer_id" id="layer_id" class="w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm cursor-pointer">
@@ -23,9 +23,17 @@
                         </select>
                     </div>
                     <div class="flex-1">
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Sumber Data</label>
+                        <select name="sumber" class="w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm cursor-pointer">
+                            <option value="">-- Semua Sumber --</option>
+                            <option value="Import" {{ (isset($filterSumber) && $filterSumber == 'Import') ? 'selected' : '' }}>Hasil Import SHP</option>
+                            <option value="Manual" {{ (isset($filterSumber) && $filterSumber == 'Manual') ? 'selected' : '' }}>Hasil Gambar Manual</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Filter Kelurahan / Desa</label>
                         <select name="desa" id="desa" class="w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm cursor-pointer">
-                            <option value="">-- Semua Kelurahan / Desa --</option>
+                            <option value="">-- Semua Desa --</option>
                             @if(isset($allDesaList))
                                 @foreach($allDesaList as $d)
                                     <option value="{{ $d }}" {{ (isset($filterDesa) && $filterDesa == $d) ? 'selected' : '' }}>{{ $d }}</option>
@@ -35,7 +43,7 @@
                     </div>
                     <div class="flex gap-2">
                         <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-md text-sm font-bold shadow-sm transition flex items-center h-[38px]">
-                            <i class="fa-solid fa-filter mr-2"></i> Terapkan Filter
+                            <i class="fa-solid fa-filter mr-2"></i> Terapkan
                         </button>
                         <a href="{{ route('map.aset') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-bold shadow-sm transition flex items-center justify-center h-[38px]">
                             Reset
@@ -49,41 +57,63 @@
                 <div class="p-6 text-gray-900">
                     
                     @if($selectedLayer)
-                        <div class="overflow-x-auto">
-                            <table id="asetTable" class="w-full text-sm text-left border-collapse">
+                        
+                        {{-- Notifikasi Paging --}}
+                        <div class="mb-4 text-sm text-blue-800 bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-center shadow-sm">
+                            <i class="fa-solid fa-bolt text-blue-500 mr-2 text-lg"></i>
+                            <div>Menampilkan <b>50 data per halaman</b> untuk kecepatan performa. Gunakan Navigasi Halaman di bawah tabel untuk melihat data lainnya.</div>
+                        </div>
+
+                        <div class="overflow-x-auto pb-4">
+                            {{-- [PENTING] Class nowrap dan style width 100% untuk mengatasi header & body tidak sejajar --}}
+                            <table id="asetTable" class="w-full text-sm text-left nowrap" style="width: 100%;">
                                 <thead class="bg-gray-100 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
                                     <tr>
-                                        <th class="px-4 py-3 border border-gray-200 w-10 text-center">No</th>
-                                        <th class="px-4 py-3 border border-gray-200">NIB</th>
-                                        <th class="px-4 py-3 border border-gray-200">Tipe Hak</th>
-                                        <th class="px-4 py-3 border border-gray-200">Luas Area (m²)</th>
-                                        <th class="px-4 py-3 border border-gray-200">Penggunaan</th>
-                                        <th class="px-4 py-3 border border-gray-200">Kelurahan / Desa</th>
-                                        <th class="px-4 py-3 border border-gray-200">Kecamatan</th>
-                                        <th class="px-4 py-3 border border-gray-200 text-center w-32">Aksi</th>
+                                        <th class="px-4 py-3 border border-gray-200 w-10 text-center whitespace-nowrap">No</th>
+                                        <th class="px-4 py-3 border border-gray-200 text-center whitespace-nowrap">Sumber</th>
+                                        <th class="px-4 py-3 border border-gray-200 whitespace-nowrap">NIB</th>
+                                        <th class="px-4 py-3 border border-gray-200 whitespace-nowrap">Tipe Hak</th>
+                                        <th class="px-4 py-3 border border-gray-200 whitespace-nowrap">Luas (m²)</th>
+                                        <th class="px-4 py-3 border border-gray-200 min-w-[150px]">Penggunaan</th>
+                                        <th class="px-4 py-3 border border-gray-200 min-w-[150px]">Kelurahan/Desa</th>
+                                        <th class="px-4 py-3 border border-gray-200 min-w-[150px]">Kecamatan</th>
+                                        <th class="px-4 py-3 border border-gray-200 text-center whitespace-nowrap">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @php 
+                                        $startNumber = ($paginator->currentPage() - 1) * $paginator->perPage() + 1;
+                                    @endphp
                                     @foreach($features as $index => $row)
                                         <tr class="hover:bg-gray-50 transition border-b border-gray-200">
-                                            <td class="px-4 py-2 border border-gray-200 text-center">{{ $index + 1 }}</td>
-                                            <td class="px-4 py-2 border border-gray-200 font-semibold text-indigo-600">{{ $row->nib }}</td>
-                                            <td class="px-4 py-2 border border-gray-200">
-                                                <span class="px-2 py-1 bg-gray-100 text-gray-800 text-[10px] rounded-md font-bold">{{ $row->tipe_hak }}</span>
+                                            <td class="px-4 py-3 border border-gray-200 text-center align-middle">{{ $startNumber + $index }}</td>
+                                            
+                                            <td class="px-4 py-3 border border-gray-200 text-center align-middle whitespace-nowrap">
+                                                @if($row->sumber == 'Manual')
+                                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 text-[10px] rounded-md font-bold border border-purple-200 inline-block"><i class="fa-solid fa-pen-nib mr-1"></i> MANUAL</span>
+                                                @else
+                                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] rounded-md font-bold border border-blue-200 inline-block"><i class="fa-solid fa-file-import mr-1"></i> IMPORT</span>
+                                                @endif
                                             </td>
-                                            <td class="px-4 py-2 border border-gray-200">{{ $row->luas }}</td>
-                                            <td class="px-4 py-2 border border-gray-200">{{ $row->penggunaan }}</td>
-                                            <td class="px-4 py-2 border border-gray-200">{{ $row->desa }}</td>
-                                            <td class="px-4 py-2 border border-gray-200">{{ $row->kecamatan }}</td>
-                                            <td class="px-4 py-2 border border-gray-200 text-center">
+
+                                            <td class="px-4 py-3 border border-gray-200 font-bold text-indigo-600 align-middle whitespace-nowrap">{{ $row->nib }}</td>
+                                            <td class="px-4 py-3 border border-gray-200 align-middle whitespace-nowrap">
+                                                <span class="px-2 py-1 bg-gray-100 text-gray-800 text-[10px] rounded-md font-bold border border-gray-200">{{ $row->tipe_hak }}</span>
+                                            </td>
+                                            <td class="px-4 py-3 border border-gray-200 align-middle whitespace-nowrap font-medium">{{ $row->luas }}</td>
+                                            <td class="px-4 py-3 border border-gray-200 align-middle capitalize">{{ strtolower($row->penggunaan) }}</td>
+                                            <td class="px-4 py-3 border border-gray-200 align-middle capitalize">{{ strtolower($row->desa) }}</td>
+                                            <td class="px-4 py-3 border border-gray-200 align-middle capitalize">{{ strtolower($row->kecamatan) }}</td>
+                                            <td class="px-4 py-3 border border-gray-200 text-center align-middle whitespace-nowrap">
                                                 <div class="flex justify-center items-center gap-1.5">
-                                                    <a href="{{ route('map.index') }}" title="Lihat di Peta" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-600 hover:text-white transition shadow-sm">
+                                                    {{-- MENGIRIM PARAMETER ZOOM KE HALAMAN PETA --}}
+                                                    <a href="{{ route('map.index') }}?zoom_asset={{ $row->id }}" title="Lihat di Peta" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-600 hover:text-white transition shadow-sm">
                                                         <i class="fa-solid fa-map text-sm"></i>
                                                     </a>
-                                                    <button onclick='editAtributAset({{ $row->raw_data }}, {{ $row->id }}, {{ $row->layer_id }})' title="Edit" class="w-8 h-8 flex items-center justify-center bg-yellow-50 text-yellow-600 border border-yellow-200 rounded hover:bg-yellow-500 hover:text-white transition shadow-sm">
+                                                    <button onclick='editAtributAset({{ $row->raw_data }}, {{ $row->id }}, {{ $row->layer_id }})' title="Edit Atribut" class="w-8 h-8 flex items-center justify-center bg-yellow-50 text-yellow-600 border border-yellow-200 rounded hover:bg-yellow-500 hover:text-white transition shadow-sm">
                                                         <i class="fa-solid fa-pen text-sm"></i>
                                                     </button>
-                                                    <button onclick="deleteAsset({{ $row->id }})" title="Hapus" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-600 hover:text-white transition shadow-sm">
+                                                    <button onclick="deleteAsset({{ $row->id }})" title="Hapus Aset" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-600 hover:text-white transition shadow-sm">
                                                         <i class="fa-solid fa-trash text-sm"></i>
                                                     </button>
                                                 </div>
@@ -93,6 +123,14 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        {{-- KOMPONEN PAGINATION BAWAAN LARAVEL --}}
+                        @if($paginator && $paginator->hasPages())
+                            <div class="mt-4 border-t border-gray-200 pt-4">
+                                {{ $paginator->links() }}
+                            </div>
+                        @endif
+
                     @else
                         <div class="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                             <i class="fa-solid fa-layer-group text-5xl text-gray-300 mb-3 block"></i>
@@ -181,11 +219,32 @@
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         
         <style>
-            /* Styling Custom DataTables Integrasi dengan Tailwind */
-            .dataTables_wrapper .dataTables_length select { border-radius: 6px; padding: 2px 24px 2px 8px; border-color: #d1d5db; margin-left: 5px; margin-right: 5px; font-size: 13px; }
-            .dataTables_wrapper .dataTables_filter input { border-radius: 6px; border: 1px solid #d1d5db; padding: 4px 8px; margin-left: 8px; font-size: 13px; }
-            table.dataTable.no-footer { border-bottom: 1px solid #e5e7eb; }
-            .dataTables_wrapper .dataTables_paginate .paginate_button.current, .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover { background: #4f46e5; color: white !important; border: none; border-radius: 6px; }
+            /* 1. Perbaikan Jarak Search Box agar tidak menabrak tabel */
+            .dataTables_wrapper .dataTables_filter { 
+                margin-bottom: 1.25rem; color: #4b5563; font-weight: 600; font-size: 13px;
+            }
+            .dataTables_wrapper .dataTables_filter input { 
+                border-radius: 6px; border: 1px solid #d1d5db; padding: 4px 12px; margin-left: 8px; font-size: 13px; font-weight: normal; outline: none; transition: all 0.2s;
+            }
+            .dataTables_wrapper .dataTables_filter input:focus { border-color: #4f46e5; box-shadow: 0 0 0 1px #4f46e5; }
+
+            /* 2. Perbaikan Ikon Panah Sorting di Header Tabel */
+            table.dataTable thead .sorting, 
+            table.dataTable thead .sorting_asc, 
+            table.dataTable thead .sorting_desc {
+                background-position: right 8px center !important; 
+                padding-right: 28px !important; 
+                vertical-align: middle;
+            }
+
+            /* 3. PERBAIKAN HEADER & BODY TIDAK SEJAJAR (SCROLLX FIX) */
+            .dataTables_scrollHeadInner, .dataTables_scrollHeadInner table.dataTable {
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            table.dataTable { width: 100% !important; border-collapse: collapse !important; }
+            table.dataTable th, table.dataTable td { box-sizing: border-box !important; }
+            table.dataTable.no-footer { border-bottom: 1px solid #e5e7eb !important; }
         </style>
 
         <script>
@@ -193,25 +252,32 @@
             function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
 
             $(document).ready(function() {
-                $('#asetTable').DataTable({
+                var table = $('#asetTable').DataTable({
+                    "paging": false,       
+                    "info": false,         
+                    "searching": true,     
+                    "autoWidth": false,    // [PENTING] Mencegah DataTables memaksa ukuran width
                     "language": {
-                        "search": "Cari Data Cepat:",
-                        "lengthMenu": "Tampilkan _MENU_ baris",
-                        "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
-                        "paginate": { "first": "Awal", "last": "Akhir", "next": "Maju", "previous": "Mundur" },
-                        "zeroRecords": "Tidak ada data aset yang cocok dengan pencarian"
+                        "search": "Cari Cepat di Halaman Ini:",
+                        "zeroRecords": "Tidak ada data yang cocok di halaman ini"
                     },
-                    "pageLength": 15,
                     "scrollX": true
+                });
+
+                // Memaksa DataTables menyesuaikan ulang lebar kolom setelah kerangka termuat
+                setTimeout(function() {
+                    table.columns.adjust().draw();
+                }, 150);
+                
+                $(window).on('resize', function () {
+                    table.columns.adjust();
                 });
             });
 
-            // Fungsi Buka Form Edit
             window.editAtributAset = function(raw, id, layerId) {
                 document.getElementById('form_asset_id').value = id;
                 document.getElementById('form_layer_id').value = layerId || '';
                 
-                // Ubah keys JSON ke Uppercase untuk kemudahan
                 let r = {};
                 for(let key in raw) r[key.toUpperCase()] = raw[key];
 
@@ -231,7 +297,6 @@
                 bukaModal('modalAtribut');
             }
 
-            // Fungsi Simpan Form Edit
             window.simpanAtributAset = function() {
                 let payload = {
                     layer_id: document.getElementById('form_layer_id').value,
@@ -247,7 +312,6 @@
                 };
 
                 let id = document.getElementById('form_asset_id').value;
-                
                 let btn = document.getElementById('btnSimpan');
                 let originHtml = btn.innerHTML;
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
@@ -268,7 +332,6 @@
                 });
             }
 
-            // Fungsi Hapus Aset
             window.deleteAsset = function(id) {
                 Swal.fire({ 
                     title: 'Hapus Data Aset?', 
