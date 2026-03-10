@@ -134,12 +134,11 @@ class MapController extends Controller
                     
                     $layer = $layersData->get($item->layer_id);
                     
-                    // Ambil warna default dan tipe layer
                     $defaultColor = $layer->warna ?? '#3388ff';
                     $finalColor = $defaultColor;
                     $tipeLayer = $layer->tipe_layer ?? 'Standar';
 
-                    // Cek Tipe Hak (HM/HGB/dll) untuk properties informasi
+                    // Cari Tipe Hak di dalam properties
                     $tipeHak = '';
                     $raw_data = $props['raw_data'] ?? $props;
                     
@@ -150,18 +149,20 @@ class MapController extends Controller
                         }
                     }
 
-                    // LOGIKA PEWARNAAN UTAMA
+                    // LOGIKA PEWARNAAN UTAMA (Warna Sesuai Legenda)
                     if ($tipeLayer === 'Utama' && $layer) {
                         if (str_contains($tipeHak, 'milik') || $tipeHak === 'hm') {
-                            $finalColor = $layer->color_hm ?? $defaultColor;
+                            $finalColor = $layer->color_hm ?? '#28a745';
                         } elseif (str_contains($tipeHak, 'guna bangunan') || $tipeHak === 'hgb') {
-                            $finalColor = $layer->color_hgb ?? $defaultColor;
+                            $finalColor = $layer->color_hgb ?? '#ffc107';
                         } elseif (str_contains($tipeHak, 'pakai') || $tipeHak === 'hp') {
-                            $finalColor = $layer->color_hp ?? $defaultColor;
+                            $finalColor = $layer->color_hp ?? '#17a2b8';
                         } elseif (str_contains($tipeHak, 'guna usaha') || $tipeHak === 'hgu') {
-                            $finalColor = $layer->color_hgu ?? $defaultColor;
+                            $finalColor = $layer->color_hgu ?? '#fd7e14';
                         } elseif (str_contains($tipeHak, 'wakaf')) {
-                            $finalColor = $layer->color_wakaf ?? $defaultColor;
+                            $finalColor = $layer->color_wakaf ?? '#6f42c1';
+                        } else {
+                            $finalColor = '#cccccc'; // Warna abu-abu untuk hak tak dikenal
                         }
                     }
 
@@ -214,7 +215,13 @@ class MapController extends Controller
             'nama_layer' => $request->nama_layer,
             'tipe_layer' => $request->tipe_layer,
             'tabel_db' => 'spatial_features_' . time() . '_' . rand(10, 99),
-            'warna' => $request->warna
+            'warna' => $request->warna,
+            // Injeksi warna default jika memilih layer Utama
+            'color_hm' => '#28a745',
+            'color_hgb' => '#ffc107',
+            'color_hp' => '#17a2b8',
+            'color_hgu' => '#fd7e14',
+            'color_wakaf' => '#6f42c1'
         ]);
 
         return back()->with('success', 'Layer "' . $request->nama_layer . '" berhasil dibuat! Silakan Import SHP ke layer ini.');
@@ -228,12 +235,9 @@ class MapController extends Controller
         $this->cekAkses('Kelola Layer');
         set_time_limit(0);              
 
-        // BYPASS ENV LOKAL
         putenv('PROJ_LIB=');
         putenv('PROJ_DATA=');
 
-        // PERBAIKAN: Hapus validasi exists:map_layers,id karena Laravel sering bentrok saat menggunakan multi-database (PgSQL & MySQL).
-        // Kita juga melonggarkan mimes:zip menjadi validasi ekstensi manual agar lebih kompatibel dengan Windows.
         $request->validate([
             'layer_id' => 'required',
             'file_zip' => 'required|file|max:500000', 
@@ -245,14 +249,11 @@ class MapController extends Controller
 
         $file = $request->file('file_zip');
         
-        // Pengecekan Ekstensi File ZIP Manual
         if (strtolower($file->getClientOriginalExtension()) !== 'zip') {
             return back()->withErrors(['file_zip' => 'File yang diupload wajib memiliki format .zip!'])->withInput();
         }
 
         $layerId = $request->layer_id;
-        
-        // Pengecekan Eksistensi Layer secara manual (Bypass Validasi Default Laravel)
         $layer = MapLayer::find($layerId);
         if (!$layer) {
             return back()->withErrors(['layer_id' => 'Pilihan Layer Tujuan tidak ditemukan di dalam sistem database.'])->withInput();
