@@ -14,13 +14,20 @@
         $aksesMenu = is_array(auth()->user()->akses_menu) ? auth()->user()->akses_menu : json_decode(auth()->user()->akses_menu, true) ?? [];
         $isAdmin = optional(auth()->user()->jabatan)->is_admin;
         $bisaKelolaLayer = $isAdmin || in_array('Kelola Layer', $aksesMenu);
+
+        // AMBIL DATA BERKAS DI MEJA SAYA UNTUK DROPDOWN LINK
+        $berkasDiMeja = \App\Models\Berkas::where('posisi_sekarang_user_id', auth()->id())
+            ->where('status', 'Diproses')
+            ->where('status_pengiriman', 'Diterima')
+            ->orderBy('updated_at', 'desc')
+            ->get();
     @endphp
 
     {{-- KONTANER UTAMA PETA --}}
     <div class="relative w-full bg-gray-200 overflow-hidden" style="height: calc(100vh - 140px); min-height: 600px;">
         
         {{-- LOADING INDICATOR --}}
-        <div id="map-loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white/95 px-6 py-3 rounded-full font-bold shadow-2xl text-gray-700 flex items-center border border-gray-100 backdrop-blur-sm">
+        <div id="map-loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[4000] bg-white/95 px-6 py-3 rounded-full font-bold shadow-2xl text-gray-700 flex items-center border border-gray-100 backdrop-blur-sm">
             <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 text-xl mr-3"></i> 
             <span id="loading-text">Memuat Data Spasial...</span>
         </div>
@@ -35,7 +42,7 @@
                 <div>
                     <label class="text-[11px] font-bold text-gray-600 mb-1 block uppercase tracking-wider">Pencarian Cepat</label>
                     <div class="relative">
-                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik kata kunci (NIB/Desa)...">
+                        <input type="text" id="searchMap" class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pr-8" placeholder="Ketik NIB / No Berkas...">
                         <button onclick="document.getElementById('searchMap').value=''; loadData();" class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
@@ -102,18 +109,18 @@
             <h6 class="font-bold text-gray-800 mb-2 border-b pb-1 text-[11px] uppercase tracking-wider flex items-center">
                 <i class="fa-solid fa-info-circle text-indigo-600 mr-1.5"></i> Legenda Tipe Hak
             </h6>
-            <div class="space-y-1.5 text-[11px] text-gray-700 font-medium">
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#28a745] border border-gray-300"></div> Hak Milik (HM)</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#ffc107] border border-gray-300"></div> HGB</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#17a2b8] border border-gray-300"></div> Hak Pakai (HP)</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#fd7e14] border border-gray-300"></div> HGU</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#6f42c1] border border-gray-300"></div> Tanah Wakaf</div>
-                <div class="flex items-center"><div class="w-3.5 h-3.5 rounded-[3px] mr-2 bg-[#cccccc] border border-gray-300"></div> Default / Lainnya</div>
+            <div class="space-y-2 text-[11px] text-gray-700 font-medium">
+                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#28a745] border border-gray-300 shadow-sm"></div> Hak Milik (HM)</div>
+                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#ffc107] border border-gray-300 shadow-sm"></div> HGB</div>
+                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#17a2b8] border border-gray-300 shadow-sm"></div> Hak Pakai (HP)</div>
+                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#fd7e14] border border-gray-300 shadow-sm"></div> HGU</div>
+                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#6f42c1] border border-gray-300 shadow-sm"></div> Tanah Wakaf</div>
+                <div class="flex items-center"><div class="w-4 h-4 rounded-[4px] mr-2 bg-[#cccccc] border border-gray-300 shadow-sm"></div> Default / Lainnya</div>
             </div>
         </div>
 
         {{-- TOMBOL LOKASI SAYA --}}
-        <button onclick="goToMyLocation()" class="absolute bottom-[240px] left-[15px] z-[1000] w-10 h-10 bg-white text-gray-700 rounded-lg shadow-[0_4px_10px_rgba(0,0,0,0.15)] flex items-center justify-center hover:bg-gray-50 hover:text-indigo-600 transition border border-gray-200" title="Cari Lokasi Saya">
+        <button onclick="goToMyLocation()" class="absolute bottom-[260px] left-[15px] z-[1000] w-10 h-10 bg-white text-gray-700 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 hover:text-indigo-600 transition border border-gray-200" title="Cari Lokasi Saya">
             <i class="fa-solid fa-crosshairs text-lg"></i>
         </button>
 
@@ -154,9 +161,9 @@
         </div>
     </div>
 
-    {{-- MODAL ATRIBUT (UNTUK MENGISI/MENGEDIT DATA SETELAH MENGGAMBAR) --}}
+    {{-- MODAL ATRIBUT (UNTUK MENGISI/MENGEDIT DATA SETELAH MENGGAMBAR ATAU LINK) --}}
     <div id="modalAtribut" class="fixed inset-0 z-[4000] hidden overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
-        <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all border border-gray-100">
                 <div class="bg-indigo-600 px-5 py-4 flex justify-between items-center text-white">
                     <h3 class="font-bold text-lg" id="modalAtributTitle"><i class="fa-solid fa-pen-to-square mr-2"></i> Informasi Data Aset</h3>
@@ -174,6 +181,18 @@
                                 <option value="{{ $layer->id }}">{{ $layer->nama_layer }}</option>
                             @endforeach
                         </select>
+                    </div>
+
+                    {{-- DROPDOWN LINK NOMER BERKAS --}}
+                    <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                        <label class="block text-xs font-bold text-indigo-700 uppercase mb-1"><i class="fa-solid fa-link mr-1"></i> Link Nomor Berkas</label>
+                        <select id="form_no_berkas" class="w-full text-sm border-indigo-200 rounded-md focus:ring-indigo-500 bg-white font-semibold text-gray-700 shadow-sm cursor-pointer">
+                            <option value="">-- Tidak di-link / Pilih Berkas di Meja Saya --</option>
+                            @foreach($berkasDiMeja as $b)
+                                <option value="{{ $b->nomer_berkas }}">{{ $b->nomer_berkas }} - {{ Str::limit($b->nama_pemohon, 25) }}</option>
+                            @endforeach
+                        </select>
+                        <p class="text-[10px] text-gray-500 mt-1">*Pilih nomor berkas agar area peta ini terhubung secara interaktif ke Detail Berkas.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -224,7 +243,7 @@
                     
                     <div class="pt-4 border-t flex justify-end gap-3 mt-4">
                         <button type="button" onclick="tutupModal('modalAtribut')" class="px-5 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-bold hover:bg-gray-200 transition">Batal</button>
-                        <button type="button" onclick="simpanAtributAset()" class="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-bold hover:bg-indigo-700 transition">
+                        <button type="button" onclick="simpanAtributAset()" class="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-bold hover:bg-indigo-700 transition shadow-sm">
                             <i class="fa-solid fa-save mr-1"></i> Simpan Data
                         </button>
                     </div>
@@ -256,20 +275,23 @@
     </style>
 
     <script>
+        // ==========================================
+        // VARIABEL GLOBAL PENTING (DILARANG DIHAPUS)
+        // ==========================================
+        var map, geoJsonLayer, userMarker;
+        var currentOpacity = 0.6;
+        var abortController = null; // Menghindari error JS
+        var fetchTimeout = null;    // Menghindari error JS
+
         function bukaModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function tutupModal(id) { document.getElementById(id).classList.add('hidden'); }
 
         // Fitur Lokasi Saya
-        var userMarker = null;
         window.goToMyLocation = function() {
             if (navigator.geolocation) {
                 Swal.fire({ title: 'Mencari Lokasi...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
                 
-                const options = {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                };
+                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
                 navigator.geolocation.getCurrentPosition(
                     position => {
@@ -286,9 +308,6 @@
                     error => {
                         Swal.close();
                         let pesanError = 'Tidak dapat mengakses lokasi. Pastikan GPS/Location aktif dan diizinkan di browser.';
-                        if (error.code === 1) pesanError = 'Akses lokasi ditolak oleh browser Anda. Silakan izinkan akses lokasi (klik ikon gembok di URL bar).';
-                        if (error.code === 2) pesanError = 'Sinyal GPS tidak ditemukan atau jaringan tidak mendukung pencarian lokasi.';
-                        if (error.code === 3) pesanError = 'Waktu pencarian lokasi habis (Timeout). Coba lagi di area terbuka.';
                         Swal.fire('Gagal', pesanError, 'error');
                     }, 
                     options
@@ -298,13 +317,12 @@
             }
         };
 
-        var map; // Global Map Var
-
         document.addEventListener('DOMContentLoaded', function () {
             
             @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{!! session('success') !!}' }); @endif
             @if(session('error')) Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: '{!! session('error') !!}' }); @endif
 
+            // Inisialisasi Peta
             map = L.map('main-map', { 
                 zoomControl: false, 
                 maxZoom: 22,
@@ -317,8 +335,6 @@
             var googleSatLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{ maxNativeZoom: 20, maxZoom: 22 });
             osmLayer.addTo(map);
             L.control.layers({ "Peta Jalan (OSM)": osmLayer, "Satelit (Google)": googleSatLayer }, null, { position: 'bottomleft' }).addTo(map);
-
-            var currentOpacity = parseFloat(document.getElementById('opacitySlider').value);
             
             function getColor(feature) {
                 if(feature.properties && feature.properties.layer_color) { return feature.properties.layer_color; }
@@ -330,7 +346,10 @@
                 layer.setStyle({ weight: 3, color: '#111827', fillOpacity: 0.8 });
                 if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) layer.bringToFront();
             }
-            function resetHighlight(e) { geoJsonLayer.resetStyle(e.target); }
+            
+            function resetHighlight(e) { 
+                geoJsonLayer.resetStyle(e.target); 
+            }
 
             // ==========================================
             // KONTROL GEOMAN (DRAWING & EDITING TOOLS)
@@ -376,9 +395,9 @@
             @endif
 
             // ==========================================
-            // RENDER GEOJSON LAYER
+            // RENDER GEOJSON LAYER & POPUP ASET
             // ==========================================
-            var geoJsonLayer = L.geoJSON(null, {
+            geoJsonLayer = L.geoJSON(null, {
                 style: function(feature) {
                     return { color: '#ffffff', fillColor: getColor(feature), weight: 1.5, opacity: 1, fillOpacity: currentOpacity };
                 },
@@ -405,10 +424,20 @@
                     var p = feature.properties;
                     var raw = p.raw_data || p;
                     var tableRows = '';
+                    var noBerkas = null; 
                     
                     for (var key in raw) {
                         if (raw.hasOwnProperty(key)) {
                             var val = raw[key];
+                            
+                            // Deteksi jika key berhubungan dengan Nomor Berkas 
+                            let lowerKey = key.toLowerCase();
+                            if (lowerKey === 'no_berkas' || lowerKey === 'nomer_berkas') {
+                                if (val !== null && val !== '' && String(val).trim() !== '') {
+                                    noBerkas = val;
+                                }
+                            }
+
                             if (val !== null && val !== '' && String(val).trim() !== '') {
                                 var displayKey = key.replace(/_/g, ' ').toUpperCase();
                                 tableRows += `
@@ -431,16 +460,29 @@
                             <div class="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
                                 <table class="w-full text-left border-collapse"><tbody>${tableRows}</tbody></table>
                             </div>
-                            @if($bisaKelolaLayer)
-                            <div class="mt-3 pt-2.5 border-t border-gray-200 flex justify-between gap-2">
-                                <button class="bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick='editAtributAset(${JSON.stringify(raw)}, ${p.id}, ${p.layer_id})'>
-                                    <i class="fa-solid fa-pen mr-1.5"></i> Edit Data
-                                </button>
-                                <button class="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick="deleteAsset(${p.id})">
-                                    <i class="fa-solid fa-trash mr-1.5"></i> Hapus
-                                </button>
+                            
+                            <div class="mt-3 pt-2.5 border-t border-gray-200 flex flex-col gap-2">
+                                ${noBerkas ? `
+                                    <a href="/berkas/search-link?no=${noBerkas}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-3 py-2.5 rounded-md font-bold transition-all flex items-center justify-center shadow-sm w-full">
+                                        <i class="fa-solid fa-file-contract mr-2"></i> LIHAT DETAIL BERKAS
+                                    </a>
+                                ` : `
+                                    <div class="text-[10px] text-orange-600 bg-orange-50 p-1.5 rounded text-center border border-orange-100 mb-1">
+                                        <i class="fa-solid fa-circle-exclamation mr-1"></i> Aset belum di-link. Silakan Edit Data.
+                                    </div>
+                                `}
+                                
+                                @if($bisaKelolaLayer)
+                                <div class="flex justify-between gap-2">
+                                    <button class="bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick='editAtributAset(${JSON.stringify(raw)}, ${p.id}, ${p.layer_id})'>
+                                        <i class="fa-solid fa-link mr-1.5"></i> Link / Edit Data
+                                    </button>
+                                    <button class="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 px-3 py-1.5 rounded-md text-[10px] font-bold transition flex-1 flex items-center justify-center shadow-sm" onclick="deleteAsset(${p.id})">
+                                        <i class="fa-solid fa-trash mr-1.5"></i> Hapus
+                                    </button>
+                                </div>
+                                @endif
                             </div>
-                            @endif
                         </div>`;
                     
                     layer.bindPopup(content);
@@ -448,13 +490,11 @@
             }).addTo(map);
 
             // ==========================================
-            // FUNGSI JAVASCRIPT GLOBAL
+            // FUNGSI PENGAMBILAN DATA (AJAX)
             // ==========================================
-            var abortController = null;
-            var fetchTimeout = null;
-
             window.loadData = function() {
-                clearTimeout(fetchTimeout);
+                clearTimeout(fetchTimeout); // Debounce requests
+                
                 fetchTimeout = setTimeout(function() {
                     var loading = document.getElementById('map-loading');
                     if(loading) loading.classList.remove('hidden');
@@ -470,7 +510,10 @@
                     });
                     selectedLayers.forEach(id => params.append('layers[]', id));
 
-                    if (abortController) abortController.abort();
+                    // Membatalkan request lama jika belum selesai
+                    if (abortController) {
+                        abortController.abort();
+                    }
                     abortController = new AbortController();
 
                     fetch(`/map/api/data?${params.toString()}`, { signal: abortController.signal })
@@ -480,8 +523,12 @@
                             if(data.features && data.features.length > 0) geoJsonLayer.addData(data);
                             if(loading) loading.classList.add('hidden');
                         })
-                        .catch(err => { if (err.name !== 'AbortError' && loading) loading.classList.add('hidden'); });
-                }, 350);
+                        .catch(err => { 
+                            if (err.name !== 'AbortError' && loading) {
+                                loading.classList.add('hidden'); 
+                            }
+                        });
+                }, 300);
             };
 
             map.on('moveend', loadData); 
@@ -504,21 +551,39 @@
                 });
             };
 
+            // ==========================================
+            // LOGIKA MODAL ATRIBUT & LINK BERKAS
+            // ==========================================
             window.editAtributAset = function(raw, id, layerId) {
                 document.getElementById('form_mode').value = 'update';
                 document.getElementById('form_asset_id').value = id;
-                
                 document.getElementById('form_layer_id').value = layerId || '';
                 
                 let r = {};
                 for(let key in raw) r[key.toUpperCase()] = raw[key];
 
+                // LOGIKA AUTO-SELECT Nomer Berkas Link
+                let noBerkasVal = r['NOMER_BERKAS'] || r['NO_BERKAS'] || '';
+                let selectNoBerkas = document.getElementById('form_no_berkas');
+                
+                let optionExists = Array.from(selectNoBerkas.options).some(o => o.value === noBerkasVal);
+                if (optionExists) {
+                    selectNoBerkas.value = noBerkasVal;
+                } else if (noBerkasVal !== '') {
+                    // Jika ada nomor berkas tapi tidak ada di pilihan "Meja Saya", tambahkan opsi sementara
+                    let newOption = new Option(noBerkasVal + ' (Riwayat / Diluar Meja)', noBerkasVal);
+                    selectNoBerkas.add(newOption);
+                    selectNoBerkas.value = noBerkasVal;
+                } else {
+                    selectNoBerkas.value = '';
+                }
+
                 document.getElementById('form_nib').value = r['NIB'] || '';
                 
                 let th = r['TIPEHAK'] || r['HAK'] || r['STATUS'] || 'Lainnya';
                 let selectTipe = document.getElementById('form_tipehak');
-                let optionExists = Array.from(selectTipe.options).some(o => o.value.toLowerCase() === th.toLowerCase());
-                selectTipe.value = optionExists ? Array.from(selectTipe.options).find(o => o.value.toLowerCase() === th.toLowerCase()).value : 'Lainnya';
+                let optionExistsTh = Array.from(selectTipe.options).some(o => o.value.toLowerCase() === th.toLowerCase());
+                selectTipe.value = optionExistsTh ? Array.from(selectTipe.options).find(o => o.value.toLowerCase() === th.toLowerCase()).value : 'Lainnya';
                 
                 document.getElementById('form_luas').value = r['LUAS'] || r['LUASTERTUL'] || '';
                 document.getElementById('form_penggunaan').value = r['PENGGUNAAN'] || '';
@@ -526,7 +591,7 @@
                 document.getElementById('form_kecamatan').value = r['KECAMATAN'] || '';
                 document.getElementById('form_keterangan').value = r['KETERANGAN'] || '';
 
-                document.getElementById('modalAtributTitle').innerHTML = '<i class="fa-solid fa-pen mr-2"></i> Edit Data Atribut';
+                document.getElementById('modalAtributTitle').innerHTML = '<i class="fa-solid fa-link mr-2"></i> Link / Edit Data Atribut';
                 bukaModal('modalAtribut');
             }
 
@@ -534,6 +599,7 @@
                 let mode = document.getElementById('form_mode').value;
                 let payload = {
                     layer_id: document.getElementById('form_layer_id').value,
+                    nomer_berkas: document.getElementById('form_no_berkas').value, // <-- MENYIMPAN HASIL DROPDOWN LINK
                     nib: document.getElementById('form_nib').value,
                     tipehak: document.getElementById('form_tipehak').value,
                     luas: document.getElementById('form_luas').value,
@@ -599,7 +665,7 @@
             // ==========================================
             // DETEKSI AUTO ZOOM DARI HALAMAN DATA ASET
             // ==========================================
-            const urlParams = new URLSearchParams(window.location.search);
+            const urlParams = newSearchParams(window.location.search);
             const zoomAssetId = urlParams.get('zoom_asset');
 
             if (zoomAssetId) {

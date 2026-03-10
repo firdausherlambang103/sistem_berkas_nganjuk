@@ -18,8 +18,10 @@ use App\Http\Controllers\SuratTugasController;
 use App\Http\Controllers\SensusWakafController;
 use App\Http\Controllers\PeminjamanBukuTanahController;
 use App\Http\Controllers\MapController;
-use App\Http\Controllers\StatistikController; // <-- TAMBAHAN IMPORT CONTROLLER STATISTIK
+use App\Http\Controllers\StatistikController; 
 use App\Http\Controllers\KwitansiController;
+use Illuminate\Http\Request;
+use App\Models\Berkas;
 
 // Import Controller Khusus Mitra
 use App\Http\Controllers\Mitra\AuthController as MitraAuthController;
@@ -87,7 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/sensus-wakaf-data', [SensusWakafController::class, 'getMapData'])->name('sensus-wakaf.data');
 
     // --- WEBGIS / MASTER PETA ---
-    Route::prefix('map')->name('map.')->controller(\App\Http\Controllers\MapController::class)->group(function () {
+    Route::prefix('map')->name('map.')->controller(MapController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/aset', 'aset')->name('aset');
         
@@ -108,6 +110,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/update-warna/{id}', 'updateWarna')->name('updateWarna');
     });
 
+    // --- RUTE JEMBATAN WEBGIS KE DETAIL BERKAS ---
+    Route::get('/berkas/search-link', function (Request $request) {
+        $no = $request->query('no');
+        
+        $berkas = Berkas::where('nomer_berkas', $no)->first();
+        
+        if ($berkas) {
+            return redirect()->route('berkas.show', $berkas->id);
+        }
+        
+        return "<script>alert('Data Berkas dengan Nomor " . $no . " belum terdaftar di sistem tabel berkas.'); window.close();</script>";
+    })->name('berkas.link-peta');
+
     // --- LAPORAN ---
     Route::prefix('laporan')->name('laporan.')->controller(LaporanController::class)->group(function () {
         Route::get('/rinci', 'index')->name('index');
@@ -116,7 +131,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // --- GRAFIK STATISTIK ---
-    // <-- TAMBAHAN ROUTE UNTUK STATISTIK ADA DI SINI
     Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik.index');
     
     // --- PROFIL ---
