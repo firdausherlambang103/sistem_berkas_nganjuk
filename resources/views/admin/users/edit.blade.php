@@ -72,20 +72,33 @@
                         <label class="block text-sm font-bold text-gray-700 mb-3"><i class="fa-solid fa-bars mr-1.5 text-gray-400"></i> Hak Akses Menu Aplikasi</label>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             @php
-                                $userAksesMenu = is_array($user->akses_menu) ? $user->akses_menu : json_decode($user->akses_menu, true) ?? [];
+                                $rawMenu = old('akses_menu', $user->akses_menu);
+                                $userAksesMenu = is_array($rawMenu) ? $rawMenu : (json_decode($rawMenu, true) ?? []);
+                                if(is_string($userAksesMenu)) $userAksesMenu = json_decode($userAksesMenu, true) ?? [];
+                                if(!is_array($userAksesMenu)) $userAksesMenu = [];
                                 
-                                // Silakan sesuaikan array ini dengan daftar menu yang ada di sidebar Anda
+                                // [PERBAIKAN] Menggunakan Array Asosiatif (Value_Database => Label_Tampilan)
                                 $listMenu = [
-                                    'Dashboard', 'Ruang Kerja', 'Kwitansi', 'Peminjaman BT', 
-                                    'Jadwal Ukur', 'Surat Tugas', 'Laporan', 'WebGIS', 
-                                    'Data Aset', 'Kelola Layer', 'Manajemen Pengguna', 'Data Master'
+                                    'laporan_rinci' => 'Laporan Rinci',
+                                    'ruang_kerja' => 'Ruang Kerja',
+                                    'kwitansi' => 'Kwitansi',
+                                    'peminjaman_bt' => 'Peminjaman BT',
+                                    'penjadwalan_ukur' => 'Jadwal Ukur',
+                                    'surat_tugas' => 'Surat Tugas',
+                                    'buat_berkas' => 'Buat Berkas',
+                                    'WebGIS' => 'Peta Utama (WebGIS)',
+                                    'Data Aset' => 'Data Aset (Tabel)',
+                                    'Kelola Layer' => 'Kelola Layer',
+                                    'Statistik' => 'Statistik',
+                                    'silabus' => 'Silabus'
                                 ];
                             @endphp
                             
-                            @foreach($listMenu as $menu)
+                            @foreach($listMenu as $valDB => $label)
                             <label class="inline-flex items-center bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer transition">
-                                <input type="checkbox" name="akses_menu[]" value="{{ $menu }}" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" {{ in_array($menu, $userAksesMenu) ? 'checked' : '' }}>
-                                <span class="ml-2 text-xs font-bold text-gray-700 select-none">{{ $menu }}</span>
+                                {{-- Membandingkan value yang persis sama dengan yang ada di database --}}
+                                <input type="checkbox" name="akses_menu[]" value="{{ $valDB }}" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" {{ in_array($valDB, $userAksesMenu) ? 'checked' : '' }}>
+                                <span class="ml-2 text-xs font-bold text-gray-700 select-none">{{ $label }}</span>
                             </label>
                             @endforeach
                         </div>
@@ -101,12 +114,18 @@
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                             @php
                                 $allLayers = \App\Models\MapLayer::orderBy('nama_layer')->get();
-                                $userAksesLayer = is_array($user->akses_layer) ? $user->akses_layer : json_decode($user->akses_layer, true) ?? [];
+                                
+                                $rawLayer = old('akses_layer', $user->akses_layer);
+                                $userAksesLayer = is_array($rawLayer) ? $rawLayer : (json_decode($rawLayer, true) ?? []);
+                                if(is_string($userAksesLayer)) $userAksesLayer = json_decode($userAksesLayer, true) ?? [];
+                                if(!is_array($userAksesLayer)) $userAksesLayer = [];
+
+                                $userAksesLayer = array_map('strval', $userAksesLayer);
                             @endphp
                             
                             @foreach($allLayers as $layer)
                             <label class="inline-flex items-center p-2.5 bg-white rounded-lg border border-indigo-200 shadow-sm hover:bg-indigo-100 hover:border-indigo-300 cursor-pointer transition group">
-                                <input type="checkbox" name="akses_layer[]" value="{{ $layer->id }}" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" {{ in_array($layer->id, $userAksesLayer) ? 'checked' : '' }}>
+                                <input type="checkbox" name="akses_layer[]" value="{{ $layer->id }}" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" {{ in_array((string)$layer->id, $userAksesLayer) ? 'checked' : '' }}>
                                 <span class="ml-2 text-xs font-bold text-gray-700 truncate select-none group-hover:text-indigo-800" title="{{ $layer->nama_layer }}">{{ Str::limit($layer->nama_layer, 25) }}</span>
                             </label>
                             @endforeach
@@ -121,7 +140,7 @@
                     <div class="mb-6 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                         <label class="inline-flex items-center cursor-pointer">
                             <input type="hidden" name="is_approved" value="0">
-                            <input type="checkbox" name="is_approved" value="1" class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-5 h-5" {{ $user->is_approved ? 'checked' : '' }}>
+                            <input type="checkbox" name="is_approved" value="1" class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-5 h-5" {{ old('is_approved', $user->is_approved) ? 'checked' : '' }}>
                             <span class="ml-3 text-sm font-bold text-gray-800 select-none">Akun Disetujui (Approved) & Aktif</span>
                         </label>
                         <p class="text-[11px] text-gray-500 mt-1 ml-8">Hapus centang untuk menonaktifkan pengguna ini agar tidak bisa melakukan Login.</p>
