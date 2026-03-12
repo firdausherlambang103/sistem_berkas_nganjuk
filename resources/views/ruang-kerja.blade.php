@@ -190,7 +190,7 @@
                                             </div>
                                         </td>
                                         
-                                        {{-- TAMBAHKAN BAGIAN INI: Status Berkas (Badge Label) --}}
+                                        {{-- 4. Status Berkas --}}
                                         <td class="px-4 py-4 text-center">
                                             @if($berkas->status == 'Diproses')
                                                 <span class="px-2 py-1 text-[10px] font-bold text-blue-700 bg-blue-100 rounded-full border border-blue-200">Diproses</span>
@@ -199,12 +199,11 @@
                                             @elseif($berkas->status == 'Dikembalikan' || $berkas->status == 'Ditolak')
                                                 <span class="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200">{{ $berkas->status }}</span>
                                             @else
-                                                {{-- Fallback untuk status dinamis lainnya dari master_statuses --}}
                                                 <span class="px-2 py-1 text-[10px] font-bold text-indigo-700 bg-indigo-100 rounded-full border border-indigo-200">{{ $berkas->status }}</span>
                                             @endif
                                         </td>
                                         
-                                        {{-- 4. Status BT --}}
+                                        {{-- 5. Status BT --}}
                                         <td class="px-4 py-4 text-center">
                                             @if($berkas->peminjamanBukuTanah)
                                                 @php $statusPinjam = $berkas->peminjamanBukuTanah->status; @endphp
@@ -230,14 +229,14 @@
                                             @endif
                                         </td>
 
-                                        {{-- 5. Tombol WA --}}
+                                        {{-- 6. Tombol WA --}}
                                         <td class="px-4 py-4 text-center">
                                             <div class="relative inline-block group">
                                                 <button type="button" 
                                                     onclick="openWaModal('{{ $berkas->id }}', '{{ $berkas->nomer_wa }}', '{{ $berkas->nama_pemohon }}', '{{ $berkas->nomer_berkas }}', '{{ $berkas->status }}', {{ $berkas->waLogs->count() }})"
                                                     class="w-10 h-10 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-500 hover:text-white transition shadow-sm border border-green-200"
                                                     title="Kirim WhatsApp">
-                                                <i class="fa-brands fa-whatsapp text-xl"></i>
+                                                    <i class="fa-brands fa-whatsapp text-xl"></i>
                                                 </button>
                                                 
                                                 @if($berkas->waLogs && $berkas->waLogs->count() > 0)
@@ -248,6 +247,7 @@
                                             </div>
                                         </td>
 
+                                        {{-- 7. Aksi --}}
                                         <td class="px-4 py-4 text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 
@@ -269,7 +269,7 @@
                                                     <i class="fa-solid fa-flag"></i>
                                                 </button>
 
-                                                {{-- FITUR EDIT BERKAS KETAT (HANYA ADMIN & YANG DICENTANG HAK AKSESNYA) --}}
+                                                {{-- FITUR EDIT BERKAS KETAT --}}
                                                 @if(optional(Auth::user()->jabatan)->is_admin || (method_exists(Auth::user(), 'hasMenuAccess') && Auth::user()->hasMenuAccess('edit_berkas'))) 
                                                     <a href="{{ route('berkas.edit', $berkas->id) }}" class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition" title="Edit">
                                                         <i class="fa-solid fa-pen-to-square"></i>
@@ -641,7 +641,7 @@
         }
 
         // ==========================================
-        // 3. LOGIKA MODAL WHATSAPP
+        // 3. LOGIKA PENGIRIMAN WA
         // ==========================================
         let currentWaData = { id: null, phone: '', nama: '' };
         let templatesData = [];
@@ -759,6 +759,7 @@
                     "X-CSRF-TOKEN": csrfToken,
                     "Accept": "application/json"
                 },
+                // [PENTING] Payload ini sudah sempurna karena menyertakan template_id & berkas_id
                 body: JSON.stringify({
                     berkas_id: currentWaData.id,
                     template_id: templateId, 
@@ -769,9 +770,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success || data.status === 'success' || data.status === true) {
-                    alert('✅ Pesan Terkirim!');
+                    alert('✅ Pesan dan dokumen berhasil dikirim ke WhatsApp!');
                     closeWaModal();
-                    location.reload(); 
+                    // Hilangkan location.reload() jika tidak ingin halaman terefresh setelah mengirim pesan
+                    // location.reload(); 
                 } else {
                     alert('❌ Gagal: ' + (data.message || 'Terjadi kesalahan'));
                     btnKirim.disabled = false;
