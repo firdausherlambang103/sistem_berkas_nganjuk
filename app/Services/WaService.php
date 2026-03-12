@@ -91,12 +91,14 @@ class WaService
                 'api_key' => $this->apiKey
             ];
 
-            // [BARU] Kirim ke Nodejs menggunakan Path Absolut
+            // [DIPERBARUI] Kirim Path LOKAL DAN Path URL secara bersamaan
             if (!empty($mediaUrls)) {
-                $payload['media_path'] = $mediaUrls[0]; 
+                $payload['media_path'] = $mediaUrls[0]['path']; 
+                $payload['media_url']  = $mediaUrls[0]['url']; 
             }
 
-            $response = Http::timeout(30)->post("{$this->baseUrl}/send-message", $payload);
+            // Waktu timeout dinaikkan ke 45 detik jaga-jaga download file agak lama
+            $response = Http::timeout(45)->post("{$this->baseUrl}/send-message", $payload);
             $responseData = $response->json();
             
             $isSuccess = $response->successful() && (isset($responseData['status']) && $responseData['status'] == true);
@@ -134,7 +136,7 @@ class WaService
     {
         $message = $message ?? ''; 
         $placeholders = WaPlaceholder::all();
-        $mediaUrls = [];
+        $mediaData = [];
 
         if ($placeholders->isEmpty()) {
             return ['message' => $message, 'media_urls' => []];
@@ -163,9 +165,22 @@ class WaService
                 }
             }
 
-            // [BARU] Simpan sebagai Path Absolut untuk diload di Node.js
+            // [DIPERBARUI] Tangkap file dan pecah menjadi Absolute Path Harddisk & Absolute URL
             if (is_string($value) && preg_match('/\.(pdf|jpg|jpeg|png)$/i', $value)) {
-                $mediaUrls[] = storage_path('app/public/' . $value);
+                // Hilangkan slash di awal agar tidak campur-aduk
+                $cleanPath = ltrim($value, '/\\');
+                
+                // Normalisasi Path Windows (Biar slash-nya benar)
+                $absolutePath = storage_path('app' . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $cleanPath));
+                
+                // URL Publik otomatis bawa IP yg sedang diakses (cth: 192.168.0.81:8000)
+                $publicUrl = asset('storage/' . $cleanPath);
+
+                $mediaData[] = [
+                    'path' => $absolutePath,
+                    'url'  => $publicUrl
+                ];
+                
                 $message = str_replace($search, '', $message);
                 continue;
             }
@@ -186,7 +201,7 @@ class WaService
 
         return [
             'message' => trim($message),
-            'media_urls' => $mediaUrls
+            'media_urls' => $mediaData
         ];
     }
 
@@ -205,7 +220,8 @@ class WaService
         try {
             $logPesan = substr($message ?? '', 0, 400);
             if (!empty($mediaUrls)) {
-                $logPesan .= "\n\n[Lampiran: " . substr(basename($mediaUrls[0]), 0, 50) . "]";
+                // Catat nama filenya
+                $logPesan .= "\n\n[Lampiran: " . substr(basename($mediaUrls[0]['path']), 0, 50) . "]";
             }
 
             WaLog::create([
