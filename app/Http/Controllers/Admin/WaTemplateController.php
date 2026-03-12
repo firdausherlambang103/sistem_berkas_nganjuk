@@ -133,16 +133,25 @@ class WaTemplateController extends Controller
             }
 
             // Gunakan WaService untuk parsing (menggunakan Anonymous Class untuk akses method protected)
-            // Ini trik aman agar kita menggunakan logika yang sama persis dengan pengiriman asli
             $waService = new class extends \App\Services\WaService {
                 public function exposeParse($msg, $data) {
-                    return $this->parseTemplate($msg, $data);
+                    // [DIPERBARUI] Panggil fungsi baru parseMediaTemplate
+                    return $this->parseMediaTemplate($msg, $data);
                 }
             };
 
-            $parsedMessage = $waService->exposeParse($template->template, $berkas);
+            // Hasilnya sekarang berupa array: ['message' => '...', 'media_urls' => [...]]
+            $parsedData = $waService->exposeParse($template->template, $berkas);
+            
+            // Ambil teks pesannya
+            $pesanPreview = $parsedData['message'];
 
-            return response()->json(['message' => $parsedMessage]);
+            // Tambahkan indikator visual di preview jika pesan ini akan mengirimkan lampiran dokumen
+            if (!empty($parsedData['media_urls'])) {
+                $pesanPreview .= "\n\n*(Sistem akan mengirimkan lampiran dokumen secara otomatis)*";
+            }
+
+            return response()->json(['message' => $pesanPreview]);
 
         } catch (\Exception $e) {
             return response()->json(['message' => 'Gagal memuat preview: ' . $e->getMessage()], 500);

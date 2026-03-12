@@ -11,6 +11,7 @@ use App\Models\PenerimaKuasa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage; // <-- Ditambahkan
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
@@ -72,7 +73,7 @@ class BerkasController extends Controller
             'file_sertipikat' => 'nullable|mimes:pdf|max:5120', 
             'file_data_pendukung' => 'nullable|mimes:pdf|max:5120',
             'foto_lokasi' => 'nullable|image|max:5120', // Validasi foto lokasi (maksimal 5MB)
-            'file_sps' => 'nullable|mimes:pdf|max:5120',
+            'file_sps' => 'nullable|mimes:pdf|max:5120', // Opsional
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
@@ -100,6 +101,12 @@ class BerkasController extends Controller
                     $pathFotoLokasi = $request->file('foto_lokasi')->store('berkas/foto_lokasi', 'public');
                 }
 
+                // Proses Upload File SPS (Opsional)
+                $pathSps = null;
+                if ($request->hasFile('file_sps')) {
+                    $pathSps = $request->file('file_sps')->store('berkas/sps', 'public');
+                }
+
                 // 2. Buat Data Berkas
                 $berkas = Berkas::create([
                     'tahun' => $validatedData['tahun'],
@@ -125,7 +132,8 @@ class BerkasController extends Controller
                     // Simpan Data File dan Lokasi ke tabel
                     'file_sertipikat' => $pathSertipikat,
                     'file_data_pendukung' => $pathDataPendukung,
-                    'foto_lokasi' => $pathFotoLokasi, // Simpan path foto lokasi
+                    'foto_lokasi' => $pathFotoLokasi,
+                    'file_sps' => $pathSps, // Simpan path SPS
                     'latitude' => $validatedData['latitude'] ?? null,
                     'longitude' => $validatedData['longitude'] ?? null,
                 ]);
@@ -236,7 +244,20 @@ class BerkasController extends Controller
             'penerima_kuasa_id' => 'nullable|exists:penerima_kuasas,id',
             'catatan' => 'nullable|string',
             'status_buku_tanah' => 'required|in:Sertipikat Elektronik,Sertipikat Analog,Belum Sertipikat',
+            
+            // Validasi Update SPS (Opsional)
+            'file_sps' => 'nullable|mimes:pdf|max:5120', 
         ]);
+
+        // Proses Update File SPS
+        if ($request->hasFile('file_sps')) {
+            // Hapus file lama jika ada
+            if ($berkas->file_sps) {
+                Storage::disk('public')->delete($berkas->file_sps);
+            }
+            // Simpan file baru
+            $validatedData['file_sps'] = $request->file('file_sps')->store('berkas/sps', 'public');
+        }
 
         try {
             $berkas->update($validatedData);

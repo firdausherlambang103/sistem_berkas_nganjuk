@@ -22,7 +22,8 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('berkas.update', $berkas->id) }}">
+                    {{-- PASTIKAN enctype="multipart/form-data" ada di sini --}}
+                    <form method="POST" action="{{ route('berkas.update', $berkas->id) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
 
@@ -139,8 +140,30 @@
                             </div>
                         </div>
 
+                        {{-- ================= BAGIAN UPDATE DOKUMEN SPS ================= --}}
+                        <div class="mt-8 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-file-invoice-dollar mr-2 text-indigo-600"></i>Dokumen Surat Perintah Setor (SPS)</h3>
+                            
+                            <div class="p-4 bg-gray-50 border border-gray-200 rounded-md md:w-1/2">
+                                {{-- Tampilkan Link File Lama Jika Ada --}}
+                                @if($berkas->file_sps)
+                                    <div class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded text-sm flex items-center justify-between">
+                                        <span class="text-indigo-800 font-medium"><i class="fa-solid fa-check-circle mr-1"></i> Dokumen SPS sudah diupload.</span>
+                                        <a href="{{ asset('storage/' . $berkas->file_sps) }}" target="_blank" class="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700 transition">
+                                            <i class="fa-solid fa-eye mr-1"></i> Lihat
+                                        </a>
+                                    </div>
+                                @endif
+
+                                <x-input-label for="file_sps" value="Upload/Ganti Dokumen SPS (Opsional)" class="font-bold" />
+                                <input type="file" id="file_sps" name="file_sps" accept="application/pdf" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 focus:outline-none" />
+                                <p class="text-[10px] text-gray-500 mt-1.5 leading-tight">*Format PDF, maksimal ukuran 5MB. Biarkan kosong jika tidak ingin mengunggah atau mengganti file yang sudah ada.</p>
+                                <x-input-error :messages="$errors->get('file_sps')" class="mt-2" />
+                            </div>
+                        </div>
+
                         {{-- Catatan (Full Width) --}}
-                        <div class="mt-6">
+                        <div class="mt-6 border-t border-gray-200 pt-6">
                             <x-input-label for="catatan" :value="__('Catatan (Opsional)')" />
                             <textarea id="catatan" name="catatan" rows="3" class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm block mt-1 w-full">{{ old('catatan', $berkas->catatan) }}</textarea>
                             <x-input-error :messages="$errors->get('catatan')" class="mt-2" />
@@ -153,7 +176,7 @@
                             </a>
                             
                             <x-primary-button>
-                                {{ __('Simpan Perubahan') }}
+                                <i class="fa-solid fa-save mr-2"></i> {{ __('Simpan Perubahan') }}
                             </x-primary-button>
                         </div>
                     </form>
