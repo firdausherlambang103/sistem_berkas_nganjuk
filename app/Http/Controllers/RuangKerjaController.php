@@ -51,9 +51,9 @@ class RuangKerjaController extends Controller
         // --- 2. Query untuk Berkas di Meja Saya ---
         // Menampilkan berkas yang posisinya ada di user ini (sudah diterima & sedang diproses)
         $berkasDiMejaQuery = Berkas::where('posisi_sekarang_user_id', $currentUserId)
-            ->where('status', 'Diproses')
+            // Ubah baris di bawah ini agar menerima semua status kecuali yang disebutkan
+            ->whereNotIn('status', ['Selesai', 'Ditutup', 'Pending']) 
             ->where('status_pengiriman', 'Diterima')
-            // [OPTIMASI] Load relasi pendukung agar query lebih cepat (mengurangi N+1 Query)
             ->with(['jenisPermohonan', 'waLogs', 'penerimaKuasa', 'peminjamanBukuTanah']);
 
         // [BARU] Logika Filter Pembayaran (Hanya berfungsi jika user adalah Petugas Loket Pembayaran)

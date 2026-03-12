@@ -19,6 +19,7 @@ class Berkas extends Model
         // [DITAMBAHKAN] Field untuk Lampiran dan Peta Lokasi
         'file_sertipikat', 
         'file_data_pendukung', 
+        'file_sps',
         'latitude', 
         'longitude'
     ];

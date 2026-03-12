@@ -72,6 +72,7 @@ class BerkasController extends Controller
             'file_sertipikat' => 'nullable|mimes:pdf|max:5120', 
             'file_data_pendukung' => 'nullable|mimes:pdf|max:5120',
             'foto_lokasi' => 'nullable|image|max:5120', // Validasi foto lokasi (maksimal 5MB)
+            'file_sps' => 'nullable|mimes:pdf|max:5120',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
@@ -147,7 +148,7 @@ class BerkasController extends Controller
                          ->with('success', 'Berkas baru berhasil dibuat!');
     }
     
-/**
+    /**
      * Menampilkan detail dan riwayat berkas.
      */
     public function show(Berkas $berkas): View
@@ -163,7 +164,7 @@ class BerkasController extends Controller
             'penerimaKuasa'
         ]);
 
-        // [PERBAIKAN] Pencarian atribut dibuat menjadi ILIKE text agar tidak error tipe JSON
+        // Pencarian atribut dibuat menjadi ILIKE text agar tidak error tipe JSON
         // Ini memastikan nomer berkas terbaca apapun format key-nya
         $spatialFeature = DB::connection('pgsql')->table('spatial_features')
             ->where('name', $berkas->nomer_berkas)
@@ -182,20 +183,14 @@ class BerkasController extends Controller
      */
     public function edit(Berkas $berkas)
     {
-        $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
-        $isAdmin = optional(Auth::user()->jabatan)->is_admin;
+        $user = Auth::user();
+        
+        // Logika Pengecekan KETAT
+        $isAdmin = optional($user->jabatan)->is_admin;
+        $hasSpecialAccess = method_exists($user, 'hasMenuAccess') && $user->hasMenuAccess('edit_berkas');
 
-        // Daftar jabatan yang diizinkan edit
-        $allowed = [
-            'Petugas Loket', 
-            'Petugas Loket Entri',
-            'Petugas Loket Penyerahan', 
-            'Admin', 
-            'Administrator'
-        ];
-
-        if (!in_array($userJabatan, $allowed) && !$isAdmin) {
-            return redirect()->route('ruang-kerja')->with('error', 'Anda tidak memiliki akses untuk mengedit berkas ini.');
+        if (!$isAdmin && !$hasSpecialAccess) {
+            return redirect()->route('ruang-kerja')->with('error', 'Anda tidak memiliki hak akses untuk mengedit berkas. Hubungi Admin.');
         }
 
         $kecamatans = Kecamatan::orderBy('nama_kecamatan')->get();
@@ -210,19 +205,14 @@ class BerkasController extends Controller
      */
     public function update(Request $request, Berkas $berkas): RedirectResponse
     {
-        $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
-        $isAdmin = optional(Auth::user()->jabatan)->is_admin;
+        $user = Auth::user();
         
-        $allowed = [
-            'Petugas Loket', 
-            'Petugas Loket Entri',
-            'Petugas Loket Penyerahan', 
-            'Admin', 
-            'Administrator'
-        ];
+        // Logika Pengecekan KETAT
+        $isAdmin = optional($user->jabatan)->is_admin;
+        $hasSpecialAccess = method_exists($user, 'hasMenuAccess') && $user->hasMenuAccess('edit_berkas');
 
-        if (!in_array($userJabatan, $allowed) && !$isAdmin) {
-            abort(403, 'Tindakan tidak diizinkan. Hubungi Administrator.');
+        if (!$isAdmin && !$hasSpecialAccess) {
+            abort(403, 'Tindakan tidak diizinkan. Anda tidak punya hak akses edit berkas.');
         }
 
         $validatedData = $request->validate([
@@ -284,7 +274,7 @@ class BerkasController extends Controller
                 
                 $jabatanPengirim = optional($pengirim->jabatan)->nama_jabatan;
                 
-                // [PENTING] Petugas Loket Pembayaran DIHAPUS dari pemicu Timer Pengiriman
+                // Petugas Loket Pembayaran DIHAPUS dari pemicu Timer Pengiriman
                 // Karena Timer Argo SLA sudah pindah ke fungsi "Sudah Dibayar" (KwitansiController)
                 $jabatanPemicuTimer = [
                     'Petugas Loket Alih Media'

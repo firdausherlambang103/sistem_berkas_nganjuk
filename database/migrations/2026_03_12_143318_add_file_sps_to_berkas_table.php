@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('jabatans', function (Blueprint $table) {
-            $table->boolean('is_mitra')->default(false)->after('is_admin');
+        Schema::table('berkas', function (Blueprint $table) {
+            $table->string('file_sps')->nullable()->after('file_data_pendukung');
         });
     }
 
     public function down()
     {
-        Schema::table('jabatans', function (Blueprint $table) {
-            $table->dropColumn('is_mitra');
+        Schema::table('berkas', function (Blueprint $table) {
+            $table->dropColumn('file_sps');
         });
     }
 };

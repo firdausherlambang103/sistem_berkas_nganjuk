@@ -46,10 +46,19 @@
                                     @php
                                         $defaultNomer = old('nomer_berkas') ?? ($isMitra ? $generatedCode : '');
                                     @endphp
-                                    <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="mt-1 block w-full {{ $isMitra ? 'bg-indigo-50 font-mono font-bold text-indigo-700 tracking-widest' : '' }}" :value="$defaultNomer" required autofocus />
+                                    
                                     @if($isMitra)
+                                        <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="mt-1 block w-full bg-indigo-50 font-mono font-bold text-indigo-700 tracking-widest" :value="$defaultNomer" required autofocus />
                                         <p class="text-[10px] text-gray-500 mt-1">*Kode acak di-generate otomatis untuk Anda. Bisa diubah jika perlu.</p>
+                                    @else
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <x-text-input id="nomer_berkas" name="nomer_berkas" type="text" class="block w-full" :value="$defaultNomer" required autofocus />
+                                            <button type="button" onclick="generateNomorSementara()" class="whitespace-nowrap px-3 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Sementara
+                                            </button>
+                                        </div>
                                     @endif
+                                    
                                     <x-input-error :messages="$errors->get('nomer_berkas')" class="mt-2" />
                                 </div>
                             </div>
@@ -209,7 +218,7 @@
                             
                             <div class="space-y-8">
                                 
-                                {{-- Area Upload File (Dibagi menjadi 3 kolom: Sertipikat, Pendukung, Foto Kamera) --}}
+                                {{-- Area Upload File --}}
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div class="p-4 bg-gray-50 border border-gray-200 rounded-md">
                                         <x-input-label for="file_sertipikat" value="Upload Sertipikat (Format PDF, Maks 5MB)" class="font-bold" />
@@ -222,7 +231,7 @@
                                         <x-input-error :messages="$errors->get('file_data_pendukung')" class="mt-2" />
                                     </div>
                                     
-                                    {{-- KAMERA LOKASI LANGSUNG (Menggunakan capture="environment") --}}
+                                    {{-- KAMERA LOKASI LANGSUNG --}}
                                     <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-md">
                                         <x-input-label for="foto_lokasi" value="Foto Lokasi (Kamera HP)" class="font-bold text-indigo-800" />
                                         <input type="file" id="foto_lokasi" name="foto_lokasi" accept="image/*" capture="environment" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 focus:outline-none cursor-pointer" required />
@@ -293,6 +302,25 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
+        @if(!$isMitra)
+        function generateNomorSementara() {
+            // Fungsi untuk menghasilkan string acak huruf dan angka
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let randomString = '';
+            
+            // Buat 8 karakter acak
+            for (let i = 0; i < 8; i++) {
+                randomString += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+
+            // Masukkan ke input teks Nomor Berkas
+            const inputNoBerkas = document.getElementById('nomer_berkas');
+            if (inputNoBerkas) {
+                inputNoBerkas.value = 'TEMP-' + randomString;
+            }
+        }
+        @endif
+
         document.addEventListener('DOMContentLoaded', function () {
 
             @if($isMitra)

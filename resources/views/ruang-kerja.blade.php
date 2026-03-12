@@ -144,6 +144,7 @@
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Info Berkas</th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Kuasa / Pemohon</th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Hak & Lokasi</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status Berkas</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status BT</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status WA</th>
                                     <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -187,6 +188,20 @@
                                                 <i class="fa-solid fa-location-dot mr-1 text-red-400"></i> 
                                                 {{ Str::limit($berkas->desa, 15) }}, {{ Str::limit($berkas->kecamatan, 15) }}
                                             </div>
+                                        </td>
+                                        
+                                        {{-- TAMBAHKAN BAGIAN INI: Status Berkas (Badge Label) --}}
+                                        <td class="px-4 py-4 text-center">
+                                            @if($berkas->status == 'Diproses')
+                                                <span class="px-2 py-1 text-[10px] font-bold text-blue-700 bg-blue-100 rounded-full border border-blue-200">Diproses</span>
+                                            @elseif($berkas->status == 'Pengumuman')
+                                                <span class="px-2 py-1 text-[10px] font-bold text-yellow-700 bg-yellow-100 rounded-full border border-yellow-200">Pengumuman</span>
+                                            @elseif($berkas->status == 'Dikembalikan' || $berkas->status == 'Ditolak')
+                                                <span class="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200">{{ $berkas->status }}</span>
+                                            @else
+                                                {{-- Fallback untuk status dinamis lainnya dari master_statuses --}}
+                                                <span class="px-2 py-1 text-[10px] font-bold text-indigo-700 bg-indigo-100 rounded-full border border-indigo-200">{{ $berkas->status }}</span>
+                                            @endif
                                         </td>
                                         
                                         {{-- 4. Status BT --}}
@@ -254,13 +269,8 @@
                                                     <i class="fa-solid fa-flag"></i>
                                                 </button>
 
-                                                @php
-                                                    $userJabatan = optional(Auth::user()->jabatan)->nama_jabatan;
-                                                    $isAdmin = optional(Auth::user()->jabatan)->is_admin;
-                                                    $allowedEdit = ['Petugas Loket','Petugas Loket Entri', 'Petugas Loket Penyerahan', 'Admin', 'Administrator'];
-                                                @endphp
-
-                                                @if(in_array($userJabatan, $allowedEdit) || $isAdmin) 
+                                                {{-- FITUR EDIT BERKAS KETAT (HANYA ADMIN & YANG DICENTANG HAK AKSESNYA) --}}
+                                                @if(optional(Auth::user()->jabatan)->is_admin || (method_exists(Auth::user(), 'hasMenuAccess') && Auth::user()->hasMenuAccess('edit_berkas'))) 
                                                     <a href="{{ route('berkas.edit', $berkas->id) }}" class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition" title="Edit">
                                                         <i class="fa-solid fa-pen-to-square"></i>
                                                     </a>
@@ -291,7 +301,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="7" class="px-6 py-12 text-center text-gray-400 flex flex-col items-center justify-center">
+                                    <tr><td colspan="8" class="px-6 py-12 text-center text-gray-400 flex flex-col items-center justify-center">
                                         <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
                                         <span>Meja Anda bersih! Tidak ada berkas yang sedang diproses.</span>
                                     </td></tr>

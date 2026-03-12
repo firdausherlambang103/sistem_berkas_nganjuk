@@ -26,7 +26,7 @@ class User extends Authenticatable
         'password',
         'jabatan_id',
         'is_approved',
-        'akses_menu', // [BARU] Tambahkan ini agar bisa disimpan ke database
+        'akses_menu', 
         'akses_layer',
     ];
 
@@ -49,11 +49,11 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_approved' => 'boolean',
-        'akses_menu' => 'array', // [BARU] Ubah otomatis dari JSON ke Array PHP
+        'akses_menu' => 'array', 
         'akses_layer' => 'array',
     ];
 
-    // [BARU] Fungsi untuk mengecek hak akses menu/fitur dari checkbox Admin
+    // [DIPERBAIKI] Fungsi untuk mengecek hak akses menu dengan Safeguard Anti-Error
     public function hasMenuAccess($menu)
     {
         // Admin selalu punya akses penuh
@@ -61,8 +61,20 @@ class User extends Authenticatable
             return true;
         }
 
-        // Cek apakah menu ada di dalam array akses_menu user
-        $akses = $this->akses_menu ?? [];
+        // Ambil data akses dari database
+        $akses = $this->akses_menu;
+
+        // SAFEGUARD: Jika karena suatu hal data di DB terbaca sebagai "String JSON" (bukan Array),
+        // maka kita harus men-decode-nya terlebih dahulu agar tidak error di in_array().
+        if (is_string($akses)) {
+            $akses = json_decode($akses, true);
+        }
+
+        // Pastikan variabel $akses benar-benar berupa Array (jika null, jadikan array kosong)
+        if (!is_array($akses)) {
+            $akses = [];
+        }
+
         return in_array($menu, $akses);
     }
 

@@ -40,11 +40,10 @@
                             <input type="email" name="email" id="email" value="{{ old('email', $user->email) }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
                         </div>
 
-                        {{-- Password --}}
+                        {{-- Nomor WA --}}
                         <div>
-                            <label for="password" class="block text-sm font-bold text-gray-700 mb-1">Password Baru</label>
-                            <input type="password" name="password" id="password" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-50" placeholder="Biarkan kosong jika tidak diubah">
-                            <p class="text-[10px] text-gray-500 mt-1 italic">*Isi hanya jika Anda ingin mereset password pengguna ini.</p>
+                            <label for="nomer_wa" class="block text-sm font-bold text-gray-700 mb-1">Nomor WhatsApp</label>
+                            <input type="text" name="nomer_wa" id="nomer_wa" value="{{ old('nomer_wa', $user->nomer_wa) }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="08123456789">
                         </div>
 
                         {{-- Jabatan --}}
@@ -58,6 +57,13 @@
                                     </option>
                                 @endforeach
                             </select>
+                        </div>
+
+                        {{-- Password --}}
+                        <div class="md:col-span-2">
+                            <label for="password" class="block text-sm font-bold text-gray-700 mb-1">Password Baru</label>
+                            <input type="password" name="password" id="password" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-50" placeholder="Biarkan kosong jika tidak diubah">
+                            <p class="text-[10px] text-gray-500 mt-1 italic">*Isi hanya jika Anda ingin mereset password pengguna ini.</p>
                         </div>
                     </div>
 
@@ -77,7 +83,6 @@
                                 if(is_string($userAksesMenu)) $userAksesMenu = json_decode($userAksesMenu, true) ?? [];
                                 if(!is_array($userAksesMenu)) $userAksesMenu = [];
                                 
-                                // [PERBAIKAN] Menggunakan Array Asosiatif (Value_Database => Label_Tampilan)
                                 $listMenu = [
                                     'laporan_rinci' => 'Laporan Rinci',
                                     'ruang_kerja' => 'Ruang Kerja',
@@ -86,6 +91,7 @@
                                     'penjadwalan_ukur' => 'Jadwal Ukur',
                                     'surat_tugas' => 'Surat Tugas',
                                     'buat_berkas' => 'Buat Berkas',
+                                    'edit_berkas' => 'Edit Berkas (Akses Penuh)',
                                     'WebGIS' => 'Peta Utama (WebGIS)',
                                     'Data Aset' => 'Data Aset (Tabel)',
                                     'Kelola Layer' => 'Kelola Layer',
@@ -96,7 +102,6 @@
                             
                             @foreach($listMenu as $valDB => $label)
                             <label class="inline-flex items-center bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer transition">
-                                {{-- Membandingkan value yang persis sama dengan yang ada di database --}}
                                 <input type="checkbox" name="akses_menu[]" value="{{ $valDB }}" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" {{ in_array($valDB, $userAksesMenu) ? 'checked' : '' }}>
                                 <span class="ml-2 text-xs font-bold text-gray-700 select-none">{{ $label }}</span>
                             </label>
@@ -139,8 +144,9 @@
                     {{-- 3. STATUS AKUN --}}
                     <div class="mb-6 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                         <label class="inline-flex items-center cursor-pointer">
+                            {{-- Hidden input agar nilai 0 tetap terkirim jika checkbox tidak dicentang --}}
                             <input type="hidden" name="is_approved" value="0">
-                            <input type="checkbox" name="is_approved" value="1" class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-5 h-5" {{ old('is_approved', $user->is_approved) ? 'checked' : '' }}>
+                            <input type="checkbox" name="is_approved" value="1" class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-5 h-5" {{ old('is_approved', $user->is_approved) == 1 ? 'checked' : '' }}>
                             <span class="ml-3 text-sm font-bold text-gray-800 select-none">Akun Disetujui (Approved) & Aktif</span>
                         </label>
                         <p class="text-[11px] text-gray-500 mt-1 ml-8">Hapus centang untuk menonaktifkan pengguna ini agar tidak bisa melakukan Login.</p>

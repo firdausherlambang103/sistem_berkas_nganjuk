@@ -69,28 +69,31 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
-            'jabatan_id' => ['required', 'exists:jabatans,id'],
-            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:8',
+            'jabatan_id' => 'required|exists:jabatans,id',
+            'nomer_wa' => 'nullable|string|max:20',
+            'akses_menu' => 'nullable|array',
+            'akses_layer' => 'nullable|array',
+            'is_approved' => 'required|boolean', // WAJIB ADA INI
         ]);
 
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->jabatan_id = $request->jabatan_id;
-
-        // Simpan akses menu dari checkbox
-        $user->akses_menu = $request->input('akses_menu', []);
-
-        // Hanya update password jika diisi
+        // Jika password diisi, hash passwordnya. Jika kosong, jangan diupdate.
         if ($request->filled('password')) {
-            $user->password = Hash::make($request->password);
+            $validated['password'] = bcrypt($request->password);
+        } else {
+            unset($validated['password']);
         }
 
-        $user->save();
+        // Pastikan array dikonversi ke JSON agar masuk ke database (jika model tidak menggunakan casts)
+        $validated['akses_menu'] = $request->has('akses_menu') ? json_encode($request->akses_menu) : json_encode([]);
+        $validated['akses_layer'] = $request->has('akses_layer') ? json_encode($request->akses_layer) : json_encode([]);
 
-        return redirect()->route('admin.users.index')->with('success', 'Data user ' . $user->name . ' berhasil diperbarui.');
+        $user->update($validated);
+
+        return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil diupdate.');
     }
 
     /**

@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('area_kerja_petugas', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('berkas', function (Blueprint $table) {
+            //
         });
     }
 
@@ -22,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('area_kerja_petugas');
+        Schema::table('berkas', function (Blueprint $table) {
+            //
+        });
     }
 };

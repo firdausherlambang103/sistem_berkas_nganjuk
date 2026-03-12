@@ -87,9 +87,11 @@
                             </x-nav-link>
                         @endif
 
-                        <x-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
-                            {{ __('Kwitansi') }}
-                        </x-nav-link>
+                        @if(Auth::user()->hasMenuAccess('kwitansi'))
+                            <x-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
+                                {{ __('Kwitansi') }}
+                            </x-nav-link>
+                        @endif
                         
                         {{-- ======================================================== --}}
                         {{-- MENU PETA WEBGIS (DROPDOWN / SUB-MENU) INTERNAL          --}}
@@ -328,9 +330,11 @@
                     </x-responsive-nav-link>
                 @endif
 
-                <x-responsive-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
-                    {{ __('Kwitansi') }}
-                </x-responsive-nav-link>
+                @if(Auth::user()->hasMenuAccess('kwitansi'))
+                    <x-responsive-nav-link :href="route('kwitansi.index')" :active="request()->routeIs('kwitansi.*')">
+                        {{ __('Kwitansi') }}
+                    </x-responsive-nav-link>
+                @endif
                 
                 @if($bisaWebGIS)
                     <div class="pt-2 pb-1 border-t border-gray-200 mt-2">
