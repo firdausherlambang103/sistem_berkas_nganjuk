@@ -11,7 +11,7 @@ use App\Models\PenerimaKuasa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage; // <-- Ditambahkan
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
@@ -84,27 +84,40 @@ class BerkasController extends Controller
             DB::transaction(function () use ($request, $validatedData, &$berkas) {
                 $currentUser = Auth::user();
 
-                // Proses Upload File jika ada
+                // Bersihkan nomer berkas dari karakter yang mungkin dilarang oleh file system (misal /)
+                $safeNomerBerkas = preg_replace('/[^A-Za-z0-9\-]/', '-', $validatedData['nomer_berkas']);
+                $tahunBerkas = $validatedData['tahun'];
+                $baseFileName = $safeNomerBerkas . '-' . $tahunBerkas;
+
+                // Proses Upload File jika ada dengan format nama custom
                 $pathSertipikat = null;
                 if ($request->hasFile('file_sertipikat')) {
-                    $pathSertipikat = $request->file('file_sertipikat')->store('berkas/sertipikat', 'public');
+                    $ext = $request->file('file_sertipikat')->getClientOriginalExtension();
+                    $fileName = 'sertipikat_' . $baseFileName . '.' . $ext;
+                    $pathSertipikat = $request->file('file_sertipikat')->storeAs('berkas/sertipikat', $fileName, 'public');
                 }
 
                 $pathDataPendukung = null;
                 if ($request->hasFile('file_data_pendukung')) {
-                    $pathDataPendukung = $request->file('file_data_pendukung')->store('berkas/data_pendukung', 'public');
+                    $ext = $request->file('file_data_pendukung')->getClientOriginalExtension();
+                    $fileName = 'data_pendukung_' . $baseFileName . '.' . $ext;
+                    $pathDataPendukung = $request->file('file_data_pendukung')->storeAs('berkas/data_pendukung', $fileName, 'public');
                 }
 
                 // Proses Upload Foto Lokasi (Mitra)
                 $pathFotoLokasi = null;
                 if ($request->hasFile('foto_lokasi')) {
-                    $pathFotoLokasi = $request->file('foto_lokasi')->store('berkas/foto_lokasi', 'public');
+                    $ext = $request->file('foto_lokasi')->getClientOriginalExtension();
+                    $fileName = 'foto_lokasi_' . $baseFileName . '.' . $ext;
+                    $pathFotoLokasi = $request->file('foto_lokasi')->storeAs('berkas/foto_lokasi', $fileName, 'public');
                 }
 
                 // Proses Upload File SPS (Opsional)
                 $pathSps = null;
                 if ($request->hasFile('file_sps')) {
-                    $pathSps = $request->file('file_sps')->store('berkas/sps', 'public');
+                    $ext = $request->file('file_sps')->getClientOriginalExtension();
+                    $fileName = 'sps_' . $baseFileName . '.' . $ext;
+                    $pathSps = $request->file('file_sps')->storeAs('berkas/sps', $fileName, 'public');
                 }
 
                 // 2. Buat Data Berkas
@@ -255,8 +268,14 @@ class BerkasController extends Controller
             if ($berkas->file_sps) {
                 Storage::disk('public')->delete($berkas->file_sps);
             }
-            // Simpan file baru
-            $validatedData['file_sps'] = $request->file('file_sps')->store('berkas/sps', 'public');
+            
+            $safeNomerBerkas = preg_replace('/[^A-Za-z0-9\-]/', '-', $validatedData['nomer_berkas']);
+            $tahunBerkas = $validatedData['tahun'];
+            $ext = $request->file('file_sps')->getClientOriginalExtension();
+            $fileName = 'sps_' . $safeNomerBerkas . '-' . $tahunBerkas . '.' . $ext;
+
+            // Simpan file baru dengan nama custom
+            $validatedData['file_sps'] = $request->file('file_sps')->storeAs('berkas/sps', $fileName, 'public');
         }
 
         try {
@@ -270,6 +289,12 @@ class BerkasController extends Controller
     public function destroy(Berkas $berkas): RedirectResponse
     {
         try {
+            // Hapus file fisik jika ada saat berkas dihapus
+            if ($berkas->file_sertipikat) Storage::disk('public')->delete($berkas->file_sertipikat);
+            if ($berkas->file_data_pendukung) Storage::disk('public')->delete($berkas->file_data_pendukung);
+            if ($berkas->foto_lokasi) Storage::disk('public')->delete($berkas->foto_lokasi);
+            if ($berkas->file_sps) Storage::disk('public')->delete($berkas->file_sps);
+
             $berkas->delete();
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus berkas. Error: ' . $e->getMessage());

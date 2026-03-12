@@ -211,7 +211,7 @@
                         </div>
                     </div>
 
-                    {{-- ================= BAGIAN KHUSUS MITRA ================= --}}
+                    {{-- ================= BAGIAN KHUSUS MITRA & NON-MITRA (SPS) ================= --}}
                     @if($isMitra)
                         <div class="col-span-1 md:col-span-2 mt-8 pt-6 border-t border-gray-200">
                             <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-cloud-arrow-up mr-2 text-indigo-600"></i>Data Pendukung & Lokasi Objek</h3>
@@ -272,6 +272,20 @@
 
                             </div>
                         </div>
+                    @else
+                        {{-- ================= BAGIAN KHUSUS NON-MITRA ================= --}}
+                        <div class="col-span-1 md:col-span-2 mt-8 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">
+                                <i class="fa-solid fa-file-invoice-dollar mr-2 text-indigo-600"></i>Dokumen Surat Perintah Setor (SPS)
+                            </h3>
+                            
+                            <div class="p-4 bg-gray-50 border border-gray-200 rounded-md md:w-1/2">
+                                <x-input-label for="file_sps" value="Upload Dokumen SPS (Opsional)" class="font-bold" />
+                                <input type="file" id="file_sps" name="file_sps" accept="application/pdf" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 focus:outline-none" />
+                                <p class="text-[10px] text-gray-500 mt-1.5 leading-tight">*Format PDF, maksimal ukuran 5MB. Boleh dikosongkan jika belum ada/tidak diperlukan.</p>
+                                <x-input-error :messages="$errors->get('file_sps')" class="mt-2" />
+                            </div>
+                        </div>
                     @endif
                     
                     {{-- Input Catatan --}}
@@ -304,19 +318,19 @@
     <script>
         @if(!$isMitra)
         function generateNomorSementara() {
-            // Fungsi untuk menghasilkan string acak huruf dan angka
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let randomString = '';
+            // Fungsi untuk menghasilkan 4 digit angka acak
+            const chars = '0123456789';
+            let randomDigits = '';
             
-            // Buat 8 karakter acak
-            for (let i = 0; i < 8; i++) {
-                randomString += chars.charAt(Math.floor(Math.random() * chars.length));
+            // Buat 4 karakter angka acak
+            for (let i = 0; i < 4; i++) {
+                randomDigits += chars.charAt(Math.floor(Math.random() * chars.length));
             }
 
-            // Masukkan ke input teks Nomor Berkas
+            // Masukkan ke input teks Nomor Berkas dengan format S-XXXX
             const inputNoBerkas = document.getElementById('nomer_berkas');
             if (inputNoBerkas) {
-                inputNoBerkas.value = 'TEMP-' + randomString;
+                inputNoBerkas.value = 'S-' + randomDigits;
             }
         }
         @endif
