@@ -287,6 +287,12 @@ class ManajemenController extends Controller
         return redirect()->back()->with('success', 'Penerima Kuasa berhasil ditambahkan.');
     }
 
+    public function kuasaEdit(PenerimaKuasa $kuasa)
+    {
+        return view('admin.manajemen.kuasa-edit', compact('kuasa'));
+    }
+
+    // 2. Sesuaikan fungsi kuasaUpdate agar redirect ke route index (bukan back)
     public function kuasaUpdate(Request $request, PenerimaKuasa $kuasa)
     {
         $request->validate([
@@ -297,7 +303,8 @@ class ManajemenController extends Controller
 
         $kuasa->update($request->all());
 
-        return redirect()->back()->with('success', 'Data Penerima Kuasa berhasil diperbarui.');
+        // Ubah redirect()->back() menjadi redirect()->route('admin.kuasa.index')
+        return redirect()->route('admin.kuasa.index')->with('success', 'Data Penerima Kuasa berhasil diperbarui.');
     }
 
     public function kuasaDestroy(PenerimaKuasa $kuasa)

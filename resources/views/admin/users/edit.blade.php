@@ -59,11 +59,17 @@
                             </select>
                         </div>
 
-                        {{-- Password --}}
-                        <div class="md:col-span-2">
+                        {{-- Password Baru --}}
+                        <div>
                             <label for="password" class="block text-sm font-bold text-gray-700 mb-1">Password Baru</label>
                             <input type="password" name="password" id="password" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-50" placeholder="Biarkan kosong jika tidak diubah">
-                            <p class="text-[10px] text-gray-500 mt-1 italic">*Isi hanya jika Anda ingin mereset password pengguna ini.</p>
+                            <p class="text-[10px] text-gray-500 mt-1 italic">*Isi hanya jika Anda ingin mereset password.</p>
+                        </div>
+
+                        {{-- Konfirmasi Password Baru --}}
+                        <div>
+                            <label for="password_confirmation" class="block text-sm font-bold text-gray-700 mb-1">Konfirmasi Password</label>
+                            <input type="password" name="password_confirmation" id="password_confirmation" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-50" placeholder="Ketik ulang password baru">
                         </div>
                     </div>
 

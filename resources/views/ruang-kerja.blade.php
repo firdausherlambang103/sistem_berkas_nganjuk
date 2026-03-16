@@ -40,6 +40,7 @@
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">No. Berkas</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pengirim</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Perihal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Hak & Lokasi</th>
                                     <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -59,6 +60,14 @@
                                                 {{ optional($berkas->jenisPermohonan)->nama_permohonan ?? 'N/A' }}
                                             </span>
                                         </td>
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm font-semibold text-gray-700">
+                                                {{ $berkas->jenis_alas_hak }} <span class="font-mono bg-blue-50 text-blue-700 px-1 rounded border border-blue-100">{{ $berkas->nomer_hak }}</span>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-1 flex items-center">
+                                                <i class="fa-solid fa-map-location-dot text-red-400 mr-1.5"></i> {{ $berkas->desa }}, {{ $berkas->kecamatan }}
+                                            </div>
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div class="flex items-center justify-end gap-2">
                                                 <form action="{{ route('berkas.terima', $berkas) }}" method="POST">
@@ -77,7 +86,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="4" class="px-6 py-8 text-center text-gray-500 italic">Tidak ada berkas masuk.</td></tr>
+                                    <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">Tidak ada berkas masuk.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

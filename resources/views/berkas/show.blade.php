@@ -52,6 +52,30 @@
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis Permohonan</dt>
                             <dd class="mt-1 text-sm text-gray-900">{{ $berkas->jenisPermohonan->nama_permohonan ?? 'N/A' }}</dd>
                         </div>
+                        
+                        {{-- STATUS PEMBAYARAN --}}
+                        <div>
+                            <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Status Pembayaran</dt>
+                            <dd class="mt-1">
+                                @if($berkas->tgl_bayar)
+                                    <div class="flex flex-col gap-1">
+                                        <span class="px-2.5 py-1 text-[11px] font-bold text-green-700 bg-green-100 rounded border border-green-200 inline-flex items-center w-fit">
+                                            <i class="fa-solid fa-check-circle mr-1"></i> Lunas ({{ \Carbon\Carbon::parse($berkas->tgl_bayar)->translatedFormat('d M Y') }})
+                                        </span>
+                                        @if($berkas->tgl_penyerahan_kwitansi)
+                                            <span class="text-[11px] text-gray-600 mt-0.5 ml-1">
+                                                <i class="fa-solid fa-receipt text-gray-400 mr-1"></i> Kwitansi diserahkan ke: <b>{{ $berkas->penerima_kwitansi }}</b>
+                                            </span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="px-2.5 py-1 text-[11px] font-bold text-red-700 bg-red-100 rounded border border-red-200 inline-flex items-center w-fit">
+                                        <i class="fa-solid fa-clock mr-1"></i> Belum Dibayar
+                                    </span>
+                                @endif
+                            </dd>
+                        </div>
+
                          <div>
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Posisi Saat Ini</dt>
                             <dd class="mt-1 text-sm font-semibold text-green-600 flex items-center bg-green-50 p-2 rounded-md border border-green-200">

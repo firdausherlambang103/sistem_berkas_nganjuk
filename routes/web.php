@@ -80,6 +80,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Kwitansi
     Route::get('/kwitansi', [KwitansiController::class, 'index'])->name('kwitansi.index');
     Route::post('/kwitansi/{id}/serahkan', [KwitansiController::class, 'serahkanKwitansi'])->name('kwitansi.serahkan');
+    Route::put('/kwitansi/{id}/update', [App\Http\Controllers\KwitansiController::class, 'updateKwitansi'])->name('kwitansi.update');
+    Route::get('/kwitansi/cari-berkas', [App\Http\Controllers\KwitansiController::class, 'cariBerkas'])->name('kwitansi.cari-berkas');
+    Route::post('/kwitansi/manual', [App\Http\Controllers\KwitansiController::class, 'storeManual'])->name('kwitansi.store-manual');
 
     // Ruang Kerja Internal
     Route::get('/ruang-kerja', [RuangKerjaController::class, 'index'])->name('ruang-kerja');
@@ -209,6 +212,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         // Penerima Kuasa
         Route::get('/penerima-kuasa', 'kuasaIndex')->name('kuasa.index');
         Route::post('/penerima-kuasa', 'kuasaStore')->name('kuasa.store');
+        Route::get('/penerima-kuasa/{kuasa}/edit', 'kuasaEdit')->name('kuasa.edit');
         Route::patch('/penerima-kuasa/{kuasa}', 'kuasaUpdate')->name('kuasa.update');
         Route::delete('/penerima-kuasa/{kuasa}', 'kuasaDestroy')->name('kuasa.destroy');
 

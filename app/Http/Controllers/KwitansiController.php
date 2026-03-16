@@ -78,4 +78,84 @@ class KwitansiController extends Controller
 
         return redirect()->back()->with('success', 'Data penyerahan kwitansi berhasil disimpan!');
     }
+
+    // Aksi untuk mengubah data kwitansi yang salah input
+    public function updateKwitansi(Request $request, $id)
+    {
+        $request->validate([
+            'tgl_bayar'               => 'required|date',
+            'penerima_kwitansi'       => 'nullable|string|max:255',
+            'tgl_penyerahan_kwitansi' => 'nullable|date'
+        ]);
+
+        $berkas = Berkas::findOrFail($id);
+        $berkas->tgl_bayar = $request->tgl_bayar;
+        $berkas->penerima_kwitansi = $request->penerima_kwitansi;
+        $berkas->tgl_penyerahan_kwitansi = $request->tgl_penyerahan_kwitansi;
+        $berkas->save();
+
+        return redirect()->back()->with('success', 'Data kwitansi berhasil diperbarui!');
+    }
+
+    // ==========================================
+    // FITUR KWITANSI MANUAL
+    // ==========================================
+
+    // Cari berkas via AJAX
+    public function cariBerkas(Request $request)
+    {
+        $nomer = $request->query('nomer_berkas');
+        $berkas = Berkas::with('jenisPermohonan')->where('nomer_berkas', $nomer)->first();
+
+        if ($berkas) {
+            if ($berkas->tgl_bayar != null) {
+                return response()->json(['success' => false, 'message' => 'Berkas dengan Nomer ini SUDAH LUNAS sebelumnya.']);
+            }
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $berkas->id,
+                    'nama_pemohon' => $berkas->nama_pemohon,
+                    'jenis_alas_hak' => $berkas->jenis_alas_hak,
+                    'nomer_hak' => $berkas->nomer_hak,
+                    'desa' => $berkas->desa,
+                    'kecamatan' => $berkas->kecamatan,
+                    'jenis_permohonan' => $berkas->jenisPermohonan->nama_permohonan ?? '-'
+                ]
+            ]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Nomer Berkas tidak ditemukan di sistem.']);
+    }
+
+    // Simpan kwitansi dari modal manual
+    public function storeManual(Request $request)
+    {
+        $request->validate([
+            'berkas_id' => 'required|exists:berkas,id',
+            'tgl_bayar' => 'required|date',
+            'penerima_kwitansi' => 'nullable|string|max:255',
+            'tgl_penyerahan_kwitansi' => 'nullable|date'
+        ]);
+
+        $berkas = Berkas::findOrFail($request->berkas_id);
+        $berkas->tgl_bayar = $request->tgl_bayar;
+        $berkas->penerima_kwitansi = $request->penerima_kwitansi;
+        $berkas->tgl_penyerahan_kwitansi = $request->tgl_penyerahan_kwitansi;
+
+        // LOGIKA ARGO SLA DIMULAI
+        if (is_null($berkas->waktu_mulai_proses)) {
+            $tglMulai = Carbon::parse($request->tgl_bayar)->startOfDay();
+            $berkas->waktu_mulai_proses = $tglMulai;
+
+            if ($berkas->jenisPermohonan && $berkas->jenisPermohonan->waktu_penyelesaian) {
+                $hariSla = $berkas->jenisPermohonan->waktu_penyelesaian;
+                $berkas->batas_waktu = $tglMulai->copy()->addDays($hariSla)->endOfDay();
+            }
+        }
+
+        $berkas->save();
+
+        return redirect()->back()->with('success', 'Kwitansi manual berhasil ditambahkan dan Status Berkas otomatis menjadi Lunas!');
+    }
 }

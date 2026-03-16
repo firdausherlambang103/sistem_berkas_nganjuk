@@ -43,16 +43,13 @@
                         $jmlPending = $daftarBerkas->where('status', 'Pending')->count();
                         
                         // Hitung Jatuh Tempo (HANYA DARI BERKAS AKTIF)
-                        // Karena Controller sudah memfilter status 'Selesai', kita cukup cek now() vs deadline
                         $jmlJatuhTempo = $daftarBerkas->filter(function ($item) {
                             if (!$item->jenisPermohonan) return false;
                             
                             $timeline = $item->jenisPermohonan->waktu_timeline_hari;
-                            // Gunakan waktu_mulai_proses, jika null pakai created_at
                             $mulai = $item->waktu_mulai_proses ? \Carbon\Carbon::parse($item->waktu_mulai_proses) : $item->created_at;
                             $deadline = $mulai->copy()->addDays($timeline);
                             
-                            // Cek apakah sekarang sudah melewati deadline
                             return now()->greaterThan($deadline);
                         })->count();
                     @endphp
@@ -117,7 +114,8 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Berkas</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Jenis & Hak</th>
-                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status Berkas</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Pembayaran</th>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Timeline / Durasi</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
                             </tr>
@@ -166,21 +164,34 @@
                                     {{-- Kolom 3: Status Badge --}}
                                     <td class="px-6 py-4 text-center">
                                         @if($berkas->status == 'Diproses')
-                                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                            <span class="px-2.5 py-1 inline-flex text-[11px] leading-5 font-bold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
                                                 <i class="fa-solid fa-spinner fa-spin mr-1.5 mt-0.5"></i> Proses
                                             </span>
                                         @elseif($berkas->status == 'Pending')
-                                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800 border border-orange-200">
+                                            <span class="px-2.5 py-1 inline-flex text-[11px] leading-5 font-bold rounded-full bg-orange-100 text-orange-800 border border-orange-200">
                                                 <i class="fa-solid fa-pause mr-1.5 mt-0.5"></i> Pending
                                             </span>
                                         @else
-                                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                            <span class="px-2.5 py-1 inline-flex text-[11px] leading-5 font-bold rounded-full bg-gray-100 text-gray-800">
                                                 {{ $berkas->status }}
                                             </span>
                                         @endif
                                     </td>
 
-                                    {{-- Kolom 4: Timeline / Sisa Waktu --}}
+                                    {{-- Kolom 4: Status Pembayaran --}}
+                                    <td class="px-6 py-4 text-center">
+                                        @if($berkas->tgl_bayar)
+                                            <span class="px-2.5 py-1 inline-flex text-[11px] leading-5 font-bold rounded bg-green-100 text-green-700 border border-green-200">
+                                                <i class="fa-solid fa-check-circle mr-1 mt-0.5"></i> Lunas
+                                            </span>
+                                        @else
+                                            <span class="px-2.5 py-1 inline-flex text-[11px] leading-5 font-bold rounded bg-red-100 text-red-700 border border-red-200">
+                                                <i class="fa-solid fa-clock mr-1 mt-0.5"></i> Belum Dibayar
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    {{-- Kolom 5: Timeline / Sisa Waktu --}}
                                     <td class="px-6 py-4 text-center">
                                         <div class="flex flex-col items-center">
                                             @if($isJatuhTempo)
@@ -200,7 +211,7 @@
                                         </div>
                                     </td>
 
-                                    {{-- Kolom 5: Aksi --}}
+                                    {{-- Kolom 6: Aksi --}}
                                     <td class="px-6 py-4 text-right">
                                         <a href="{{ route('berkas.show', $berkas->id) }}" class="text-indigo-600 hover:text-indigo-900 font-medium text-sm inline-flex items-center">
                                             Detail <i class="fa-solid fa-chevron-right ml-1 text-xs"></i>
@@ -209,7 +220,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-10 text-center text-gray-500 italic bg-gray-50">
+                                    <td colspan="6" class="px-6 py-10 text-center text-gray-500 italic bg-gray-50">
                                         <div class="flex flex-col items-center justify-center">
                                             <i class="fa-regular fa-folder-open text-3xl mb-2 text-gray-300"></i>
                                             <p>Tidak ada berkas yang sedang dikerjakan saat ini.</p>
